@@ -1,0 +1,18 @@
+# Supabase CLI — configuração local (base F0; ajustar project_id na F1).
+project_id = "connectweb-automations"
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+# F1: cadastro sem confirmação de e-mail (login imediato + provisionamento).
+# No Supabase hospedado, o equivalente é Auth > Providers > Email > "Confirm email" = off.
+[auth.email]
+enable_confirmations = false
+
+[storage]
+enabled = true

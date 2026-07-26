@@ -22,7 +22,9 @@ import {
   YAxis,
 } from "recharts";
 import { AppLayout } from "@/components/app-layout";
-import { KpiCard, SectionCard } from "@/components/premium";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { SectionCard } from "@/components/shared/section-card";
+import { chartTooltipStyle } from "@/components/shared/chart-theme";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -117,14 +119,7 @@ function DashboardPage() {
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <XAxis dataKey="d" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
                 <YAxis stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-popover)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Area type="monotone" dataKey="v" stroke="var(--color-primary)" fill="url(#g1)" strokeWidth={2} />
                 <Area type="monotone" dataKey="l" stroke="var(--color-success)" fill="url(#g2)" strokeWidth={2} />
               </AreaChart>
@@ -139,14 +134,7 @@ function DashboardPage() {
                 <CartesianGrid horizontal={false} stroke="var(--color-border)" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="c" type="category" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} width={70} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-popover)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Bar dataKey="v" fill="var(--color-primary)" radius={[0, 6, 6, 0]} barSize={16} />
               </BarChart>
             </ResponsiveContainer>

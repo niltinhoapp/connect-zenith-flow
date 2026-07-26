@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, Play, Pause, Zap, Sparkles, MessageCircle, Mail, Clock, Filter, MoreHorizontal, ArrowRight } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
-import { SectionCard } from "@/components/premium";
+import { SectionCard } from "@/components/shared/section-card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";

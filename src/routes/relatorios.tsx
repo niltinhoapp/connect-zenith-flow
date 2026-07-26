@@ -4,7 +4,8 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart,
 } from "recharts";
 import { AppLayout } from "@/components/app-layout";
-import { SectionCard } from "@/components/premium";
+import { SectionCard } from "@/components/shared/section-card";
+import { chartTooltipStyle } from "@/components/shared/chart-theme";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/relatorios")({
@@ -90,7 +91,7 @@ function RelatoriosPage() {
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <XAxis dataKey="m" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
                 <YAxis stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Area type="monotone" dataKey="v" stroke="var(--color-primary)" fill="url(#ga)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
@@ -104,7 +105,7 @@ function RelatoriosPage() {
                 <Pie data={pie} dataKey="v" nameKey="n" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="var(--color-card)">
                   {pie.map((_, i) => <Cell key={i} fill={pieColors[i]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -120,7 +121,7 @@ function RelatoriosPage() {
                 <CartesianGrid horizontal={false} stroke="var(--color-border)" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="s" type="category" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} width={80} />
-                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Bar dataKey="v" fill="var(--color-primary)" radius={[0, 6, 6, 0]} barSize={18} />
               </BarChart>
             </ResponsiveContainer>
@@ -134,7 +135,7 @@ function RelatoriosPage() {
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <XAxis dataKey="w" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
                 <YAxis stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
                 <Line type="monotone" dataKey="a" stroke="var(--color-primary)" strokeWidth={2} dot={false} name="Coorte A" />
                 <Line type="monotone" dataKey="b" stroke="var(--color-success)" strokeWidth={2} dot={false} name="Coorte B" />

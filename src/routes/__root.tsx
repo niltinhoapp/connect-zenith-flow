@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  redirect,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -12,6 +13,9 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { fetchSession, SessionProvider, type AuthSession } from "@/core/auth";
+
+const PUBLIC_PATHS = ["/login", "/cadastro", "/recuperar-senha"];
 
 function NotFoundComponent() {
   return (
@@ -77,6 +81,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Middleware de sessão + guard: carrega a sessão real (SSR via cookies) e
+  // protege as rotas. Rotas públicas de auth ficam livres; usuário logado é
+  // afastado delas. Resiliente à ausência de config Supabase (trata como null).
+  beforeLoad: async ({ location }) => {
+    let session: AuthSession | null = null;
+    try {
+      session = await fetchSession();
+    } catch {
+      session = null;
+    }
+    const isPublic = PUBLIC_PATHS.includes(location.pathname);
+    if (!session && !isPublic) {
+      throw redirect({ to: "/login" });
+    }
+    if (session && isPublic) {
+      throw redirect({ to: "/" });
+    }
+    return { session };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -125,12 +148,14 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const { queryClient, session } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster />
+      <SessionProvider session={session}>
+        <Outlet />
+        <Toaster />
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

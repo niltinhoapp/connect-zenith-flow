@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Sparkles, Zap, Shield, LineChart } from "lucide-react";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 export function AuthShell({
   title,
@@ -18,9 +19,7 @@ export function AuthShell({
       {/* Left panel — form */}
       <div className="flex flex-col px-6 py-8 md:px-12 md:py-10">
         <Link to="/" className="inline-flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
-            <div className="h-3.5 w-3.5 rounded-sm bg-primary shadow-[0_0_12px_theme(colors.primary)]" />
-          </div>
+          <BrandMark />
           <div>
             <p className="text-sm font-semibold leading-none">ConnectWeb</p>
             <p className="mt-0.5 text-[10px] text-muted-foreground">Automations</p>

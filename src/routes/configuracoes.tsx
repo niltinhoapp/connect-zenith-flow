@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { User, Building2, CreditCard, Bell, Shield, Plug, Key, ChevronRight, Check } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
-import { SectionCard } from "@/components/premium";
+import { SectionCard } from "@/components/shared/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
