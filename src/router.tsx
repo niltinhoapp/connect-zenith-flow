@@ -9,6 +9,8 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
+    // Performance: prefetch de rota ao passar o mouse / focar (navegação instantânea).
+    defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
   });
 

@@ -1,18 +1,6 @@
-/** Clientes · Domain — barrel. */
-export { Cliente, type ClienteProps, type CreateClienteInput } from "./entities/cliente";
+/** Clientes · Domain — barrel (entidades, VOs, contrato de repositório). */
+export { Customer, type CustomerProps, type CreateCustomerInput, type CustomerType } from "./entities/customer";
 export { Email } from "./value-objects/email";
 export { Phone } from "./value-objects/phone";
-export {
-  ClienteStatus,
-  CLIENTE_STATUSES,
-  type ClienteStatusValue,
-} from "./value-objects/cliente-status";
-export {
-  ClienteService,
-  type UpdateClienteInput,
-} from "./services/cliente-service";
-export type {
-  ClienteRepository,
-  ClienteFilter,
-} from "./repositories/cliente-repository";
-export * from "./events";
+export { CustomerStatus, CUSTOMER_STATUSES, type CustomerStatusValue } from "./value-objects/customer-status";
+export type { CustomerRepository, CustomerFilter, Paginated } from "./repositories/customer-repository";

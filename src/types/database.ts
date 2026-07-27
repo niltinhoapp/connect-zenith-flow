@@ -148,6 +148,140 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["audit_logs"]["Insert"]>;
         Relationships: [];
       };
+      customers: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          code: string | null;
+          type: "person" | "company";
+          first_name: string | null;
+          last_name: string | null;
+          company_name: string | null;
+          document: string | null;
+          email: string | null;
+          phone: string | null;
+          mobile: string | null;
+          website: string | null;
+          status: string;
+          owner_id: string | null;
+          source: string | null;
+          notes: string | null;
+          tags: string[];
+          custom_fields: Json;
+          last_contact_at: string | null;
+          next_followup_at: string | null;
+          score: number | null;
+          lifetime_value: number;
+          origin_channel: string | null;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["customers"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["customers"]["Row"]>;
+        Relationships: [];
+      };
+      leads: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          code: string | null;
+          name: string;
+          company_name: string | null;
+          email: string | null;
+          phone: string | null;
+          source: string | null;
+          status: string;
+          owner_id: string | null;
+          notes: string | null;
+          tags: string[];
+          custom_fields: Json;
+          converted_customer_id: string | null;
+          converted_at: string | null;
+          qualified_at: string | null;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; name: string } & Partial<Database["public"]["Tables"]["leads"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["leads"]["Row"]>;
+        Relationships: [];
+      };
+      pipelines: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          name: string;
+          is_default: boolean;
+          position: number;
+          color: string;
+          icon: string | null;
+          display_order: number;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; name: string } & Partial<Database["public"]["Tables"]["pipelines"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["pipelines"]["Row"]>;
+        Relationships: [];
+      };
+      pipeline_stages: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          pipeline_id: string;
+          name: string;
+          position: number;
+          type: "open" | "won" | "lost";
+          probability: number;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; pipeline_id: string; name: string } & Partial<Database["public"]["Tables"]["pipeline_stages"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["pipeline_stages"]["Row"]>;
+        Relationships: [];
+      };
+      deals: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          code: string | null;
+          customer_id: string | null;
+          pipeline_id: string;
+          stage_id: string;
+          title: string;
+          amount: number;
+          currency: string;
+          owner_id: string | null;
+          source: string | null;
+          notes: string | null;
+          tags: string[];
+          custom_fields: Json;
+          expected_close_date: string | null;
+          closed_at: string | null;
+          won_at: string | null;
+          lost_at: string | null;
+          loss_reason: string | null;
+          win_reason: string | null;
+          probability_override: number | null;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; pipeline_id: string; stage_id: string; title: string } & Partial<Database["public"]["Tables"]["deals"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["deals"]["Row"]>;
+        Relationships: [];
+      };
+      customer_timeline: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          customer_id: string | null;
+          actor_id: string | null;
+          event_type: string;
+          title: string;
+          description: string | null;
+          related_type: string | null;
+          related_id: string | null;
+          payload: Json;
+          module: string | null;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; event_type: string; title: string } & Partial<Database["public"]["Tables"]["customer_timeline"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["customer_timeline"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -166,6 +300,18 @@ export interface Database {
       current_org: { Args: Record<string, never>; Returns: string | null };
       is_org_member: { Args: { org: string }; Returns: boolean };
       has_permission: { Args: { org: string; perm: string }; Returns: boolean };
+      convert_lead_to_customer: {
+        Args: { p_lead_id: string };
+        Returns: Database["public"]["Tables"]["customers"]["Row"];
+      };
+      dashboard_metrics: {
+        Args: { p_org: string };
+        Returns: Json;
+      };
+      reports_metrics: {
+        Args: { p_org: string };
+        Returns: Json;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

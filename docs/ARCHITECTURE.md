@@ -124,6 +124,35 @@ persiste via `ClienteRepository` e publica `customer.created` no Event Bus.
 (`bun run test` / `npm run test`) — Event Bus, Provider registry, RBAC e regras
 de domínio (entidades/serviços com repositórios fake).
 
+## Fluxo de execução e camadas (F2)
+
+Fluxo **obrigatório**, sem exceções:
+
+```
+React UI  →  Hooks (TanStack Query)  →  Application Services  →  Repositories  →  Supabase
+```
+
+| Camada | Responsabilidade | Não pode |
+| --- | --- | --- |
+| **Domain** (`features/*/domain`) | Regras/invariantes (entities, value objects) | tocar DB, React, eventos |
+| **Application** (`features/*/application`) | Coordena: feature flags → validação → repo → Event Bus → auditoria. É a **API interna** (`CustomerApplicationService`, `LeadApplicationService`, `DealApplicationService`) que as telas consomem | acessar Supabase direto |
+| **Infrastructure** (`features/*/infrastructure`) | Repositórios Supabase — **só persistem** (mapper row↔entidade, paginação/filtros no banco) | publicar eventos, chamar providers, aplicar regras |
+| **Hooks** (`features/*/hooks`, F2 bloco final) | TanStack Query sobre os services (keys centralizadas, optimistic, invalidation, prefetch, retry) | falar com repo |
+| **UI** (`routes/*`) | Só apresentação | acessar repo/serviço fora do hook |
+
+**Cross-cutting (Core):**
+- `core/errors` — `AppError` · `ValidationError` · `NotFoundError` · `PermissionError` · `ConflictError` · `InfrastructureError`. `normalizeError()` unifica.
+- `core/logging` — log estruturado com transporte plugável (pronto p/ Sentry/OTel na F5).
+- `core/feature-flags` — `assertModuleEnabled()` (services checam módulos habilitados da org).
+- `core/application/guard` — envolve cada método de serviço: normaliza erro + log estruturado.
+- `lib/query` — query keys centralizadas + cache factory (optimistic/invalidation).
+
+**Eventos por serviço** (nunca no repo): `customer.created/updated`, `lead.created/converted`,
+`deal.created/stage.changed/won/lost`. **Auditoria** de CRUD é automática (triggers no banco).
+
+**Performance:** paginação (`findMany` → `{ items, total }`), filtros no banco, soft delete,
+índices. Sem N+1 (sem embeds em loop).
+
 ## Event Bus (comunicação entre módulos)
 
 Módulos **não se chamam diretamente**. Toda interação entre domínios acontece

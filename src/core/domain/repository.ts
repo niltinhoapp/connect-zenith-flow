@@ -16,3 +16,9 @@ export interface Repository<TEntity, TId = string> {
   update(entity: TEntity): Promise<TEntity>;
   delete(id: TId): Promise<void>;
 }
+
+/** Resultado paginado (itens + total), para findMany com paginação no banco. */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+}

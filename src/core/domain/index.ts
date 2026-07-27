@@ -5,4 +5,4 @@
 export { Entity } from "@/core/domain/entity";
 export { ValueObject } from "@/core/domain/value-object";
 export { DomainError, invariant } from "@/core/domain/errors";
-export type { Repository } from "@/core/domain/repository";
+export type { Repository, Paginated } from "@/core/domain/repository";

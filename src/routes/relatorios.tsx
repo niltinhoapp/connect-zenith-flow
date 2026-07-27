@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/app-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { chartTooltipStyle } from "@/components/shared/chart-theme";
 import { Button } from "@/components/ui/button";
+import { useReports } from "@/features/relatorios/hooks/use-reports";
 
 export const Route = createFileRoute("/relatorios")({
   head: () => ({
@@ -18,35 +19,26 @@ export const Route = createFileRoute("/relatorios")({
   component: RelatoriosPage,
 });
 
-const trend = Array.from({ length: 12 }, (_, i) => ({
-  m: ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][i],
-  v: 4000 + Math.round(Math.sin(i / 2) * 1500) + i * 220,
-}));
-
-const funnel = [
-  { s: "Visitantes", v: 100 },
-  { s: "Leads", v: 62 },
-  { s: "MQL", v: 41 },
-  { s: "SQL", v: 24 },
-  { s: "Clientes", v: 12 },
-];
-
-const pie = [
-  { n: "WhatsApp", v: 48 },
-  { n: "E-mail", v: 24 },
-  { n: "Web", v: 18 },
-  { n: "Outros", v: 10 },
-];
 const pieColors = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-muted-foreground)"];
 
-const cohort = Array.from({ length: 6 }, (_, i) => ({
-  w: `S${i + 1}`,
-  a: 100,
-  b: 100 - i * 8,
-  c: 100 - i * 14,
-}));
+const fmtBRL = (cents: number) => "R$ " + (cents / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
 function RelatoriosPage() {
+  const { data: m, isError, refetch } = useReports();
+  const trend = (m?.revenueTrend ?? []).map((t) => ({ m: t.m, v: Math.round(t.v / 100) }));
+  const funnel = m?.funnel ?? [];
+  const pie = (m?.sources ?? []).map((s) => ({ n: s.n, v: s.v }));
+  // Placeholder de coorte a partir da receita real (análise de coorte real fica para refino).
+  const cohort = (m?.revenueTrend ?? []).slice(-6).map((t) => {
+    const v = Math.round(t.v / 100);
+    return { w: t.m, a: v, b: v, c: v };
+  });
+  const convRate = (() => {
+    const leads = funnel.find((f) => f.s === "Leads")?.v ?? 0;
+    const conv = funnel.find((f) => f.s === "Convertidos")?.v ?? 0;
+    return leads > 0 ? Math.round((conv / leads) * 100) : 0;
+  })();
+
   return (
     <AppLayout
       title="Relatórios"
@@ -62,12 +54,20 @@ function RelatoriosPage() {
         </>
       }
     >
+      {isError && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
+          <p className="text-sm text-muted-foreground">Não foi possível carregar os relatórios.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 rounded-md border-border bg-background text-xs">
+            Tentar novamente
+          </Button>
+        </div>
+      )}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { l: "Receita total", v: "R$ 1,24M", d: "+18,2%" },
-          { l: "Ticket médio", v: "R$ 2.148", d: "+4,6%" },
-          { l: "Retenção", v: "94,1%", d: "+1,2pp" },
-          { l: "Churn", v: "1,8%", d: "-0,3pp" },
+          { l: "Receita total", v: fmtBRL(m?.revenueTotal ?? 0), d: "acumulado" },
+          { l: "Ticket médio", v: fmtBRL(m?.avgTicket ?? 0), d: "por negócio" },
+          { l: "Negócios ganhos", v: String(m?.wonCount ?? 0), d: "total" },
+          { l: "Conversão", v: `${convRate}%`, d: "leads" },
         ].map((k) => (
           <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{k.l}</p>

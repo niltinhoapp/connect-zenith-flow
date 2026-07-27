@@ -1,11 +1,8 @@
-/**
- * Feature: Clientes
- * Module key: "clientes" (see src/config/modules.ts)
- *
- * Public surface of the Clientes feature. Domain logic (api, hooks, schema,
- * components) is added here from F2 onward; UI screens currently live in
- * src/routes and are migrated to consume this module without visual changes.
- */
 export const MODULE_KEY = "clientes" as const;
 
 export * from "./domain";
+export { CustomerApplicationService, type UpdateCustomerInput } from "./application/customer-application-service";
+export {
+  CustomerSupabaseRepository,
+  rowToCustomer,
+} from "./infrastructure/customer-supabase-repository";

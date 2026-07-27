@@ -29,6 +29,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
+import { formatBRLCompact as fmtBRL, formatInt as fmtInt, relativeTime as relTime } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,37 +46,34 @@ export const Route = createFileRoute("/")({
   component: DashboardPage,
 });
 
-const revenueData = [
-  { d: "Seg", v: 12400, l: 8200 },
-  { d: "Ter", v: 14800, l: 9100 },
-  { d: "Qua", v: 13200, l: 8600 },
-  { d: "Qui", v: 17600, l: 10400 },
-  { d: "Sex", v: 21200, l: 12800 },
-  { d: "Sáb", v: 18400, l: 11200 },
-  { d: "Dom", v: 24800, l: 14600 },
-];
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-const channelData = [
-  { c: "WhatsApp", v: 4820 },
-  { c: "E-mail", v: 2140 },
-  { c: "Web", v: 1680 },
-  { c: "API", v: 940 },
-  { c: "SMS", v: 520 },
-];
-
-const activity = [
-  { name: "Mariana Costa", act: "Fechou negócio", value: "R$ 24.800", ago: "há 4min", color: "bg-success" },
-  { name: "Automação #14", act: "Enviou 128 mensagens", value: "WhatsApp", ago: "há 12min", color: "bg-primary" },
-  { name: "IA Copilot", act: "Qualificou 8 leads", value: "8 leads", ago: "há 22min", color: "bg-warning" },
-  { name: "Diego Ramos", act: "Novo cliente", value: "Nexus Ltda.", ago: "há 41min", color: "bg-success" },
-  { name: "Automação #07", act: "Falha em etapa", value: "Retry x2", ago: "há 1h", color: "bg-destructive" },
-];
+function weekdayPt(dateStr: string): string {
+  return WEEKDAYS[new Date(dateStr).getDay()] ?? "";
+}
+function activityColor(eventType: string): string {
+  if (eventType.includes("won")) return "bg-success";
+  if (eventType.includes("lost") || eventType.includes("failed")) return "bg-destructive";
+  if (eventType.includes("created") || eventType.includes("converted")) return "bg-primary";
+  return "bg-warning";
+}
 
 function DashboardPage() {
+  const { data: m, isLoading, isError, refetch } = useDashboard();
+  const dash = (value: string) => (isLoading ? "—" : value);
+
+  const revenueData = (m?.revenueSeries ?? []).map((p) => ({
+    d: weekdayPt(p.date),
+    v: Math.round(p.v / 100),
+    l: p.l,
+  }));
+  const channelData = (m?.pipeline ?? []).map((p) => ({ c: p.stage, v: p.count }));
+  const activity = m?.recentActivities ?? [];
+
   return (
     <AppLayout
       title="Dashboard"
-      subtitle="Bem-vindo de volta, Rafael. Aqui está o resumo do seu workspace."
+      subtitle="Aqui está o resumo do seu workspace."
       actions={
         <>
           <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
@@ -85,11 +85,25 @@ function DashboardPage() {
         </>
       }
     >
+      {isError && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
+          <p className="text-sm text-muted-foreground">Não foi possível carregar os indicadores.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-8 rounded-md border-border bg-background text-xs"
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Receita (7d)" value="R$ 128.4k" delta="+12,4%" trend="up" icon={<DollarSign className="h-4 w-4" />} />
-        <KpiCard label="Novos clientes" value="342" delta="+8,1%" trend="up" icon={<Users className="h-4 w-4" />} />
-        <KpiCard label="Mensagens WhatsApp" value="12.842" delta="+21,7%" trend="up" icon={<MessageCircle className="h-4 w-4" />} />
-        <KpiCard label="Automações ativas" value="47" delta="-2" trend="down" icon={<Workflow className="h-4 w-4" />} />
+        <KpiCard label="Receita (mês)" value={dash(fmtBRL(m?.revenue ?? 0))} icon={<DollarSign className="h-4 w-4" />} />
+        <KpiCard label="Clientes ativos" value={dash(fmtInt(m?.activeCustomers ?? 0))} icon={<Users className="h-4 w-4" />} />
+        <KpiCard label="Leads (30d)" value={dash(fmtInt(m?.leadsPeriod ?? 0))} icon={<MessageCircle className="h-4 w-4" />} />
+        <KpiCard label="Negócios em aberto" value={dash(fmtInt(m?.openDeals ?? 0))} icon={<Workflow className="h-4 w-4" />} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -145,24 +159,40 @@ function DashboardPage() {
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <SectionCard title="Atividade recente" description="Últimas ações do workspace" className="xl:col-span-2">
           <ul className="divide-y divide-border">
-            {activity.map((a, i) => (
-              <li key={i} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${a.color} shadow-[0_0_8px_currentColor]`} />
-                <Avatar className="h-8 w-8 border border-border">
-                  <AvatarFallback className="bg-muted text-[11px] font-semibold">
-                    {a.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">
-                    <span className="font-medium">{a.name}</span>{" "}
-                    <span className="text-muted-foreground">— {a.act}</span>
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{a.value}</p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{a.ago}</span>
-              </li>
-            ))}
+            {isLoading &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <li key={`sk-${i}`} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-muted" />
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-48" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-3 w-10" />
+                </li>
+              ))}
+            {!isLoading && activity.length === 0 && (
+              <li className="py-8 text-center text-sm text-muted-foreground">Nenhuma atividade recente.</li>
+            )}
+            {!isLoading &&
+              activity.map((a) => (
+                <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${activityColor(a.eventType)} shadow-[0_0_8px_currentColor]`} />
+                  <Avatar className="h-8 w-8 border border-border">
+                    <AvatarFallback className="bg-muted text-[11px] font-semibold">
+                      {a.title.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-foreground">
+                      <span className="font-medium">{a.title}</span>{" "}
+                      <span className="text-muted-foreground">— {a.eventType}</span>
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{a.module ?? ""}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{relTime(a.createdAt)}</span>
+                </li>
+              ))}
           </ul>
         </SectionCard>
 
@@ -201,9 +231,9 @@ function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
-          { i: CheckCircle2, l: "Taxa de conversão", v: "24,8%", d: "+3,2 pp" },
-          { i: Clock, l: "Tempo médio de resposta", v: "1m 42s", d: "-18s" },
-          { i: Sparkles, l: "Créditos IA restantes", v: "142.320", d: "Plano Pro" },
+          { i: CheckCircle2, l: "Taxa de conversão", v: dash(`${m?.conversionRate ?? 0}%`), d: "30 dias" },
+          { i: Clock, l: "Ticket médio", v: dash(fmtBRL(m?.avgTicket ?? 0)), d: "por negócio" },
+          { i: Sparkles, l: "Negócios ganhos", v: dash(fmtInt(m?.wonCount ?? 0)), d: "no mês" },
         ].map((k) => (
           <div key={k.l} className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">

@@ -26,6 +26,8 @@ export type AuthSession = {
   activeOrganization: SessionMembership | null;
   /** Chaves de permissão efetivas na organização ativa. */
   permissions: string[];
+  /** Módulos habilitados na organização ativa (feature flags). */
+  enabledModules: string[];
 };
 
 export const fetchSession = createServerFn({ method: "GET" }).handler(
@@ -55,8 +57,8 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
 
     const [{ data: orgs }, { data: roles }] = await Promise.all([
       orgIds.length
-        ? supabase.from("organizations").select("id, name").in("id", orgIds)
-        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+        ? supabase.from("organizations").select("id, name, enabled_modules").in("id", orgIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; enabled_modules: string[] }[] }),
       roleIds.length
         ? supabase.from("roles").select("id, key, name").in("id", roleIds)
         : Promise.resolve({ data: [] as { id: string; key: string; name: string }[] }),
@@ -85,6 +87,8 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
     const activeOrganization =
       memberships.find((m) => m.organizationId === activeId) ?? null;
 
+    const enabledModules = (activeId && orgById.get(activeId)?.enabled_modules) || [];
+
     let permissions: string[] = [];
     if (activeOrganization) {
       const { data: rolePerms } = await supabase
@@ -112,6 +116,7 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
       memberships,
       activeOrganization,
       permissions,
+      enabledModules,
     };
   },
 );

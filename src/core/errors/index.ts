@@ -62,3 +62,20 @@ export function toUserMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Ocorreu um erro inesperado.";
 }
+
+/**
+ * Normaliza qualquer erro para AppError:
+ *  - AppError → passa direto;
+ *  - DomainError (regra de negócio) → ValidationError;
+ *  - demais → InfrastructureError.
+ */
+export function normalizeError(error: unknown): AppError {
+  if (error instanceof AppError) return error;
+  if (error instanceof Error && error.name === "DomainError") {
+    return new ValidationError(error.message, { cause: error });
+  }
+  if (error instanceof Error) {
+    return new InfrastructureError(error.message, { cause: error });
+  }
+  return new InfrastructureError("Erro inesperado", { cause: error });
+}

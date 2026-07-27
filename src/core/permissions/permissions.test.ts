@@ -16,6 +16,7 @@ const session: AuthSession = {
     roleName: "Membro",
   },
   permissions: [PERMISSIONS.CRM_READ, PERMISSIONS.CLIENTES_WRITE],
+  enabledModules: ["*"],
 };
 
 describe("Core · RBAC · can()", () => {
