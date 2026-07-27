@@ -25,4 +25,13 @@ export const queryKeys = {
     all: (org: string) => ["pipelines", org] as const,
     list: (org: string) => ["pipelines", org, "list"] as const,
   },
+  whatsapp: {
+    all: (org: string) => ["whatsapp", org] as const,
+    conversations: (org: string, filter?: unknown) =>
+      ["whatsapp", org, "conversations", filter ?? null] as const,
+    conversation: (org: string, id: string) => ["whatsapp", org, "conversation", id] as const,
+    messages: (org: string, conversationId: string) =>
+      ["whatsapp", org, "messages", conversationId] as const,
+    counters: (org: string) => ["whatsapp", org, "counters"] as const,
+  },
 } as const;

@@ -35,3 +35,5 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# npm lock (projeto usa bun)
+package-lock.json
