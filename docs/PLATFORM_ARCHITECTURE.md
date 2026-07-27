@@ -61,24 +61,47 @@ flowchart TB
 
 ---
 
-## 2. Roadmap (F3–F10)
+## 1.1 Fundação de plataforma (aprovada · entra na F3.0, antes de qualquer módulo)
 
-| Fase | Módulo | Núcleo da entrega | Providers principais |
-| --- | --- | --- | --- |
-| **F3** | WhatsApp Cloud API | Inbox omnichannel, envio, templates, realtime | WhatsApp, Storage |
-| **F4** | IA Copilot | Copilot, insights, sugestões, geração de fluxos | AI, Embedding |
-| **F5** | Automações Visuais | Builder + engine de execução event-driven | (todos os providers como ações) |
-| **F6** | Agenda | Agendamentos, disponibilidade, lembretes, sync | Calendar, Notification |
-| **F7** | Financeiro | Faturas, recebíveis, fluxo de caixa, conciliação | Payment, ERP, Bank |
-| **F8** | Marketing | Campanhas, segmentação, disparos, tracking | Email, SMS, WhatsApp |
-| **F9** | API Pública | REST pública, API keys, webhooks out, rate limit | Webhook |
-| **F10** | Marketplace de Plugins | Instalar/remover módulos e plugins de terceiros | Marketplace, Storage, Function |
+Cinco capacidades transversais do Core + onboarding por mercado. Preparam planos, mercados e escala sem mudanças estruturais.
+
+**A) Catálogo de módulos instaláveis** — tabelas `modules` (catálogo global: key, name, category, is_core) + `organization_modules` (o que cada empresa **contratou**: enabled, activated_at). Passa a ser a fonte da verdade (o `enabledModules[]` vira derivado/legado). Planos ligam conjuntos de módulos. Helper `has_module(org, key)`; sidebar/rotas/guards leem daqui + feature flags. Eventos `module.enabled/disabled`.
+
+**B) Jobs / Execução assíncrona** — `Job → Queue → Worker → Retry → Dead Letter Queue`. Tabelas `jobs` (type, payload jsonb, status, attempts, max_attempts, run_at, priority) + `job_dead_letter`. Provider `QueueProvider` (pg-boss ↔ Supabase Queues ↔ SQS). Serviços `JobDispatcher` / `JobWorker` / `SchedulerService` (cron + `run_at`). Consumido por WhatsApp (envio), Campanhas, Automações, IA, Webhooks, Notifications. Eventos `job.enqueued/started/succeeded/failed/dead`. O **outbox** do Event Bus roda sobre esta infra.
+
+**C) Observabilidade** — três pilares: **logs estruturados** (já em `core/logging`), **métricas** (`MetricsProvider`), **tracing** (`TracingProvider` · OpenTelemetry) + monitoramento/alertas. Transportes plugáveis (Sentry/OTel/Grafana) sem mudar call-sites; correlação por `trace_id` + `organization_id`.
+
+**D) Limites e cotas por organização** — `QuotaService` central (**única** fonte de enforcement). Tabelas `plan_limits` (plan_id, resource, limit) + `quota_usage` (org, resource, period, used). Recursos: `customers`, `messages`, `ai_credits`, `storage_bytes`, `api_calls`. Todo Application Service chama `check_quota` antes e `consume_quota` depois — sem lógica espalhada. Eventos `quota.threshold.reached/exceeded`. RPCs `check_quota`/`consume_quota`.
+
+**E) Configuração por módulo** — tabela `module_configs` (org, module_key, config jsonb, schema_version) + interface comum `ModuleConfig<T>` no Core (`get`/`set` + validação por schema zod do módulo). Elimina `if (module === …)` espalhado. Ex.: WhatsApp(phone_number_id), IA(modelo/temperatura), Financeiro(moeda/impostos).
+
+**F) Market Templates (onboarding por mercado)** — tabela `market_templates` (key, name, definition jsonb) + `organizations.market_template`. Cada template — **Clínica · Loja virtual · Oficina · Imobiliária · Restaurante · Prestador de serviços** — define pipelines padrão, campos customizados, automações iniciais e dashboard inicial. `apply_market_template(org, template)` semeia o workspace no primeiro acesso. Evento `organization.template.applied`.
+
+---
+
+## 2. Roadmap (reorganizado)
+
+A F3 vira um **ciclo de fundação + primeiros módulos**; a IA vem depois de haver dados (CRM + WhatsApp + Automações) para gerar insights úteis.
+
+| Fase | Entrega |
+| --- | --- |
+| **F3.0** | **Fundação:** Jobs/Queue/Scheduler/Worker/Retry/DLQ · Webhooks (in/out) · Observabilidade · Quotas · Catálogo de módulos · Config de módulos · Market Templates |
+| **F3.1** | **WhatsApp Cloud API:** Embedded Signup · Templates · Inbox · Mensagens · Campanhas |
+| **F3.2** | **Automações (Visual Builder):** gatilhos · condições · ações |
+| **F3.3** | **IA Copilot:** copilot · insights · sugestões · geração de fluxos (sobre os dados já existentes) |
+| **F4** | **Agenda** — agendamentos, disponibilidade, lembretes, sync |
+| **F5** | **Financeiro** (finanças do cliente) — faturas, recebíveis, fluxo de caixa, conciliação |
+| **F6** | **Marketing** — campanhas, segmentação, disparos, tracking |
+| **F7** | **API Pública** — REST, API keys, webhooks out, rate limit |
+| **F8** | **Marketplace de Plugins** — instalar/remover módulos e plugins de terceiros |
+
+> As especificações por módulo abaixo são identificadas pelo **módulo** (a fase segue o roadmap reorganizado acima: WhatsApp=F3.1, Automações=F3.2, IA=F3.3, Agenda=F4 …).
 
 ### Especificação por módulo
 
 Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastructure,hooks,components,routes}` + migrations namespaced + RLS por `organization_id` + eventos + feature flag `<m>`.
 
-#### F3 · WhatsApp
+#### F3.1 · WhatsApp
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `WhatsAppAccount`, `Conversation`, `Message`, `WhatsAppTemplate`, `ContactChannel` |
@@ -93,7 +116,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `inbox_summary`, `whatsapp_metrics` |
 | Integrações | Meta WhatsApp Cloud API (webhook + send), Evolution API (alt) |
 
-#### F4 · IA Copilot
+#### F3.3 · IA Copilot
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `AiConversation`, `AiMessage`, `AiInsight`, `AiUsage`, `PromptTemplate`, `Embedding` |
@@ -108,7 +131,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `ai_usage_metrics`, `insights_feed` |
 | Integrações | Anthropic (Claude, default), OpenAI; pgvector para RAG |
 
-#### F5 · Automações
+#### F3.2 · Automações
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `Automation`, `AutomationVersion`, `AutomationNode`, `AutomationEdge`, `AutomationRun`, `RunStep`, `Trigger` |
@@ -123,7 +146,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `automation_metrics`, `run_history` |
 | Integrações | Event Bus (gatilhos) + fila assíncrona (Supabase Queues / pg-boss) para execução |
 
-#### F6 · Agenda
+#### F4 · Agenda
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `Calendar`, `CalendarEvent`, `Availability`, `Booking`, `Reminder` |
@@ -138,7 +161,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `agenda_view`, `upcoming_reminders` |
 | Integrações | Google Calendar, Outlook, ICS |
 
-#### F7 · Financeiro (finanças do cliente — distinto de Billing SaaS)
+#### F5 · Financeiro (finanças do cliente — distinto de Billing SaaS)
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `Invoice`, `InvoiceItem`, `Payment`, `Transaction`, `FinancialAccount`, `Category` |
@@ -153,7 +176,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `cashflow`, `receivables_aging`, `finance_dashboard` |
 | Integrações | Gateways de pagamento, NF-e, Open Finance, ERPs |
 
-#### F8 · Marketing
+#### F6 · Marketing
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `Campaign`, `Segment`, `Audience`, `CampaignRecipient`, `EmailTemplate`, `MarketingEvent` |
@@ -168,7 +191,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `campaign_performance`, `marketing_funnel` |
 | Integrações | Email/SMS/WhatsApp; tracking (pixels/links) |
 
-#### F9 · API Pública
+#### F7 · API Pública
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `ApiKey`, `ApiClient`, `Webhook`, `WebhookDelivery`, `ApiScope`, `RequestLog` |
@@ -183,7 +206,7 @@ Cada módulo segue o mesmo esqueleto: `features/<m>/{domain,application,infrastr
 | Read models | `api_usage_metrics`, `webhook_delivery_stats` |
 | Integrações | OAuth2 (terceiros), OpenAPI spec, webhooks assinados (HMAC) |
 
-#### F10 · Marketplace de Plugins
+#### F8 · Marketplace de Plugins
 | Aspecto | Definição |
 | --- | --- |
 | Entidades | `Plugin`, `PluginVersion`, `PluginInstallation`, `PluginConfig`, `PluginEventSub` |
@@ -220,6 +243,9 @@ Convenção: `dominio.entidade.acao`, todos multi-tenant (`organizationId` no pa
 | `notification.*` | `created/sent/read`, `channel.push/email/inapp` |
 | `plugin.*` | `published/installed/uninstalled/enabled/disabled/updated`, `config.changed` |
 | `storage.*` | `file.uploaded/deleted` |
+| `job.*` | `enqueued/started/succeeded/failed/dead` |
+| `quota.*` | `threshold.reached/exceeded` |
+| `module.*` | `enabled/disabled`, `organization.template.applied` |
 
 **Evolução do barramento:** F1 = in-memory. F3+ = **durável** via padrão **outbox** (tabela `domain_events`) → fila (Supabase Queues / pg-boss) → entrega + Supabase Realtime para push ao cliente. Interface `EventBus` permanece igual.
 
@@ -247,6 +273,8 @@ Todas atrás de `core/integrations/providers`, resolvidas por `registry` + `conf
 | `WebhookProvider` | entrega de webhooks out | interno + assinatura HMAC |
 | `NotificationProvider` | push/in-app | interno + FCM/APNs |
 | `BankProvider` | Open Finance/conciliação | Pluggy/Belvo |
+| `QueueProvider` | fila de jobs assíncronos | pg-boss ↔ Supabase Queues ↔ SQS |
+| `MetricsProvider` / `TracingProvider` | observabilidade | OpenTelemetry ↔ Sentry ↔ Grafana |
 
 ---
 
@@ -257,6 +285,7 @@ Estratégia: **um único schema `public`** (PostgREST-friendly) com **prefixo po
 ```mermaid
 flowchart LR
   ORG[(Core: organizations · profiles · organization_members · roles · permissions · role_permissions)]
+  ORG --> INFRA[Core Infra: modules · organization_modules · module_configs · jobs · job_dead_letter · plan_limits · quota_usage · market_templates · domain_events outbox]
   ORG --> CRM[CRM: customers · leads · pipelines · pipeline_stages · deals · customer_timeline · comments · attachments · *_tags · *_custom_fields]
   ORG --> WA[WhatsApp: whatsapp_accounts · conversations · messages · whatsapp_templates]
   ORG --> IA[IA: ai_conversations · ai_messages · ai_insights · ai_usage · embeddings]

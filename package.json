@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "worker": "node scripts/worker.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -282,6 +282,89 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["customer_timeline"]["Row"]>;
         Relationships: [];
       };
+      modules: {
+        Row: Timestamps & { id: string; key: string; name: string; description: string; category: string; is_core: boolean; icon: string | null; position: number };
+        Insert: { key: string; name: string } & Partial<Database["public"]["Tables"]["modules"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["modules"]["Row"]>;
+        Relationships: [];
+      };
+      organization_modules: {
+        Row: Timestamps & { id: string; organization_id: string; module_id: string; enabled: boolean; source: string; activated_at: string };
+        Insert: { organization_id: string; module_id: string } & Partial<Database["public"]["Tables"]["organization_modules"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["organization_modules"]["Row"]>;
+        Relationships: [];
+      };
+      module_configs: {
+        Row: Timestamps & { id: string; organization_id: string; module_id: string; config: Json; schema_version: number; updated_by: string | null; validated_at: string | null };
+        Insert: { organization_id: string; module_id: string } & Partial<Database["public"]["Tables"]["module_configs"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["module_configs"]["Row"]>;
+        Relationships: [];
+      };
+      jobs: {
+        Row: Timestamps & {
+          id: string; organization_id: string | null; type: string; payload: Json;
+          status: "queued" | "running" | "succeeded" | "failed" | "dead"; priority: number;
+          attempts: number; max_attempts: number; available_at: string; locked_at: string | null;
+          locked_by: string | null; lease_expires_at: string | null; worker_version: string | null;
+          last_error: string | null; result: Json | null; trace_id: string | null; correlation_id: string | null;
+          payload_version: number; idempotency_key: string | null;
+        };
+        Insert: { type: string } & Partial<Database["public"]["Tables"]["jobs"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["jobs"]["Row"]>;
+        Relationships: [];
+      };
+      plan_limits: {
+        Row: Timestamps & { id: string; plan_id: string; resource: string; limit_value: number; period: "month" | "total" };
+        Insert: { plan_id: string; resource: string } & Partial<Database["public"]["Tables"]["plan_limits"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["plan_limits"]["Row"]>;
+        Relationships: [];
+      };
+      quota_usage: {
+        Row: Timestamps & { id: string; organization_id: string; resource: string; period_key: string; used: number };
+        Insert: { organization_id: string; resource: string } & Partial<Database["public"]["Tables"]["quota_usage"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["quota_usage"]["Row"]>;
+        Relationships: [];
+      };
+      webhooks: {
+        Row: Timestamps & { id: string; organization_id: string; url: string; events: string[]; secret: string | null; enabled: boolean; deleted_at: string | null };
+        Insert: { organization_id: string; url: string } & Partial<Database["public"]["Tables"]["webhooks"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["webhooks"]["Row"]>;
+        Relationships: [];
+      };
+      operation_traces: {
+        Row: { id: string; organization_id: string | null; trace_id: string; span_id: string | null; correlation_id: string | null; actor_id: string | null; operation: string; status: "success" | "error"; duration_ms: number | null; metadata: Json; created_at: string };
+        Insert: { trace_id: string; operation: string } & Partial<Database["public"]["Tables"]["operation_traces"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["operation_traces"]["Row"]>;
+        Relationships: [];
+      };
+      market_templates: {
+        Row: Timestamps & { id: string; key: string; version: number; name: string; description: string; definition: Json; is_active: boolean; published_at: string | null; position: number };
+        Insert: { key: string; name: string } & Partial<Database["public"]["Tables"]["market_templates"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["market_templates"]["Row"]>;
+        Relationships: [];
+      };
+      job_types: {
+        Row: Timestamps & { key: string; module: string; description: string; enabled: boolean };
+        Insert: { key: string } & Partial<Database["public"]["Tables"]["job_types"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["job_types"]["Row"]>;
+        Relationships: [];
+      };
+      idempotency_keys: {
+        Row: { organization_id: string; key: string; created_at: string };
+        Insert: { organization_id: string; key: string; created_at?: string };
+        Update: Partial<Database["public"]["Tables"]["idempotency_keys"]["Row"]>;
+        Relationships: [];
+      };
+      domain_events: {
+        Row: Timestamps & {
+          id: string; organization_id: string; name: string; payload: Json; payload_version: number;
+          status: "queued" | "processing" | "done" | "failed"; attempts: number;
+          trace_id: string | null; correlation_id: string | null; occurred_at: string; processed_at: string | null;
+        };
+        Insert: { organization_id: string; name: string } & Partial<Database["public"]["Tables"]["domain_events"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["domain_events"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -312,6 +395,41 @@ export interface Database {
         Args: { p_org: string };
         Returns: Json;
       };
+      has_module: { Args: { p_org: string; p_key: string }; Returns: boolean };
+      enqueue_job: {
+        Args: {
+          p_org: string | null; p_type: string; p_payload?: Json; p_available_at?: string;
+          p_priority?: number; p_max_attempts?: number; p_trace_id?: string; p_correlation_id?: string;
+          p_idempotency_key?: string; p_payload_version?: number;
+        };
+        Returns: string;
+      };
+      try_consume_quota: { Args: { p_org: string; p_resource: string; p_amount?: number }; Returns: boolean };
+      claim_idempotency: { Args: { p_org: string; p_key: string }; Returns: boolean };
+      publish_event: {
+        Args: { p_org: string; p_name: string; p_payload?: Json; p_payload_version?: number; p_trace_id?: string };
+        Returns: string;
+      };
+      relay_domain_event: { Args: { p_event_id: string }; Returns: number };
+      retry_dead_letter: { Args: { p_id: string }; Returns: string };
+      discard_dead_letter: { Args: { p_id: string }; Returns: undefined };
+      claim_jobs: {
+        Args: { p_worker: string; p_limit?: number; p_lease_seconds?: number };
+        Returns: Database["public"]["Tables"]["jobs"]["Row"][];
+      };
+      complete_job: { Args: { p_id: string; p_result?: Json }; Returns: undefined };
+      fail_job: { Args: { p_id: string; p_error: string }; Returns: string };
+      check_quota: { Args: { p_org: string; p_resource: string; p_amount?: number }; Returns: boolean };
+      consume_quota: { Args: { p_org: string; p_resource: string; p_amount?: number }; Returns: undefined };
+      write_trace: {
+        Args: {
+          p_org: string | null; p_trace_id: string; p_operation: string; p_status?: string;
+          p_duration_ms?: number; p_correlation_id?: string; p_span_id?: string; p_metadata?: Json;
+        };
+        Returns: undefined;
+      };
+      dispatch_webhooks: { Args: { p_org: string; p_event: string; p_payload?: Json }; Returns: number };
+      apply_market_template: { Args: { p_org: string; p_key: string }; Returns: undefined };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

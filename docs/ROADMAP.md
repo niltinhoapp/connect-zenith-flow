@@ -61,3 +61,17 @@ Reorganização sem alterar UI/UX/Design System.
 - [ ] Testes (Vitest + Playwright) e CI.
 - [ ] Theme toggle light/dark; auditoria de acessibilidade.
 - [ ] Rate limiting e hardening.
+
+---
+
+## Roadmap de módulos (F3+) — ver `PLATFORM_ARCHITECTURE.md`
+
+A partir da F3 o roadmap por **módulos** é a referência autoritativa em
+[`docs/PLATFORM_ARCHITECTURE.md`](PLATFORM_ARCHITECTURE.md), reorganizado:
+
+- **F3.0** Fundação: Jobs/Queue/Worker/Retry/DLQ · Webhooks · Observabilidade ·
+  Quotas · Catálogo de módulos (`modules`/`organization_modules`) · Config de
+  módulos · Market Templates.
+- **F3.1** WhatsApp Cloud API · **F3.2** Automações · **F3.3** IA Copilot.
+- **F4** Agenda · **F5** Financeiro · **F6** Marketing · **F7** API Pública ·
+  **F8** Marketplace de Plugins.

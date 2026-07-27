@@ -3,6 +3,7 @@
  * Módulos publicam/assinam eventos via `eventBus`. Ver `src/core/README.md`.
  */
 export { eventBus, type EventBus } from "@/core/events/bus";
+export { publishDurable, outboxRelayHandler } from "@/core/events/durable";
 export type {
   DomainEvent,
   DomainEventMap,

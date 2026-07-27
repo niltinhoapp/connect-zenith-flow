@@ -1,5 +1,4 @@
--- ConnectWeb Automations — schema completo (migrations 0001–0031).
--- Idempotente. Aplicar no SQL Editor do Supabase.
+-- ConnectWeb Automations — schema completo (migrations 0001–0051). Idempotente.
 
 -- === 0001_core_foundation.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -1552,4 +1551,964 @@ grant execute on all functions in schema public to service_role;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
 alter default privileges in schema public grant execute on functions to service_role;
+
+
+-- === 0032_platform_modules.sql ===
+-- 0032_platform_modules.sql — Catálogo global de módulos instaláveis. Idempotente.
+-- Sem organization_id (é catálogo compartilhado). `key` é o identificador lógico
+-- único; as FKs usam `id` (uuid) para permitir renomear a key sem quebrar nada.
+
+create table if not exists public.modules (
+  id           uuid primary key default gen_random_uuid(),
+  key          text not null unique,          -- identificador lógico (crm, whatsapp…)
+  name         text not null,
+  description  text not null default '',
+  category     text not null default 'platform',
+  is_core      boolean not null default false, -- core = sempre ativo p/ toda org
+  icon         text,
+  position     int not null default 0,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+comment on table public.modules is 'Plataforma: catálogo global de módulos instaláveis.';
+
+
+-- === 0033_platform_organization_modules.sql ===
+-- 0033_platform_organization_modules.sql — Módulos contratados por organização. Idempotente.
+-- Fonte da verdade do que cada empresa ativou. FK por module_id (uuid).
+
+create table if not exists public.organization_modules (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  module_id        uuid not null references public.modules(id) on delete cascade,
+  enabled          boolean not null default true,
+  source           text not null default 'manual',  -- plan | manual | trial
+  activated_at     timestamptz not null default now(),
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.organization_modules is 'Plataforma: ativação de módulos por organização (fonte da verdade).';
+create unique index if not exists uq_org_modules on public.organization_modules(organization_id, module_id);
+create index if not exists idx_org_modules_org on public.organization_modules(organization_id) where enabled;
+
+
+-- === 0034_platform_module_configs.sql ===
+-- 0034_platform_module_configs.sql — Configuração por módulo por organização. Idempotente.
+-- Interface comum de config (jsonb) — evita condicionais espalhadas. Versionada
+-- e auditável (schema_version, updated_by, validated_at).
+
+create table if not exists public.module_configs (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  module_id        uuid not null references public.modules(id) on delete cascade,
+  config           jsonb not null default '{}'::jsonb,
+  schema_version   int not null default 1,
+  updated_by       uuid references auth.users(id) on delete set null,
+  validated_at     timestamptz,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.module_configs is 'Plataforma: configuração por módulo/org (schema comum, versionada).';
+create unique index if not exists uq_module_configs on public.module_configs(organization_id, module_id);
+
+
+-- === 0035_platform_jobs.sql ===
+-- 0035_platform_jobs.sql — Fila de jobs (execução assíncrona genérica). Idempotente.
+-- `type` (string) roteia — SEM lógica específica de módulo aqui. Preparado para
+-- workers distribuídos: available_at + lease (lease_expires_at) + worker_version,
+-- facilitando migrar depois para Redis/SQS/RabbitMQ/pg-boss sem mudar schema.
+
+create table if not exists public.jobs (
+  id                uuid primary key default gen_random_uuid(),
+  organization_id   uuid references public.organizations(id) on delete cascade,  -- null = job de sistema
+  type              text not null,                       -- ex: whatsapp.send, automation.run
+  payload           jsonb not null default '{}'::jsonb,
+  status            text not null default 'queued'
+                      check (status in ('queued','running','succeeded','failed','dead')),
+  priority          int not null default 0,
+  attempts          int not null default 0,
+  max_attempts      int not null default 5,
+  available_at      timestamptz not null default now(),  -- visível para claim a partir de
+  locked_at         timestamptz,
+  locked_by         text,                                -- id do worker
+  lease_expires_at  timestamptz,                         -- reclaim se worker morrer
+  worker_version    text,
+  last_error        text,
+  result            jsonb,
+  trace_id          text,
+  correlation_id    text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+comment on table public.jobs is 'Plataforma: fila de jobs assíncronos (genérica, lease-based).';
+create index if not exists idx_jobs_claim on public.jobs(priority desc, available_at) where status = 'queued';
+create index if not exists idx_jobs_lease on public.jobs(lease_expires_at) where status = 'running';
+create index if not exists idx_jobs_org on public.jobs(organization_id, created_at desc);
+
+
+-- === 0036_platform_job_dead_letter.sql ===
+-- 0036_platform_job_dead_letter.sql — Dead Letter Queue. Idempotente.
+-- Destino de jobs que esgotaram max_attempts. Append-only (sem updated_at).
+
+create table if not exists public.job_dead_letter (
+  id               uuid primary key default gen_random_uuid(),
+  job_id           uuid,
+  organization_id  uuid references public.organizations(id) on delete cascade,
+  type             text not null,
+  payload          jsonb not null default '{}'::jsonb,
+  attempts         int not null default 0,
+  last_error       text,
+  failed_at        timestamptz not null default now(),
+  created_at       timestamptz not null default now()
+);
+comment on table public.job_dead_letter is 'Plataforma: DLQ (jobs que falharam definitivamente).';
+create index if not exists idx_dlq_org on public.job_dead_letter(organization_id, created_at desc);
+
+
+-- === 0037_platform_job_schedules.sql ===
+-- 0037_platform_job_schedules.sql — Scheduler (jobs recorrentes/agendados). Idempotente.
+-- O scheduler (pg_cron + worker) enfileira um job quando next_run_at vence.
+
+create table if not exists public.job_schedules (
+  id                uuid primary key default gen_random_uuid(),
+  organization_id   uuid references public.organizations(id) on delete cascade,
+  type              text not null,
+  payload           jsonb not null default '{}'::jsonb,
+  cron              text,            -- expressão cron (opcional)
+  interval_seconds  int,             -- alternativa a cron
+  next_run_at       timestamptz not null default now(),
+  enabled           boolean not null default true,
+  last_enqueued_at  timestamptz,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+comment on table public.job_schedules is 'Plataforma: agendamentos recorrentes que enfileiram jobs.';
+create index if not exists idx_schedules_due on public.job_schedules(next_run_at) where enabled;
+
+
+-- === 0038_platform_quotas.sql ===
+-- 0038_platform_quotas.sql — Limites por plano + uso por organização. Idempotente.
+-- Enforcement centralizado no QuotaService (RPCs check_quota/consume_quota).
+
+create table if not exists public.plan_limits (
+  id           uuid primary key default gen_random_uuid(),
+  plan_id      text not null,                 -- free | starter | pro | enterprise
+  resource     text not null,                 -- customers | messages | ai_credits | storage_bytes | api_calls
+  limit_value  bigint not null default -1,    -- -1 = ilimitado
+  period       text not null default 'month' check (period in ('month','total')),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+comment on table public.plan_limits is 'Plataforma: limites por plano (referência global).';
+create unique index if not exists uq_plan_limits on public.plan_limits(plan_id, resource);
+
+create table if not exists public.quota_usage (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  resource         text not null,
+  period_key       text not null default 'total',   -- 'YYYY-MM' (mensal) ou 'total'
+  used             bigint not null default 0,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.quota_usage is 'Plataforma: uso corrente de recursos por organização.';
+create unique index if not exists uq_quota_usage on public.quota_usage(organization_id, resource, period_key);
+
+
+-- === 0039_platform_webhooks.sql ===
+-- 0039_platform_webhooks.sql — Webhooks de saída + entregas. Idempotente.
+
+create table if not exists public.webhooks (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  url              text not null,
+  events           text[] not null default '{}',   -- nomes de eventos assinados
+  secret           text,                            -- assinatura HMAC
+  enabled          boolean not null default true,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  deleted_at       timestamptz
+);
+comment on table public.webhooks is 'Plataforma: endpoints de webhook (saída) por organização.';
+create index if not exists idx_webhooks_org on public.webhooks(organization_id) where deleted_at is null;
+
+create table if not exists public.webhook_deliveries (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  webhook_id       uuid not null references public.webhooks(id) on delete cascade,
+  event            text not null,
+  payload          jsonb not null default '{}'::jsonb,
+  status           text not null default 'pending' check (status in ('pending','delivered','failed','dead')),
+  attempts         int not null default 0,
+  response_status  int,
+  response_body    text,
+  delivered_at     timestamptz,
+  trace_id         text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.webhook_deliveries is 'Plataforma: tentativas de entrega de webhooks.';
+create index if not exists idx_wh_deliveries_org on public.webhook_deliveries(organization_id, created_at desc);
+create index if not exists idx_wh_deliveries_pending on public.webhook_deliveries(status) where status = 'pending';
+
+
+-- === 0040_platform_operation_traces.sql ===
+-- 0040_platform_operation_traces.sql — Observabilidade (traces de operações). Idempotente.
+-- Store durável leve (append-only); o TracingProvider também exporta p/ OpenTelemetry.
+-- Toda operação importante registra: trace_id, organization_id, correlation_id,
+-- actor_id, operation, status, duration_ms.
+
+create table if not exists public.operation_traces (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid references public.organizations(id) on delete cascade,
+  trace_id         text not null,
+  span_id          text,
+  correlation_id   text,
+  actor_id         uuid references auth.users(id) on delete set null,
+  operation        text not null,
+  status           text not null default 'success' check (status in ('success','error')),
+  duration_ms      int,
+  metadata         jsonb not null default '{}'::jsonb,
+  created_at       timestamptz not null default now()
+);
+comment on table public.operation_traces is 'Plataforma: observabilidade append-only (export futuro p/ OpenTelemetry).';
+create index if not exists idx_traces_org on public.operation_traces(organization_id, created_at desc);
+create index if not exists idx_traces_trace on public.operation_traces(trace_id);
+
+
+-- === 0041_platform_market_templates.sql ===
+-- 0041_platform_market_templates.sql — Templates de mercado (versionados). Idempotente.
+-- Totalmente configuráveis via `definition jsonb` — nenhuma regra fixa no código.
+-- Versionados: Clínica v1 → v2 → v3; orgs antigas permanecem na versão aplicada.
+
+create table if not exists public.market_templates (
+  id            uuid primary key default gen_random_uuid(),
+  key           text not null,                 -- clinica, loja_virtual, oficina…
+  version       int not null default 1,
+  name          text not null,
+  description   text not null default '',
+  definition    jsonb not null default '{}'::jsonb,  -- default_modules[], pipelines[], custom_fields[], automations[], dashboard
+  is_active     boolean not null default true,
+  published_at  timestamptz,
+  position      int not null default 0,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+comment on table public.market_templates is 'Plataforma: templates de mercado versionados (definição 100% em jsonb).';
+create unique index if not exists uq_market_templates on public.market_templates(key, version);
+
+alter table public.organizations
+  add column if not exists market_template text,
+  add column if not exists market_template_version int;
+
+
+-- === 0042_platform_functions.sql ===
+-- 0042_platform_functions.sql — RPCs da infraestrutura. Idempotente. SECURITY DEFINER.
+
+-- ── Catálogo de módulos ──────────────────────────────────────────────────────
+create or replace function public.has_module(p_org uuid, p_key text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.modules m
+    where m.key = p_key and (
+      m.is_core or exists (
+        select 1 from public.organization_modules om
+        where om.organization_id = p_org and om.module_id = m.id and om.enabled
+      )
+    )
+  );
+$$;
+
+-- ── Queue ────────────────────────────────────────────────────────────────────
+create or replace function public.enqueue_job(
+  p_org uuid, p_type text, p_payload jsonb default '{}'::jsonb,
+  p_available_at timestamptz default now(), p_priority int default 0,
+  p_max_attempts int default 5, p_trace_id text default null, p_correlation_id text default null
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  insert into public.jobs(organization_id, type, payload, available_at, priority, max_attempts, trace_id, correlation_id)
+  values (p_org, p_type, coalesce(p_payload, '{}'::jsonb), coalesce(p_available_at, now()), p_priority, p_max_attempts, p_trace_id, p_correlation_id)
+  returning id into v_id;
+  return v_id;
+end; $$;
+
+-- Claim lease-based: pega jobs 'queued' vencidos OU 'running' com lease expirado
+-- (reclaim de worker morto). FOR UPDATE SKIP LOCKED p/ concorrência.
+create or replace function public.claim_jobs(p_worker text, p_limit int default 10, p_lease_seconds int default 60)
+returns setof public.jobs language plpgsql security definer set search_path = public as $$
+begin
+  return query
+  update public.jobs j set
+    status = 'running', locked_at = now(), locked_by = p_worker,
+    lease_expires_at = now() + make_interval(secs => p_lease_seconds),
+    attempts = j.attempts + 1, updated_at = now()
+  where j.id in (
+    select id from public.jobs
+    where (status = 'queued' and available_at <= now())
+       or (status = 'running' and lease_expires_at < now())
+    order by priority desc, available_at asc
+    for update skip locked
+    limit greatest(1, p_limit)
+  )
+  returning j.*;
+end; $$;
+
+create or replace function public.complete_job(p_id uuid, p_result jsonb default '{}'::jsonb)
+returns void language sql security definer set search_path = public as $$
+  update public.jobs set status = 'succeeded', result = coalesce(p_result, '{}'::jsonb),
+    locked_at = null, locked_by = null, lease_expires_at = null, updated_at = now()
+  where id = p_id;
+$$;
+
+-- Falha: retry com backoff exponencial, ou DLQ ao esgotar max_attempts.
+create or replace function public.fail_job(p_id uuid, p_error text)
+returns text language plpgsql security definer set search_path = public as $$
+declare j public.jobs;
+begin
+  select * into j from public.jobs where id = p_id;
+  if j.id is null then return 'not_found'; end if;
+  if j.attempts >= j.max_attempts then
+    update public.jobs set status = 'dead', last_error = p_error,
+      locked_at = null, locked_by = null, lease_expires_at = null, updated_at = now()
+    where id = p_id;
+    insert into public.job_dead_letter(job_id, organization_id, type, payload, attempts, last_error)
+    values (j.id, j.organization_id, j.type, j.payload, j.attempts, p_error);
+    return 'dead';
+  end if;
+  update public.jobs set status = 'queued', last_error = p_error,
+    locked_at = null, locked_by = null, lease_expires_at = null,
+    available_at = now() + make_interval(secs => least(3600, (power(2, j.attempts)::int) * 5)),
+    updated_at = now()
+  where id = p_id;
+  return 'retry';
+end; $$;
+
+-- ── Quotas (QuotaService) ────────────────────────────────────────────────────
+create or replace function public.check_quota(p_org uuid, p_resource text, p_amount bigint default 1)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare v_plan text; v_limit bigint; v_period text; v_key text; v_used bigint;
+begin
+  select plan_id into v_plan from public.organizations where id = p_org;
+  select limit_value, period into v_limit, v_period
+    from public.plan_limits where plan_id = coalesce(v_plan, 'free') and resource = p_resource;
+  if v_limit is null or v_limit < 0 then return true; end if;   -- sem limite / ilimitado
+  v_key := case when v_period = 'month' then to_char(now(), 'YYYY-MM') else 'total' end;
+  select used into v_used from public.quota_usage
+    where organization_id = p_org and resource = p_resource and period_key = v_key;
+  return coalesce(v_used, 0) + p_amount <= v_limit;
+end; $$;
+
+create or replace function public.consume_quota(p_org uuid, p_resource text, p_amount bigint default 1)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_plan text; v_period text; v_key text;
+begin
+  select plan_id into v_plan from public.organizations where id = p_org;
+  select period into v_period from public.plan_limits where plan_id = coalesce(v_plan, 'free') and resource = p_resource;
+  v_key := case when coalesce(v_period, 'month') = 'month' then to_char(now(), 'YYYY-MM') else 'total' end;
+  insert into public.quota_usage(organization_id, resource, period_key, used)
+  values (p_org, p_resource, v_key, p_amount)
+  on conflict (organization_id, resource, period_key)
+    do update set used = public.quota_usage.used + p_amount, updated_at = now();
+end; $$;
+
+-- ── Observabilidade ──────────────────────────────────────────────────────────
+create or replace function public.write_trace(
+  p_org uuid, p_trace_id text, p_operation text, p_status text default 'success',
+  p_duration_ms int default null, p_correlation_id text default null,
+  p_span_id text default null, p_metadata jsonb default '{}'::jsonb
+) returns void language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.operation_traces(organization_id, trace_id, span_id, correlation_id, actor_id, operation, status, duration_ms, metadata)
+  values (p_org, p_trace_id, p_span_id, p_correlation_id, auth.uid(), p_operation, p_status, p_duration_ms, coalesce(p_metadata, '{}'::jsonb));
+end; $$;
+
+-- ── Webhooks (dispatch a partir do outbox do Event Bus) ──────────────────────
+create or replace function public.dispatch_webhooks(p_org uuid, p_event text, p_payload jsonb default '{}'::jsonb)
+returns int language plpgsql security definer set search_path = public as $$
+declare w record; n int := 0;
+begin
+  for w in select id from public.webhooks
+    where organization_id = p_org and enabled and deleted_at is null and p_event = any(events)
+  loop
+    insert into public.webhook_deliveries(organization_id, webhook_id, event, payload)
+    values (p_org, w.id, p_event, coalesce(p_payload, '{}'::jsonb));
+    n := n + 1;
+  end loop;
+  return n;
+end; $$;
+
+-- ── Market Templates (aplicação 100% data-driven) ───────────────────────────
+create or replace function public.apply_market_template(p_org uuid, p_key text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_tpl public.market_templates; v_def jsonb; v_pipe jsonb; v_pipeline_id uuid; v_stage jsonb; v_field jsonb; v_pos int;
+begin
+  if not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  select * into v_tpl from public.market_templates
+    where key = p_key and is_active order by version desc limit 1;
+  if v_tpl.id is null then raise exception 'template not found: %', p_key; end if;
+  v_def := v_tpl.definition;
+
+  update public.organizations
+    set market_template = p_key, market_template_version = v_tpl.version where id = p_org;
+
+  for v_pipe in select value from jsonb_array_elements(coalesce(v_def -> 'pipelines', '[]'::jsonb)) loop
+    insert into public.pipelines(organization_id, name, is_default, position, color)
+    values (p_org, v_pipe ->> 'name', coalesce((v_pipe ->> 'is_default')::boolean, false),
+            coalesce((v_pipe ->> 'position')::int, 0), coalesce(v_pipe ->> 'color', '#2563EB'))
+    returning id into v_pipeline_id;
+    v_pos := 0;
+    for v_stage in select value from jsonb_array_elements(coalesce(v_pipe -> 'stages', '[]'::jsonb)) loop
+      insert into public.pipeline_stages(organization_id, pipeline_id, name, position, type, probability)
+      values (p_org, v_pipeline_id, v_stage ->> 'name', v_pos,
+              coalesce(v_stage ->> 'type', 'open'), coalesce((v_stage ->> 'probability')::int, 0));
+      v_pos := v_pos + 1;
+    end loop;
+  end loop;
+
+  for v_field in select value from jsonb_array_elements(coalesce(v_def -> 'customer_custom_fields', '[]'::jsonb)) loop
+    insert into public.customer_custom_fields(organization_id, key, label, field_type, position)
+    values (p_org, v_field ->> 'key', v_field ->> 'label', coalesce(v_field ->> 'field_type', 'text'),
+            coalesce((v_field ->> 'position')::int, 0))
+    on conflict (organization_id, key) do nothing;
+  end loop;
+
+  perform public.write_audit(p_org, 'organization.template.applied', 'market_template', v_tpl.id,
+    jsonb_build_object('key', p_key, 'version', v_tpl.version));
+end; $$;
+
+-- ── Grants de execução ───────────────────────────────────────────────────────
+grant execute on function public.has_module(uuid, text) to authenticated;
+grant execute on function public.enqueue_job(uuid, text, jsonb, timestamptz, int, int, text, text) to authenticated, service_role;
+grant execute on function public.check_quota(uuid, text, bigint) to authenticated, service_role;
+grant execute on function public.consume_quota(uuid, text, bigint) to authenticated, service_role;
+grant execute on function public.write_trace(uuid, text, text, text, int, text, text, jsonb) to authenticated, service_role;
+grant execute on function public.apply_market_template(uuid, text) to authenticated;
+-- Worker-only (service_role): claim/complete/fail e dispatch de webhooks.
+grant execute on function public.claim_jobs(text, int, int) to service_role;
+grant execute on function public.complete_job(uuid, jsonb) to service_role;
+grant execute on function public.fail_job(uuid, text) to service_role;
+grant execute on function public.dispatch_webhooks(uuid, text, jsonb) to service_role;
+
+
+-- === 0043_platform_seed.sql ===
+-- 0043_platform_seed.sql — Seeds da plataforma. Idempotente (ON CONFLICT).
+
+-- ── Catálogo de módulos ──────────────────────────────────────────────────────
+insert into public.modules(key, name, category, is_core, position) values
+  ('dashboard',     'Dashboard',     'core',           true,  0),
+  ('clientes',      'Clientes',      'sales',          false, 1),
+  ('crm',           'CRM',           'sales',          false, 2),
+  ('whatsapp',      'WhatsApp',      'communication',  false, 3),
+  ('automacoes',    'Automações',    'automation',     false, 4),
+  ('ia',            'IA',            'intelligence',   false, 5),
+  ('relatorios',    'Relatórios',    'sales',          false, 6),
+  ('agenda',        'Agenda',        'productivity',   false, 7),
+  ('financeiro',    'Financeiro',    'finance',        false, 8),
+  ('marketing',     'Marketing',     'communication',  false, 9),
+  ('api_publica',   'API Pública',   'platform',       false, 10),
+  ('marketplace',   'Marketplace',   'platform',       false, 11),
+  ('configuracoes', 'Configurações', 'core',           true,  12),
+  ('billing',       'Cobrança',      'billing',        true,  13)
+on conflict (key) do update set name = excluded.name, category = excluded.category, is_core = excluded.is_core;
+
+-- ── Limites por plano (period: month, exceto customers/storage = total) ──────
+insert into public.plan_limits(plan_id, resource, limit_value, period) values
+  ('free','customers',500,'total'), ('free','messages',1000,'month'), ('free','ai_credits',1000,'month'), ('free','storage_bytes',1073741824,'total'), ('free','api_calls',1000,'month'),
+  ('starter','customers',5000,'total'), ('starter','messages',20000,'month'), ('starter','ai_credits',20000,'month'), ('starter','storage_bytes',10737418240,'total'), ('starter','api_calls',50000,'month'),
+  ('pro','customers',50000,'total'), ('pro','messages',200000,'month'), ('pro','ai_credits',150000,'month'), ('pro','storage_bytes',107374182400,'total'), ('pro','api_calls',500000,'month'),
+  ('enterprise','customers',-1,'total'), ('enterprise','messages',-1,'month'), ('enterprise','ai_credits',-1,'month'), ('enterprise','storage_bytes',-1,'total'), ('enterprise','api_calls',-1,'month')
+on conflict (plan_id, resource) do update set limit_value = excluded.limit_value, period = excluded.period;
+
+-- ── Permissões novas + mapeamento (owner/admin) ──────────────────────────────
+insert into public.permissions(key, module, description) values
+  ('modules.manage',     'configuracoes', 'Ativar/desativar módulos da organização'),
+  ('webhooks.manage',    'api_publica',   'Gerenciar webhooks'),
+  ('observability.read', 'core',          'Ver traces/observabilidade')
+on conflict (key) do update set module = excluded.module, description = excluded.description;
+
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.organization_id is null and r.key in ('owner','admin')
+  and p.key in ('modules.manage','webhooks.manage','observability.read')
+on conflict do nothing;
+
+-- ── Market Templates (v1, definição 100% em jsonb) ───────────────────────────
+insert into public.market_templates(key, version, name, description, definition, published_at, position) values
+  ('generico', 1, 'Genérico', 'Funil comercial padrão', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','whatsapp'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Comercial','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Lead','type','open','probability',10),
+        jsonb_build_object('name','Qualificado','type','open','probability',30),
+        jsonb_build_object('name','Proposta','type','open','probability',60),
+        jsonb_build_object('name','Negociação','type','open','probability',80),
+        jsonb_build_object('name','Ganho','type','won','probability',100),
+        jsonb_build_object('name','Perdido','type','lost','probability',0))))
+  ), now(), 0),
+  ('clinica', 1, 'Clínica', 'Gestão de pacientes e atendimentos', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','agenda','whatsapp'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Atendimentos','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Agendado','type','open','probability',30),
+        jsonb_build_object('name','Em atendimento','type','open','probability',60),
+        jsonb_build_object('name','Concluído','type','won','probability',100),
+        jsonb_build_object('name','Faltou','type','lost','probability',0)))),
+    'customer_custom_fields', jsonb_build_array(
+      jsonb_build_object('key','convenio','label','Convênio','field_type','text'),
+      jsonb_build_object('key','cpf','label','CPF','field_type','text'))
+  ), now(), 1),
+  ('loja_virtual', 1, 'Loja Virtual', 'Pedidos e pós-venda', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','marketing','whatsapp'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Pedidos','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Novo','type','open','probability',20),
+        jsonb_build_object('name','Pago','type','open','probability',60),
+        jsonb_build_object('name','Enviado','type','open','probability',80),
+        jsonb_build_object('name','Entregue','type','won','probability',100),
+        jsonb_build_object('name','Cancelado','type','lost','probability',0))))
+  ), now(), 2),
+  ('oficina', 1, 'Oficina', 'Ordens de serviço', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','agenda'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Ordens de Serviço','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Orçamento','type','open','probability',20),
+        jsonb_build_object('name','Aprovado','type','open','probability',50),
+        jsonb_build_object('name','Em execução','type','open','probability',75),
+        jsonb_build_object('name','Pronto','type','open','probability',90),
+        jsonb_build_object('name','Entregue','type','won','probability',100))))
+  ), now(), 3),
+  ('imobiliaria', 1, 'Imobiliária', 'Negociações de imóveis', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','whatsapp','agenda'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Negociações','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Visita','type','open','probability',25),
+        jsonb_build_object('name','Proposta','type','open','probability',55),
+        jsonb_build_object('name','Contrato','type','open','probability',85),
+        jsonb_build_object('name','Fechado','type','won','probability',100),
+        jsonb_build_object('name','Perdido','type','lost','probability',0))))
+  ), now(), 4),
+  ('restaurante', 1, 'Restaurante', 'Reservas e fidelização', jsonb_build_object(
+    'default_modules', jsonb_build_array('clientes','marketing','whatsapp'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Reservas','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Solicitada','type','open','probability',40),
+        jsonb_build_object('name','Confirmada','type','open','probability',80),
+        jsonb_build_object('name','Atendida','type','won','probability',100),
+        jsonb_build_object('name','No-show','type','lost','probability',0))))
+  ), now(), 5),
+  ('prestador_servicos', 1, 'Prestador de Serviços', 'Projetos e propostas', jsonb_build_object(
+    'default_modules', jsonb_build_array('crm','clientes','agenda','financeiro'),
+    'pipelines', jsonb_build_array(jsonb_build_object('name','Projetos','is_default',true,'stages',
+      jsonb_build_array(
+        jsonb_build_object('name','Lead','type','open','probability',15),
+        jsonb_build_object('name','Proposta','type','open','probability',50),
+        jsonb_build_object('name','Contratado','type','open','probability',85),
+        jsonb_build_object('name','Entregue','type','won','probability',100),
+        jsonb_build_object('name','Perdido','type','lost','probability',0))))
+  ), now(), 6)
+on conflict (key, version) do update set name = excluded.name, definition = excluded.definition, published_at = excluded.published_at;
+
+
+-- === 0044_platform_policies.sql ===
+-- 0044_platform_policies.sql — RLS + grants da infraestrutura. Idempotente.
+
+-- Grants (idempotente; RLS ainda gateia as linhas).
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant all privileges on all tables in schema public to service_role;
+
+-- ── Catálogos globais: leitura para autenticados, sem escrita pelo cliente ────
+do $$
+declare t text;
+begin
+  foreach t in array array['modules','plan_limits','market_templates'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists %I on public.%I', t || '_select', t);
+    execute format('create policy %I on public.%I for select to authenticated using (true)', t || '_select', t);
+  end loop;
+end $$;
+
+-- ── Tabelas por org gateadas por permissão (read_perm / write_perm) ──────────
+do $$
+declare rec record;
+begin
+  for rec in
+    select * from (values
+      ('organization_modules', 'is_org_member',       'modules.manage'),
+      ('module_configs',       'is_org_member',       'configuracoes.manage'),
+      ('job_schedules',        'is_org_member',       'modules.manage'),
+      ('webhooks',             'webhooks.manage',     'webhooks.manage')
+    ) as t(tbl, read_expr, write_perm)
+  loop
+    execute format('alter table public.%I enable row level security', rec.tbl);
+    execute format('drop policy if exists %I on public.%I', rec.tbl || '_select', rec.tbl);
+    if rec.read_expr = 'is_org_member' then
+      execute format('create policy %I on public.%I for select to authenticated using (public.is_org_member(organization_id))', rec.tbl || '_select', rec.tbl);
+    else
+      execute format('create policy %I on public.%I for select to authenticated using (public.has_permission(organization_id, %L))', rec.tbl || '_select', rec.tbl, rec.read_expr);
+    end if;
+    execute format('drop policy if exists %I on public.%I', rec.tbl || '_write', rec.tbl);
+    execute format('create policy %I on public.%I for all to authenticated using (public.has_permission(organization_id, %L)) with check (public.has_permission(organization_id, %L))', rec.tbl || '_write', rec.tbl, rec.write_perm, rec.write_perm);
+  end loop;
+end $$;
+
+-- ── Somente leitura por membro; escrita apenas via RPCs SECURITY DEFINER ─────
+do $$
+declare t text;
+begin
+  foreach t in array array['jobs','job_dead_letter','quota_usage','webhook_deliveries'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists %I on public.%I', t || '_select', t);
+    execute format('create policy %I on public.%I for select to authenticated using (public.is_org_member(organization_id))', t || '_select', t);
+  end loop;
+end $$;
+
+-- ── operation_traces: leitura por observability.read; escrita via definer ────
+alter table public.operation_traces enable row level security;
+drop policy if exists operation_traces_select on public.operation_traces;
+create policy operation_traces_select on public.operation_traces for select to authenticated
+  using (organization_id is not null and public.has_permission(organization_id, 'observability.read'));
+
+
+-- === 0045_platform_triggers.sql ===
+-- 0045_platform_triggers.sql — updated_at + auditoria automática. Idempotente.
+
+-- updated_at em todas as tabelas da F3.0 que têm a coluna.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'modules','organization_modules','module_configs','jobs','job_schedules',
+    'plan_limits','quota_usage','webhooks','webhook_deliveries','market_templates'
+  ] loop
+    execute format('drop trigger if exists trg_%1$s_updated_at on public.%1$s', t);
+    execute format('create trigger trg_%1$s_updated_at before update on public.%1$s for each row execute function public.set_updated_at()', t);
+  end loop;
+end $$;
+
+-- Auditoria automática nas tabelas de gestão com organization_id (evita ruído
+-- em jobs/quota/traces/deliveries de alta frequência).
+do $$
+declare t text;
+begin
+  foreach t in array array['organization_modules','module_configs','webhooks'] loop
+    execute format('drop trigger if exists trg_%1$s_audit on public.%1$s', t);
+    execute format('create trigger trg_%1$s_audit after insert or update or delete on public.%1$s for each row execute function public.audit_row_change()', t);
+  end loop;
+end $$;
+
+
+-- === 0046_hardening_guards.sql ===
+-- 0046_hardening_guards.sql — C1 (guard multi-tenant) + M1 (template idempotente). Idempotente.
+-- Guard: usuário autenticado só opera na própria org; service_role (auth.uid()=null) passa.
+
+create or replace function public.check_quota(p_org uuid, p_resource text, p_amount bigint default 1)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare v_plan text; v_limit bigint; v_period text; v_key text; v_used bigint;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  select plan_id into v_plan from public.organizations where id = p_org;
+  select limit_value, period into v_limit, v_period from public.plan_limits where plan_id = coalesce(v_plan, 'free') and resource = p_resource;
+  if v_limit is null or v_limit < 0 then return true; end if;
+  v_key := case when v_period = 'month' then to_char(now(), 'YYYY-MM') else 'total' end;
+  select used into v_used from public.quota_usage where organization_id = p_org and resource = p_resource and period_key = v_key;
+  return coalesce(v_used, 0) + p_amount <= v_limit;
+end; $$;
+
+create or replace function public.consume_quota(p_org uuid, p_resource text, p_amount bigint default 1)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_plan text; v_period text; v_key text;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  select plan_id into v_plan from public.organizations where id = p_org;
+  select period into v_period from public.plan_limits where plan_id = coalesce(v_plan, 'free') and resource = p_resource;
+  v_key := case when coalesce(v_period, 'month') = 'month' then to_char(now(), 'YYYY-MM') else 'total' end;
+  insert into public.quota_usage(organization_id, resource, period_key, used) values (p_org, p_resource, v_key, p_amount)
+  on conflict (organization_id, resource, period_key) do update set used = public.quota_usage.used + p_amount, updated_at = now();
+end; $$;
+
+create or replace function public.write_trace(
+  p_org uuid, p_trace_id text, p_operation text, p_status text default 'success',
+  p_duration_ms int default null, p_correlation_id text default null,
+  p_span_id text default null, p_metadata jsonb default '{}'::jsonb
+) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if p_org is not null and auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  insert into public.operation_traces(organization_id, trace_id, span_id, correlation_id, actor_id, operation, status, duration_ms, metadata)
+  values (p_org, p_trace_id, p_span_id, p_correlation_id, auth.uid(), p_operation, p_status, p_duration_ms, coalesce(p_metadata, '{}'::jsonb));
+end; $$;
+
+-- M1: apply_market_template idempotente (aplica só uma vez por org).
+create or replace function public.apply_market_template(p_org uuid, p_key text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_tpl public.market_templates; v_def jsonb; v_pipe jsonb; v_pipeline_id uuid; v_stage jsonb; v_field jsonb; v_pos int;
+begin
+  if not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  if (select market_template from public.organizations where id = p_org) is not null then return; end if;  -- idempotente
+  select * into v_tpl from public.market_templates where key = p_key and is_active order by version desc limit 1;
+  if v_tpl.id is null then raise exception 'template not found: %', p_key; end if;
+  v_def := v_tpl.definition;
+
+  update public.organizations set market_template = p_key, market_template_version = v_tpl.version where id = p_org;
+
+  for v_pipe in select value from jsonb_array_elements(coalesce(v_def -> 'pipelines', '[]'::jsonb)) loop
+    insert into public.pipelines(organization_id, name, is_default, position, color)
+    values (p_org, v_pipe ->> 'name', coalesce((v_pipe ->> 'is_default')::boolean, false),
+            coalesce((v_pipe ->> 'position')::int, 0), coalesce(v_pipe ->> 'color', '#2563EB'))
+    returning id into v_pipeline_id;
+    v_pos := 0;
+    for v_stage in select value from jsonb_array_elements(coalesce(v_pipe -> 'stages', '[]'::jsonb)) loop
+      insert into public.pipeline_stages(organization_id, pipeline_id, name, position, type, probability)
+      values (p_org, v_pipeline_id, v_stage ->> 'name', v_pos, coalesce(v_stage ->> 'type', 'open'), coalesce((v_stage ->> 'probability')::int, 0));
+      v_pos := v_pos + 1;
+    end loop;
+  end loop;
+
+  for v_field in select value from jsonb_array_elements(coalesce(v_def -> 'customer_custom_fields', '[]'::jsonb)) loop
+    insert into public.customer_custom_fields(organization_id, key, label, field_type, position)
+    values (p_org, v_field ->> 'key', v_field ->> 'label', coalesce(v_field ->> 'field_type', 'text'), coalesce((v_field ->> 'position')::int, 0))
+    on conflict (organization_id, key) do nothing;
+  end loop;
+
+  perform public.write_audit(p_org, 'organization.template.applied', 'market_template', v_tpl.id,
+    jsonb_build_object('key', p_key, 'version', v_tpl.version));
+end; $$;
+
+
+-- === 0047_hardening_quota_atomic.sql ===
+-- 0047_hardening_quota_atomic.sql — C2: consumo de cota atômico (sem race). Idempotente.
+-- Verifica + incrementa em uma transação com lock de linha (FOR UPDATE).
+
+create or replace function public.try_consume_quota(p_org uuid, p_resource text, p_amount bigint default 1)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare v_plan text; v_limit bigint; v_period text; v_key text; v_used bigint;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+
+  select plan_id into v_plan from public.organizations where id = p_org;
+  select limit_value, period into v_limit, v_period
+    from public.plan_limits where plan_id = coalesce(v_plan, 'free') and resource = p_resource;
+  v_key := case when coalesce(v_period, 'month') = 'month' then to_char(now(), 'YYYY-MM') else 'total' end;
+
+  -- garante a linha, então trava para serializar consumidores concorrentes
+  insert into public.quota_usage(organization_id, resource, period_key, used)
+  values (p_org, p_resource, v_key, 0)
+  on conflict (organization_id, resource, period_key) do nothing;
+
+  select used into v_used from public.quota_usage
+    where organization_id = p_org and resource = p_resource and period_key = v_key
+    for update;
+
+  if v_limit is not null and v_limit >= 0 and v_used + p_amount > v_limit then
+    return false;  -- não cabe
+  end if;
+
+  update public.quota_usage set used = v_used + p_amount, updated_at = now()
+    where organization_id = p_org and resource = p_resource and period_key = v_key;
+  return true;
+end; $$;
+
+grant execute on function public.try_consume_quota(uuid, text, bigint) to authenticated, service_role;
+
+
+-- === 0048_hardening_infra.sql ===
+-- 0048_hardening_infra.sql — C3 (job_types), H3 (idempotência + payload_version), H1 (domain_events). Idempotente.
+
+-- ── C3: catálogo de tipos de job permitidos ──────────────────────────────────
+create table if not exists public.job_types (
+  key          text primary key,
+  module       text not null default 'core',
+  description  text not null default '',
+  enabled      boolean not null default true,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+comment on table public.job_types is 'Plataforma: allowlist de tipos de job (cada módulo registra os seus).';
+insert into public.job_types(key, module, description) values
+  ('outbox.relay', 'core', 'Relay do outbox → webhooks/reações'),
+  ('noop',         'core', 'Job de teste')
+on conflict (key) do update set module = excluded.module, description = excluded.description;
+
+-- ── H3: chaves de idempotência (dedup de execução) ───────────────────────────
+create table if not exists public.idempotency_keys (
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  key              text not null,
+  created_at       timestamptz not null default now(),
+  primary key (organization_id, key)
+);
+comment on table public.idempotency_keys is 'Plataforma: garante execução única por chave (handlers idempotentes).';
+
+-- ── H3/versionamento: jobs.payload_version + idempotency_key ─────────────────
+alter table public.jobs
+  add column if not exists payload_version int not null default 1,
+  add column if not exists idempotency_key text;
+create unique index if not exists uq_jobs_idempotency
+  on public.jobs(organization_id, type, idempotency_key) where idempotency_key is not null;
+
+-- ── H1: outbox de eventos de domínio (Event Bus durável) ─────────────────────
+create table if not exists public.domain_events (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  name             text not null,
+  payload          jsonb not null default '{}'::jsonb,
+  payload_version  int not null default 1,
+  status           text not null default 'queued' check (status in ('queued','processing','done','failed')),
+  attempts         int not null default 0,
+  trace_id         text,
+  correlation_id   text,
+  occurred_at      timestamptz not null default now(),
+  processed_at     timestamptz,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.domain_events is 'Plataforma: outbox transacional de eventos (Event Bus durável).';
+create index if not exists idx_domain_events_org on public.domain_events(organization_id, occurred_at desc);
+create index if not exists idx_domain_events_open on public.domain_events(status) where status <> 'done';
+
+
+-- === 0049_hardening_enqueue_events.sql ===
+-- 0049_hardening_enqueue_events.sql — enqueue consolidado + idempotência + outbox RPCs. Idempotente.
+
+-- Remove a versão antiga (8 args) para evitar overload ambíguo.
+drop function if exists public.enqueue_job(uuid, text, jsonb, timestamptz, int, int, text, text);
+
+-- enqueue_job: guard (C1) + allowlist (C3) + dedup por idempotency_key (H3) + payload_version.
+create or replace function public.enqueue_job(
+  p_org uuid, p_type text, p_payload jsonb default '{}'::jsonb,
+  p_available_at timestamptz default now(), p_priority int default 0,
+  p_max_attempts int default 5, p_trace_id text default null, p_correlation_id text default null,
+  p_idempotency_key text default null, p_payload_version int default 1
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid; v_existing uuid;
+begin
+  if auth.uid() is not null and p_org is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  if not exists (select 1 from public.job_types where key = p_type and enabled) then
+    raise exception 'unknown job type: %', p_type;
+  end if;
+  if p_idempotency_key is not null then
+    select id into v_existing from public.jobs
+      where organization_id = p_org and type = p_type and idempotency_key = p_idempotency_key limit 1;
+    if v_existing is not null then return v_existing; end if;   -- dedup de enqueue
+  end if;
+  insert into public.jobs(organization_id, type, payload, payload_version, available_at, priority, max_attempts, trace_id, correlation_id, idempotency_key)
+  values (p_org, p_type, coalesce(p_payload, '{}'::jsonb), coalesce(p_payload_version, 1), coalesce(p_available_at, now()),
+          p_priority, p_max_attempts, p_trace_id, p_correlation_id, p_idempotency_key)
+  returning id into v_id;
+  return v_id;
+end; $$;
+grant execute on function public.enqueue_job(uuid, text, jsonb, timestamptz, int, int, text, text, text, int) to authenticated, service_role;
+
+-- Idempotência de execução: adquire uma chave (true) ou já usada (false).
+create or replace function public.claim_idempotency(p_org uuid, p_key text)
+returns boolean language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  insert into public.idempotency_keys(organization_id, key) values (p_org, p_key) on conflict do nothing;
+  return found;
+end; $$;
+grant execute on function public.claim_idempotency(uuid, text) to authenticated, service_role;
+
+-- H1: publica evento no outbox e enfileira o relay (via Queue). Dedup do relay.
+create or replace function public.publish_event(
+  p_org uuid, p_name text, p_payload jsonb default '{}'::jsonb, p_payload_version int default 1, p_trace_id text default null
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  insert into public.domain_events(organization_id, name, payload, payload_version, trace_id)
+  values (p_org, p_name, coalesce(p_payload, '{}'::jsonb), coalesce(p_payload_version, 1), p_trace_id)
+  returning id into v_id;
+  perform public.enqueue_job(p_org, 'outbox.relay', jsonb_build_object('event_id', v_id), now(), 0, 5, p_trace_id, null,
+                             'outbox.relay:' || v_id::text, 1);
+  return v_id;
+end; $$;
+grant execute on function public.publish_event(uuid, text, jsonb, int, text) to authenticated, service_role;
+
+-- Relay (worker): faz fan-out para webhooks e marca o evento processado.
+create or replace function public.relay_domain_event(p_event_id uuid)
+returns int language plpgsql security definer set search_path = public as $$
+declare e public.domain_events; n int;
+begin
+  select * into e from public.domain_events where id = p_event_id;
+  if e.id is null then return 0; end if;
+  n := public.dispatch_webhooks(e.organization_id, e.name, e.payload);
+  update public.domain_events set status = 'done', processed_at = now(), updated_at = now() where id = p_event_id;
+  return n;
+end; $$;
+grant execute on function public.relay_domain_event(uuid) to service_role;
+
+
+-- === 0050_hardening_dlq_manual.sql ===
+-- 0050_hardening_dlq_manual.sql — DLQ manual (reprocessar/descartar) + permissão. Idempotente.
+-- Base para a futura tela Configurações → Jobs (Reprocessar · Ignorar · Ver erro).
+
+insert into public.permissions(key, module, description) values
+  ('jobs.manage', 'configuracoes', 'Reprocessar/descartar jobs (Dead Letter Queue)')
+on conflict (key) do update set description = excluded.description;
+
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.organization_id is null and r.key in ('owner','admin') and p.key = 'jobs.manage'
+on conflict do nothing;
+
+-- Reprocessar: reenfileira o job a partir da DLQ e remove o registro.
+create or replace function public.retry_dead_letter(p_id uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare d public.job_dead_letter; v_id uuid;
+begin
+  select * into d from public.job_dead_letter where id = p_id;
+  if d.id is null then raise exception 'not found'; end if;
+  if d.organization_id is not null and not public.has_permission(d.organization_id, 'jobs.manage') then raise exception 'forbidden'; end if;
+  v_id := public.enqueue_job(d.organization_id, d.type, d.payload, now(), 0, 5, null, null, null, 1);
+  delete from public.job_dead_letter where id = p_id;
+  return v_id;
+end; $$;
+grant execute on function public.retry_dead_letter(uuid) to authenticated;
+
+-- Descartar: remove o registro da DLQ.
+create or replace function public.discard_dead_letter(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare d public.job_dead_letter;
+begin
+  select * into d from public.job_dead_letter where id = p_id;
+  if d.id is null then return; end if;
+  if d.organization_id is not null and not public.has_permission(d.organization_id, 'jobs.manage') then raise exception 'forbidden'; end if;
+  delete from public.job_dead_letter where id = p_id;
+end; $$;
+grant execute on function public.discard_dead_letter(uuid) to authenticated;
+
+
+-- === 0051_hardening_policies.sql ===
+-- 0051_hardening_policies.sql — RLS + grants + triggers das novas tabelas. Idempotente.
+
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant all privileges on all tables in schema public to service_role;
+
+-- job_types: catálogo global (leitura para autenticados).
+alter table public.job_types enable row level security;
+drop policy if exists job_types_select on public.job_types;
+create policy job_types_select on public.job_types for select to authenticated using (true);
+
+-- domain_events: leitura por membro; escrita só via RPC definer.
+alter table public.domain_events enable row level security;
+drop policy if exists domain_events_select on public.domain_events;
+create policy domain_events_select on public.domain_events for select to authenticated
+  using (public.is_org_member(organization_id));
+
+-- idempotency_keys: leitura por membro; escrita só via RPC definer.
+alter table public.idempotency_keys enable row level security;
+drop policy if exists idem_keys_select on public.idempotency_keys;
+create policy idem_keys_select on public.idempotency_keys for select to authenticated
+  using (public.is_org_member(organization_id));
+
+-- updated_at triggers.
+do $$
+declare t text;
+begin
+  foreach t in array array['job_types','domain_events'] loop
+    execute format('drop trigger if exists trg_%1$s_updated_at on public.%1$s', t);
+    execute format('create trigger trg_%1$s_updated_at before update on public.%1$s for each row execute function public.set_updated_at()', t);
+  end loop;
+end $$;
 
