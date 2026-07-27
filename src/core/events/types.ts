@@ -34,6 +34,14 @@ export interface DomainEventMap {
 
   "whatsapp.message.received": TenantPayload & { conversationId: string; messageId: string };
   "whatsapp.message.sent": TenantPayload & { conversationId: string; messageId: string };
+  "whatsapp.message.delivered": TenantPayload & { conversationId: string; messageId: string };
+  "whatsapp.message.read": TenantPayload & { conversationId: string; messageId: string };
+  "whatsapp.message.failed": TenantPayload & { conversationId: string; messageId: string };
+  "whatsapp.conversation.opened": TenantPayload & { conversationId: string };
+  "whatsapp.conversation.assigned": TenantPayload & { conversationId: string; assignedTo: string | null };
+  "whatsapp.conversation.closed": TenantPayload & { conversationId: string };
+  "whatsapp.template.approved": TenantPayload & { templateId: string };
+  "whatsapp.template.rejected": TenantPayload & { templateId: string; reason?: string };
 
   "automation.started": TenantPayload & { automationId: string; runId: string };
   "automation.completed": TenantPayload & { automationId: string; runId: string };

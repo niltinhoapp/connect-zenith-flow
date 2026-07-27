@@ -365,6 +365,92 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["domain_events"]["Row"]>;
         Relationships: [];
       };
+      whatsapp_accounts: {
+        Row: Timestamps & {
+          id: string; organization_id: string; provider: "meta" | "evolution"; waba_id: string | null;
+          business_id: string | null; name: string | null;
+          status: "connected" | "disconnected" | "error" | "pending";
+          webhook_verify_token: string | null; connected_at: string | null; deleted_at: string | null;
+        };
+        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["whatsapp_accounts"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_accounts"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_credentials: {
+        Row: Timestamps & { account_id: string; organization_id: string; access_token: string | null; app_secret: string | null; rotated_at: string | null };
+        Insert: { account_id: string; organization_id: string } & Partial<Database["public"]["Tables"]["whatsapp_credentials"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_credentials"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_phone_numbers: {
+        Row: Timestamps & {
+          id: string; organization_id: string; account_id: string; phone_number_id: string;
+          display_phone_number: string | null; verified_name: string | null; quality_rating: string | null;
+          status: "active" | "inactive" | "flagged" | "pending"; is_default: boolean;
+        };
+        Insert: { organization_id: string; account_id: string; phone_number_id: string } & Partial<Database["public"]["Tables"]["whatsapp_phone_numbers"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_phone_numbers"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_templates: {
+        Row: Timestamps & {
+          id: string; organization_id: string; account_id: string | null; external_id: string | null;
+          name: string; language: string; category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+          status: "pending" | "approved" | "rejected" | "paused" | "disabled"; components: Json;
+          rejected_reason: string | null; deleted_at: string | null;
+        };
+        Insert: { organization_id: string; name: string } & Partial<Database["public"]["Tables"]["whatsapp_templates"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_templates"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_media: {
+        Row: Timestamps & {
+          id: string; organization_id: string; external_media_id: string | null;
+          direction: "inbound" | "outbound"; mime_type: string | null; filename: string | null;
+          size_bytes: number | null; sha256: string | null; storage_path: string | null;
+          status: "pending" | "stored" | "failed";
+        };
+        Insert: { organization_id: string; direction: "inbound" | "outbound" } & Partial<Database["public"]["Tables"]["whatsapp_media"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_media"]["Row"]>;
+        Relationships: [];
+      };
+      conversations: {
+        Row: Timestamps & {
+          id: string; organization_id: string; account_id: string | null; phone_number_id: string | null;
+          contact_wa_id: string; contact_name: string | null; customer_id: string | null;
+          status: "open" | "pending" | "closed"; assigned_to: string | null; unread_count: number;
+          last_message_at: string | null; last_message_preview: string | null; last_inbound_at: string | null;
+          window_expires_at: string | null; deleted_at: string | null;
+        };
+        Insert: { organization_id: string; contact_wa_id: string } & Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
+        Relationships: [];
+      };
+      messages: {
+        Row: Timestamps & {
+          id: string; organization_id: string; conversation_id: string;
+          direction: "inbound" | "outbound"; wa_message_id: string | null;
+          type: "text" | "image" | "document" | "audio" | "video" | "sticker" | "template" | "location" | "contacts" | "interactive" | "reaction" | "system";
+          body: string | null; media_id: string | null; template_id: string | null;
+          status: "pending" | "sent" | "delivered" | "read" | "failed" | "received";
+          sender: string | null; sent_by: string | null; payload: Json; error: Json | null; payload_version: number;
+        };
+        Insert: { organization_id: string; conversation_id: string; direction: "inbound" | "outbound" } & Partial<Database["public"]["Tables"]["messages"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["messages"]["Row"]>;
+        Relationships: [];
+      };
+      message_status_events: {
+        Row: { id: string; organization_id: string; message_id: string; status: "sent" | "delivered" | "read" | "failed"; occurred_at: string; raw: Json; created_at: string };
+        Insert: { organization_id: string; message_id: string; status: string } & Partial<Database["public"]["Tables"]["message_status_events"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["message_status_events"]["Row"]>;
+        Relationships: [];
+      };
+      whatsapp_webhook_events: {
+        Row: { id: string; organization_id: string | null; provider: string; event_type: string | null; external_id: string | null; payload: Json; status: "received" | "processed" | "failed" | "ignored"; error: string | null; received_at: string; processed_at: string | null };
+        Insert: { provider?: string } & Partial<Database["public"]["Tables"]["whatsapp_webhook_events"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["whatsapp_webhook_events"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -430,6 +516,27 @@ export interface Database {
       };
       dispatch_webhooks: { Args: { p_org: string; p_event: string; p_payload?: Json }; Returns: number };
       apply_market_template: { Args: { p_org: string; p_key: string }; Returns: undefined };
+      wa_send_message: {
+        Args: { p_org: string; p_conversation: string; p_type?: string; p_body?: string | null; p_template_id?: string | null; p_payload?: Json };
+        Returns: string;
+      };
+      wa_apply_status: {
+        Args: { p_org: string; p_wa_message_id: string; p_status: string; p_occurred_at?: string; p_raw?: Json };
+        Returns: string | null;
+      };
+      wa_ingest_inbound: {
+        Args: {
+          p_org: string; p_phone_number_id: string; p_contact_wa_id: string; p_contact_name?: string | null;
+          p_wa_message_id: string; p_type?: string; p_body?: string | null; p_payload?: Json;
+        };
+        Returns: string;
+      };
+      assign_conversation: { Args: { p_org: string; p_conversation: string; p_assignee: string | null }; Returns: undefined };
+      mark_conversation_read: { Args: { p_org: string; p_conversation: string }; Returns: undefined };
+      inbox_counters: { Args: { p_org: string }; Returns: Json };
+      wa_send_context: { Args: { p_message_id: string }; Returns: Json };
+      wa_mark_sent: { Args: { p_org: string; p_message_id: string; p_wa_message_id: string }; Returns: undefined };
+      wa_mark_failed: { Args: { p_org: string; p_message_id: string; p_error: Json }; Returns: undefined };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

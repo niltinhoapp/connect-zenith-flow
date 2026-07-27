@@ -1,4 +1,4 @@
--- ConnectWeb Automations — schema completo (migrations 0001–0051). Idempotente.
+-- ConnectWeb Automations — schema completo (migrations 0001–0056). Idempotente.
 
 -- === 0001_core_foundation.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -43,7 +43,6 @@ $$;
 
 comment on function public.set_updated_at is 'Core: mantém updated_at em UPDATEs.';
 comment on function public.slugify is 'Core: gera slug url-safe a partir de texto.';
-
 
 -- === 0002_core_organizations.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -90,7 +89,6 @@ drop trigger if exists trg_profiles_updated_at on public.profiles;
 create trigger trg_profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
-
 
 -- === 0003_core_permissions.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -158,7 +156,6 @@ create trigger trg_role_permissions_updated_at
   before update on public.role_permissions
   for each row execute function public.set_updated_at();
 
-
 -- === 0004_core_members.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
 -- ║ 0004_core_members.sql                                                      ║
@@ -191,7 +188,6 @@ drop trigger if exists trg_org_members_updated_at on public.organization_members
 create trigger trg_org_members_updated_at
   before update on public.organization_members
   for each row execute function public.set_updated_at();
-
 
 -- === 0005_core_audit.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -243,7 +239,6 @@ begin
 end;
 $$;
 comment on function public.write_audit is 'Core: registra evento na trilha de auditoria (append-only).';
-
 
 -- === 0006_core_functions.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -316,7 +311,6 @@ comment on function public.is_org_member  is 'Core/RLS: usuário atual é membro
 comment on function public.has_permission is 'Core/RLS: usuário atual tem a permissão na org?';
 comment on function public.current_org    is 'Core: organização ativa do usuário atual.';
 comment on function public.shares_org_with is 'Core/RLS: usuário atual compartilha org com o alvo?';
-
 
 -- === 0007_core_rls.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -426,7 +420,6 @@ create policy audit_select on public.audit_logs for select to authenticated
   using (organization_id is not null and public.is_org_member(organization_id));
 -- Sem policies de INSERT/UPDATE/DELETE: append-only via write_audit().
 
-
 -- === 0008_core_seed.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
 -- ║ 0008_core_seed.sql                                                         ║
@@ -503,7 +496,6 @@ from public.roles r cross join public.permissions p
 where r.organization_id is null and r.key = 'viewer'
   and p.key like '%.read' and p.key <> 'audit.read'
 on conflict do nothing;
-
 
 -- === 0009_core_provisioning.sql ===
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -646,7 +638,6 @@ grant execute on function public.current_org()                 to authenticated;
 grant execute on function public.is_org_member(uuid)           to authenticated;
 grant execute on function public.has_permission(uuid, text)    to authenticated;
 
-
 -- === 0010_crm_foundation.sql ===
 -- 0010_crm_foundation.sql — Módulo CRM · funções base compartilhadas. Idempotente.
 -- Sequências por organização (códigos legíveis), geração de code e auditoria
@@ -701,7 +692,6 @@ begin
   return null;
 end; $$;
 
-
 -- === 0011_crm_customers.sql ===
 -- 0011_crm_customers.sql — Módulo CRM · Customers. Idempotente.
 -- Entidade Customer (pessoa ou empresa) preparada para crescer: contato,
@@ -748,7 +738,6 @@ drop trigger if exists trg_customers_code on public.customers;
 create trigger trg_customers_code before insert on public.customers
   for each row execute function public.set_entity_code('CUST', 'customer');
 
-
 -- === 0012_crm_leads.sql ===
 -- 0012_crm_leads.sql — Módulo CRM · Leads. Idempotente.
 -- Lead = contato que ainda NÃO é cliente. Ao qualificar, converte-se em Customer
@@ -790,7 +779,6 @@ create trigger trg_leads_updated_at before update on public.leads
 drop trigger if exists trg_leads_code on public.leads;
 create trigger trg_leads_code before insert on public.leads
   for each row execute function public.set_entity_code('LEAD', 'lead');
-
 
 -- === 0013_crm_pipelines.sql ===
 -- 0013_crm_pipelines.sql — Módulo CRM · Pipelines + Stages. Idempotente.
@@ -834,7 +822,6 @@ drop trigger if exists trg_pipeline_stages_updated_at on public.pipeline_stages;
 create trigger trg_pipeline_stages_updated_at before update on public.pipeline_stages
   for each row execute function public.set_updated_at();
 
-
 -- === 0014_crm_deals.sql ===
 -- 0014_crm_deals.sql — Módulo CRM · Deals. Idempotente.
 -- Oportunidade de negócio vinculada a um Customer, dentro de um pipeline/stage
@@ -877,7 +864,6 @@ create trigger trg_deals_updated_at before update on public.deals
 drop trigger if exists trg_deals_code on public.deals;
 create trigger trg_deals_code before insert on public.deals
   for each row execute function public.set_entity_code('DEAL', 'deal');
-
 
 -- === 0015_crm_engagement.sql ===
 -- 0015_crm_engagement.sql — Módulo CRM · Timeline, Comments, Attachments. Idempotente.
@@ -951,7 +937,6 @@ drop trigger if exists trg_attachments_updated_at on public.attachments;
 create trigger trg_attachments_updated_at before update on public.attachments
   for each row execute function public.set_updated_at();
 
-
 -- === 0016_crm_reference.sql ===
 -- 0016_crm_reference.sql — Módulo CRM · Tabelas de referência. Idempotente.
 -- Personalização por organização: catálogos de tags e definições de campos
@@ -1017,7 +1002,6 @@ begin
   end loop;
 end $$;
 
-
 -- === 0017_crm_permissions.sql ===
 -- 0017_crm_permissions.sql — Módulo CRM · extensão do catálogo RBAC. Idempotente.
 -- Novas permissões para leads e gestão de pipelines, mapeadas aos papéis de
@@ -1053,7 +1037,6 @@ where r.organization_id is null and r.key = 'viewer'
   and p.key = 'leads.read'
 on conflict do nothing;
 
-
 -- === 0018_crm_audit_triggers.sql ===
 -- 0018_crm_audit_triggers.sql — Módulo CRM · auditoria automática. Idempotente.
 -- Anexa audit_row_change() (AFTER INSERT/UPDATE/DELETE) a todas as tabelas do
@@ -1073,7 +1056,6 @@ begin
       || 'for each row execute function public.audit_row_change()', t);
   end loop;
 end $$;
-
 
 -- === 0019_crm_rls.sql ===
 -- 0019_crm_rls.sql — Módulo CRM · Row Level Security. Idempotente.
@@ -1140,7 +1122,6 @@ end $$;
 -- Concede privilégios do PostgREST às novas tabelas (idempotente).
 grant select, insert, update, delete on all tables in schema public to authenticated;
 
-
 -- === 0020_crm_provisioning.sql ===
 -- 0020_crm_provisioning.sql — Módulo CRM · funil padrão no provisionamento. Idempotente.
 -- Toda nova organização nasce com um pipeline "Comercial" e estágios padrão.
@@ -1201,7 +1182,6 @@ begin
 end;
 $$;
 
-
 -- === 0021_crm_adjust_customers.sql ===
 -- 0021_crm_adjust_customers.sql — Customer: campos para IA/automação. Idempotente.
 alter table public.customers
@@ -1215,7 +1195,6 @@ create index if not exists idx_customers_followup
   on public.customers(organization_id, next_followup_at)
   where next_followup_at is not null;
 
-
 -- === 0022_crm_adjust_deals.sql ===
 -- 0022_crm_adjust_deals.sql — Deals: campos de fechamento p/ relatórios. Idempotente.
 alter table public.deals
@@ -1226,7 +1205,6 @@ alter table public.deals
   add column if not exists probability_override int check (probability_override between 0 and 100);
 -- expected_close_date já existe (0014).
 
-
 -- === 0023_crm_adjust_pipelines.sql ===
 -- 0023_crm_adjust_pipelines.sql — Pipelines: apresentação. Idempotente.
 alter table public.pipelines
@@ -1235,13 +1213,11 @@ alter table public.pipelines
   add column if not exists display_order int not null default 0;
 -- is_default já existe (0013).
 
-
 -- === 0024_crm_adjust_leads.sql ===
 -- 0024_crm_adjust_leads.sql — Lead: marco de qualificação. Idempotente.
 -- Fluxo: new → contacted → qualified (qualified_at) → converted (vira Customer).
 alter table public.leads
   add column if not exists qualified_at timestamptz;
-
 
 -- === 0025_crm_adjust_comments.sql ===
 -- 0025_crm_adjust_comments.sql — Comments encadeados. Idempotente.
@@ -1252,14 +1228,12 @@ alter table public.comments
 
 create index if not exists idx_comments_reply on public.comments(reply_to) where reply_to is not null;
 
-
 -- === 0026_crm_adjust_attachments.sql ===
 -- 0026_crm_adjust_attachments.sql — Attachments: agnóstico de provedor. Idempotente.
 -- storage_path, mime_type, size_bytes, uploaded_by já existem (0015).
 alter table public.attachments
   add column if not exists storage_provider text not null default 'supabase',
   add column if not exists checksum         text;
-
 
 -- === 0027_crm_adjust_timeline.sql ===
 -- 0027_crm_adjust_timeline.sql — Timeline como hub de eventos de QUALQUER módulo.
@@ -1286,7 +1260,6 @@ alter table public.customer_timeline
   add column if not exists module  text;   -- crm | whatsapp | ia | automation | ...
 
 create index if not exists idx_timeline_module on public.customer_timeline(organization_id, module, created_at desc);
-
 
 -- === 0028_crm_lead_conversion.sql ===
 -- 0028_crm_lead_conversion.sql — Conversão Lead → Customer (transacional). Idempotente.
@@ -1338,7 +1311,6 @@ end;
 $$;
 
 grant execute on function public.convert_lead_to_customer(uuid) to authenticated;
-
 
 -- === 0029_crm_dashboard.sql ===
 -- 0029_crm_dashboard.sql — Read model de indicadores do Dashboard. Idempotente.
@@ -1459,7 +1431,6 @@ $$;
 
 grant execute on function public.dashboard_metrics(uuid) to authenticated;
 
-
 -- === 0030_crm_reports.sql ===
 -- 0030_crm_reports.sql — Read model de Relatórios (agregações reais). Idempotente.
 -- Uma RPC com as agregações dos gráficos. Preparada para a IA consumir os
@@ -1534,7 +1505,6 @@ $$;
 
 grant execute on function public.reports_metrics(uuid) to authenticated;
 
-
 -- === 0031_core_grants.sql ===
 -- 0031_core_grants.sql — Grants ao papel service_role. Idempotente.
 -- Descoberto na validação da F2.1: as migrations concediam privilégios a
@@ -1551,7 +1521,6 @@ grant execute on all functions in schema public to service_role;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
 alter default privileges in schema public grant execute on functions to service_role;
-
 
 -- === 0032_platform_modules.sql ===
 -- 0032_platform_modules.sql — Catálogo global de módulos instaláveis. Idempotente.
@@ -1572,7 +1541,6 @@ create table if not exists public.modules (
 );
 comment on table public.modules is 'Plataforma: catálogo global de módulos instaláveis.';
 
-
 -- === 0033_platform_organization_modules.sql ===
 -- 0033_platform_organization_modules.sql — Módulos contratados por organização. Idempotente.
 -- Fonte da verdade do que cada empresa ativou. FK por module_id (uuid).
@@ -1590,7 +1558,6 @@ create table if not exists public.organization_modules (
 comment on table public.organization_modules is 'Plataforma: ativação de módulos por organização (fonte da verdade).';
 create unique index if not exists uq_org_modules on public.organization_modules(organization_id, module_id);
 create index if not exists idx_org_modules_org on public.organization_modules(organization_id) where enabled;
-
 
 -- === 0034_platform_module_configs.sql ===
 -- 0034_platform_module_configs.sql — Configuração por módulo por organização. Idempotente.
@@ -1610,7 +1577,6 @@ create table if not exists public.module_configs (
 );
 comment on table public.module_configs is 'Plataforma: configuração por módulo/org (schema comum, versionada).';
 create unique index if not exists uq_module_configs on public.module_configs(organization_id, module_id);
-
 
 -- === 0035_platform_jobs.sql ===
 -- 0035_platform_jobs.sql — Fila de jobs (execução assíncrona genérica). Idempotente.
@@ -1645,7 +1611,6 @@ create index if not exists idx_jobs_claim on public.jobs(priority desc, availabl
 create index if not exists idx_jobs_lease on public.jobs(lease_expires_at) where status = 'running';
 create index if not exists idx_jobs_org on public.jobs(organization_id, created_at desc);
 
-
 -- === 0036_platform_job_dead_letter.sql ===
 -- 0036_platform_job_dead_letter.sql — Dead Letter Queue. Idempotente.
 -- Destino de jobs que esgotaram max_attempts. Append-only (sem updated_at).
@@ -1663,7 +1628,6 @@ create table if not exists public.job_dead_letter (
 );
 comment on table public.job_dead_letter is 'Plataforma: DLQ (jobs que falharam definitivamente).';
 create index if not exists idx_dlq_org on public.job_dead_letter(organization_id, created_at desc);
-
 
 -- === 0037_platform_job_schedules.sql ===
 -- 0037_platform_job_schedules.sql — Scheduler (jobs recorrentes/agendados). Idempotente.
@@ -1684,7 +1648,6 @@ create table if not exists public.job_schedules (
 );
 comment on table public.job_schedules is 'Plataforma: agendamentos recorrentes que enfileiram jobs.';
 create index if not exists idx_schedules_due on public.job_schedules(next_run_at) where enabled;
-
 
 -- === 0038_platform_quotas.sql ===
 -- 0038_platform_quotas.sql — Limites por plano + uso por organização. Idempotente.
@@ -1713,7 +1676,6 @@ create table if not exists public.quota_usage (
 );
 comment on table public.quota_usage is 'Plataforma: uso corrente de recursos por organização.';
 create unique index if not exists uq_quota_usage on public.quota_usage(organization_id, resource, period_key);
-
 
 -- === 0039_platform_webhooks.sql ===
 -- 0039_platform_webhooks.sql — Webhooks de saída + entregas. Idempotente.
@@ -1751,7 +1713,6 @@ comment on table public.webhook_deliveries is 'Plataforma: tentativas de entrega
 create index if not exists idx_wh_deliveries_org on public.webhook_deliveries(organization_id, created_at desc);
 create index if not exists idx_wh_deliveries_pending on public.webhook_deliveries(status) where status = 'pending';
 
-
 -- === 0040_platform_operation_traces.sql ===
 -- 0040_platform_operation_traces.sql — Observabilidade (traces de operações). Idempotente.
 -- Store durável leve (append-only); o TracingProvider também exporta p/ OpenTelemetry.
@@ -1774,7 +1735,6 @@ create table if not exists public.operation_traces (
 comment on table public.operation_traces is 'Plataforma: observabilidade append-only (export futuro p/ OpenTelemetry).';
 create index if not exists idx_traces_org on public.operation_traces(organization_id, created_at desc);
 create index if not exists idx_traces_trace on public.operation_traces(trace_id);
-
 
 -- === 0041_platform_market_templates.sql ===
 -- 0041_platform_market_templates.sql — Templates de mercado (versionados). Idempotente.
@@ -1800,7 +1760,6 @@ create unique index if not exists uq_market_templates on public.market_templates
 alter table public.organizations
   add column if not exists market_template text,
   add column if not exists market_template_version int;
-
 
 -- === 0042_platform_functions.sql ===
 -- 0042_platform_functions.sql — RPCs da infraestrutura. Idempotente. SECURITY DEFINER.
@@ -1990,7 +1949,6 @@ grant execute on function public.complete_job(uuid, jsonb) to service_role;
 grant execute on function public.fail_job(uuid, text) to service_role;
 grant execute on function public.dispatch_webhooks(uuid, text, jsonb) to service_role;
 
-
 -- === 0043_platform_seed.sql ===
 -- 0043_platform_seed.sql — Seeds da plataforma. Idempotente (ON CONFLICT).
 
@@ -2109,7 +2067,6 @@ insert into public.market_templates(key, version, name, description, definition,
   ), now(), 6)
 on conflict (key, version) do update set name = excluded.name, definition = excluded.definition, published_at = excluded.published_at;
 
-
 -- === 0044_platform_policies.sql ===
 -- 0044_platform_policies.sql — RLS + grants da infraestrutura. Idempotente.
 
@@ -2170,7 +2127,6 @@ drop policy if exists operation_traces_select on public.operation_traces;
 create policy operation_traces_select on public.operation_traces for select to authenticated
   using (organization_id is not null and public.has_permission(organization_id, 'observability.read'));
 
-
 -- === 0045_platform_triggers.sql ===
 -- 0045_platform_triggers.sql — updated_at + auditoria automática. Idempotente.
 
@@ -2197,7 +2153,6 @@ begin
     execute format('create trigger trg_%1$s_audit after insert or update or delete on public.%1$s for each row execute function public.audit_row_change()', t);
   end loop;
 end $$;
-
 
 -- === 0046_hardening_guards.sql ===
 -- 0046_hardening_guards.sql — C1 (guard multi-tenant) + M1 (template idempotente). Idempotente.
@@ -2275,7 +2230,6 @@ begin
     jsonb_build_object('key', p_key, 'version', v_tpl.version));
 end; $$;
 
-
 -- === 0047_hardening_quota_atomic.sql ===
 -- 0047_hardening_quota_atomic.sql — C2: consumo de cota atômico (sem race). Idempotente.
 -- Verifica + incrementa em uma transação com lock de linha (FOR UPDATE).
@@ -2310,7 +2264,6 @@ begin
 end; $$;
 
 grant execute on function public.try_consume_quota(uuid, text, bigint) to authenticated, service_role;
-
 
 -- === 0048_hardening_infra.sql ===
 -- 0048_hardening_infra.sql — C3 (job_types), H3 (idempotência + payload_version), H1 (domain_events). Idempotente.
@@ -2365,7 +2318,6 @@ create table if not exists public.domain_events (
 comment on table public.domain_events is 'Plataforma: outbox transacional de eventos (Event Bus durável).';
 create index if not exists idx_domain_events_org on public.domain_events(organization_id, occurred_at desc);
 create index if not exists idx_domain_events_open on public.domain_events(status) where status <> 'done';
-
 
 -- === 0049_hardening_enqueue_events.sql ===
 -- 0049_hardening_enqueue_events.sql — enqueue consolidado + idempotência + outbox RPCs. Idempotente.
@@ -2438,7 +2390,6 @@ begin
 end; $$;
 grant execute on function public.relay_domain_event(uuid) to service_role;
 
-
 -- === 0050_hardening_dlq_manual.sql ===
 -- 0050_hardening_dlq_manual.sql — DLQ manual (reprocessar/descartar) + permissão. Idempotente.
 -- Base para a futura tela Configurações → Jobs (Reprocessar · Ignorar · Ver erro).
@@ -2478,7 +2429,6 @@ begin
 end; $$;
 grant execute on function public.discard_dead_letter(uuid) to authenticated;
 
-
 -- === 0051_hardening_policies.sql ===
 -- 0051_hardening_policies.sql — RLS + grants + triggers das novas tabelas. Idempotente.
 
@@ -2511,4 +2461,553 @@ begin
     execute format('create trigger trg_%1$s_updated_at before update on public.%1$s for each row execute function public.set_updated_at()', t);
   end loop;
 end $$;
+
+-- === 0052_whatsapp_schema.sql ===
+-- 0052_whatsapp_schema.sql — Módulo F3.1 · WhatsApp Cloud API. Idempotente.
+-- Modelo de dados do módulo WhatsApp: conta (WABA) + números, templates, mídia,
+-- conversas, mensagens, eventos de status e envelopes de webhook.
+-- Multi-tenant por organization_id; RLS em 0055; RPCs em 0053; seeds em 0054.
+--
+-- SEGURANÇA: o access token da Meta NÃO fica em whatsapp_accounts (que membros
+-- podem ler). Fica em whatsapp_credentials, sem policy de select p/ authenticated
+-- (só service_role — worker/webhook). Assim o token nunca chega ao cliente.
+
+-- ── Conta WhatsApp Business (WABA) ───────────────────────────────────────────
+create table if not exists public.whatsapp_accounts (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  provider         text not null default 'meta' check (provider in ('meta','evolution')),
+  waba_id          text,                                    -- WhatsApp Business Account ID (Meta)
+  business_id      text,                                    -- Meta Business Manager ID
+  name             text,
+  status           text not null default 'connected'
+                     check (status in ('connected','disconnected','error','pending')),
+  webhook_verify_token text,                                -- verificação do webhook (por org)
+  connected_at     timestamptz,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  deleted_at       timestamptz
+);
+comment on table public.whatsapp_accounts is 'F3.1: conta WABA por organização. Token fica em whatsapp_credentials.';
+create index if not exists idx_wa_accounts_org on public.whatsapp_accounts(organization_id) where deleted_at is null;
+create unique index if not exists uq_wa_accounts_waba on public.whatsapp_accounts(organization_id, waba_id) where waba_id is not null;
+
+-- ── Credenciais (segredo) — só service_role lê (sem policy select p/ authenticated)
+create table if not exists public.whatsapp_credentials (
+  account_id       uuid primary key references public.whatsapp_accounts(id) on delete cascade,
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  access_token     text,                                    -- System User token (Meta). Sensível.
+  app_secret       text,
+  rotated_at       timestamptz,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.whatsapp_credentials is 'F3.1: segredos da conta WhatsApp. Sem policy de SELECT p/ authenticated — só service_role.';
+create index if not exists idx_wa_credentials_org on public.whatsapp_credentials(organization_id);
+
+-- ── Números de telefone sob a WABA ───────────────────────────────────────────
+create table if not exists public.whatsapp_phone_numbers (
+  id                    uuid primary key default gen_random_uuid(),
+  organization_id       uuid not null references public.organizations(id) on delete cascade,
+  account_id            uuid not null references public.whatsapp_accounts(id) on delete cascade,
+  phone_number_id       text not null,                      -- Phone Number ID (Meta)
+  display_phone_number  text,                               -- +55 11 9....
+  verified_name         text,
+  quality_rating        text,                               -- GREEN/YELLOW/RED
+  status                text not null default 'active'
+                          check (status in ('active','inactive','flagged','pending')),
+  is_default            boolean not null default false,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+create index if not exists idx_wa_numbers_org on public.whatsapp_phone_numbers(organization_id);
+create index if not exists idx_wa_numbers_account on public.whatsapp_phone_numbers(account_id);
+create unique index if not exists uq_wa_numbers_pnid on public.whatsapp_phone_numbers(organization_id, phone_number_id);
+
+-- ── Templates (definição data-driven em jsonb) ───────────────────────────────
+create table if not exists public.whatsapp_templates (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  account_id       uuid references public.whatsapp_accounts(id) on delete set null,
+  external_id      text,                                    -- ID do template na Meta
+  name             text not null,
+  language         text not null default 'pt_BR',
+  category         text not null default 'UTILITY'
+                     check (category in ('MARKETING','UTILITY','AUTHENTICATION')),
+  status           text not null default 'pending'
+                     check (status in ('pending','approved','rejected','paused','disabled')),
+  components       jsonb not null default '[]'::jsonb,      -- header/body/footer/buttons
+  rejected_reason  text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  deleted_at       timestamptz
+);
+create index if not exists idx_wa_templates_org on public.whatsapp_templates(organization_id) where deleted_at is null;
+create unique index if not exists uq_wa_templates_name on public.whatsapp_templates(organization_id, name, language);
+
+-- ── Mídia (imagens/PDFs/áudios) ──────────────────────────────────────────────
+create table if not exists public.whatsapp_media (
+  id                uuid primary key default gen_random_uuid(),
+  organization_id   uuid not null references public.organizations(id) on delete cascade,
+  external_media_id text,                                   -- media id na Meta
+  direction         text not null check (direction in ('inbound','outbound')),
+  mime_type         text,
+  filename          text,
+  size_bytes        bigint,
+  sha256            text,
+  storage_path      text,                                   -- caminho no Storage
+  status            text not null default 'pending'
+                      check (status in ('pending','stored','failed')),
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index if not exists idx_wa_media_org on public.whatsapp_media(organization_id);
+
+-- ── Conversas (thread por contato/número) ────────────────────────────────────
+create table if not exists public.conversations (
+  id                    uuid primary key default gen_random_uuid(),
+  organization_id       uuid not null references public.organizations(id) on delete cascade,
+  account_id            uuid references public.whatsapp_accounts(id) on delete set null,
+  phone_number_id       uuid references public.whatsapp_phone_numbers(id) on delete set null,
+  contact_wa_id         text not null,                      -- número do contato (wa_id)
+  contact_name          text,
+  customer_id           uuid references public.customers(id) on delete set null,  -- vínculo CRM
+  status                text not null default 'open'
+                          check (status in ('open','pending','closed')),
+  assigned_to           uuid references auth.users(id) on delete set null,
+  unread_count          int not null default 0,
+  last_message_at       timestamptz,
+  last_message_preview  text,
+  last_inbound_at       timestamptz,                        -- base da janela de 24h
+  window_expires_at     timestamptz,                        -- janela de atendimento (24h)
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  deleted_at            timestamptz
+);
+comment on table public.conversations is 'F3.1: thread de conversa WhatsApp por contato. window_expires_at = janela de 24h.';
+create index if not exists idx_conversations_org on public.conversations(organization_id) where deleted_at is null;
+create index if not exists idx_conversations_status on public.conversations(organization_id, status) where deleted_at is null;
+create index if not exists idx_conversations_assigned on public.conversations(assigned_to) where deleted_at is null;
+create index if not exists idx_conversations_customer on public.conversations(customer_id);
+create index if not exists idx_conversations_last_msg on public.conversations(organization_id, last_message_at desc) where deleted_at is null;
+create unique index if not exists uq_conversations_contact on public.conversations(organization_id, phone_number_id, contact_wa_id);
+
+-- ── Mensagens ────────────────────────────────────────────────────────────────
+create table if not exists public.messages (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  conversation_id  uuid not null references public.conversations(id) on delete cascade,
+  direction        text not null check (direction in ('inbound','outbound')),
+  wa_message_id    text,                                    -- ID na Meta (idempotência)
+  type             text not null default 'text'
+                     check (type in ('text','image','document','audio','video','sticker',
+                                     'template','location','contacts','interactive','reaction','system')),
+  body             text,
+  media_id         uuid references public.whatsapp_media(id) on delete set null,
+  template_id      uuid references public.whatsapp_templates(id) on delete set null,
+  status           text not null default 'pending'
+                     check (status in ('pending','sent','delivered','read','failed','received')),
+  sender           text,                                    -- wa_id (inbound) ou agente
+  sent_by          uuid references auth.users(id) on delete set null,  -- agente (outbound)
+  payload          jsonb not null default '{}'::jsonb,      -- envelope neutro/bruto
+  error            jsonb,
+  payload_version  int not null default 1,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+comment on table public.messages is 'F3.1: mensagens. wa_message_id único por org (idempotência de ingestão/envio).';
+create index if not exists idx_messages_conversation on public.messages(conversation_id, created_at);
+create index if not exists idx_messages_org on public.messages(organization_id);
+create index if not exists idx_messages_status on public.messages(organization_id, status) where direction = 'outbound';
+create unique index if not exists uq_messages_wamid on public.messages(organization_id, wa_message_id) where wa_message_id is not null;
+
+-- ── Eventos de status (sent/delivered/read/failed) — timeline/auditoria ──────
+create table if not exists public.message_status_events (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id) on delete cascade,
+  message_id       uuid not null references public.messages(id) on delete cascade,
+  status           text not null check (status in ('sent','delivered','read','failed')),
+  occurred_at      timestamptz not null default now(),
+  raw              jsonb not null default '{}'::jsonb,
+  created_at       timestamptz not null default now()
+);
+create index if not exists idx_msg_status_message on public.message_status_events(message_id, occurred_at);
+create index if not exists idx_msg_status_org on public.message_status_events(organization_id);
+create unique index if not exists uq_msg_status on public.message_status_events(message_id, status);
+
+-- ── Envelopes de webhook (idempotência + auditoria da ingestão) ──────────────
+create table if not exists public.whatsapp_webhook_events (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid references public.organizations(id) on delete cascade,  -- resolvido após lookup
+  provider         text not null default 'meta',
+  event_type       text,                                    -- message | status | template | ...
+  external_id      text,                                    -- id p/ dedup (wamid / status id)
+  payload          jsonb not null default '{}'::jsonb,
+  status           text not null default 'received'
+                     check (status in ('received','processed','failed','ignored')),
+  error            text,
+  received_at      timestamptz not null default now(),
+  processed_at     timestamptz
+);
+create index if not exists idx_wa_webhook_org on public.whatsapp_webhook_events(organization_id);
+create index if not exists idx_wa_webhook_status on public.whatsapp_webhook_events(status);
+create unique index if not exists uq_wa_webhook_external on public.whatsapp_webhook_events(provider, external_id) where external_id is not null;
+
+-- ── Triggers updated_at ──────────────────────────────────────────────────────
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'whatsapp_accounts','whatsapp_credentials','whatsapp_phone_numbers','whatsapp_templates',
+    'whatsapp_media','conversations','messages'
+  ] loop
+    execute format('drop trigger if exists trg_%s_updated_at on public.%I', t, t);
+    execute format(
+      'create trigger trg_%s_updated_at before update on public.%I for each row execute function public.set_updated_at()',
+      t, t);
+  end loop;
+end $$;
+
+-- === 0053_whatsapp_functions.sql ===
+-- 0053_whatsapp_functions.sql — Módulo F3.1 · RPCs do WhatsApp. Idempotente.
+-- SECURITY DEFINER + guard (has_permission p/ usuário, is_org_member/service_role
+-- p/ worker/webhook). Envio consome cota atômica e enfileira job idempotente.
+
+-- ── Envio (usuário) ──────────────────────────────────────────────────────────
+-- Cria a mensagem (pending) e enfileira 'whatsapp.send'. Cota atômica ANTES.
+create or replace function public.wa_send_message(
+  p_org uuid, p_conversation uuid, p_type text default 'text',
+  p_body text default null, p_template_id uuid default null, p_payload jsonb default '{}'::jsonb
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_conv public.conversations; v_msg uuid;
+begin
+  if not public.has_permission(p_org, 'whatsapp.send') then raise exception 'forbidden'; end if;
+
+  select * into v_conv from public.conversations
+    where id = p_conversation and organization_id = p_org and deleted_at is null;
+  if v_conv.id is null then raise exception 'conversation not found'; end if;
+
+  if not public.try_consume_quota(p_org, 'messages', 1) then
+    raise exception 'quota exceeded: messages';
+  end if;
+
+  insert into public.messages(organization_id, conversation_id, direction, type, body,
+                              template_id, status, sent_by, payload)
+  values (p_org, p_conversation, 'outbound', p_type, p_body, p_template_id, 'pending', auth.uid(),
+          coalesce(p_payload, '{}'::jsonb))
+  returning id into v_msg;
+
+  update public.conversations
+     set last_message_at = now(),
+         last_message_preview = left(coalesce(p_body, '[' || p_type || ']'), 140),
+         updated_at = now()
+   where id = p_conversation;
+
+  perform public.enqueue_job(p_org, 'whatsapp.send',
+    jsonb_build_object('message_id', v_msg), now(), 5, 5, null, v_msg::text,
+    'whatsapp.send:' || v_msg::text, 1);
+
+  return v_msg;
+end; $$;
+grant execute on function public.wa_send_message(uuid, uuid, text, text, uuid, jsonb) to authenticated, service_role;
+
+-- ── Aplicar status (worker/webhook · service_role) ──────────────────────────
+-- Registra o evento de status e avança o status da mensagem (monotônico; failed
+-- sempre vence). Publica whatsapp.message.<status> no outbox.
+create or replace function public.wa_apply_status(
+  p_org uuid, p_wa_message_id text, p_status text,
+  p_occurred_at timestamptz default now(), p_raw jsonb default '{}'::jsonb
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_msg public.messages; v_cur int; v_new int;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+
+  select * into v_msg from public.messages
+    where organization_id = p_org and wa_message_id = p_wa_message_id;
+  if v_msg.id is null then return null; end if;  -- status de mensagem desconhecida: ignora
+
+  insert into public.message_status_events(organization_id, message_id, status, occurred_at, raw)
+  values (p_org, v_msg.id, p_status, coalesce(p_occurred_at, now()), coalesce(p_raw, '{}'::jsonb))
+  on conflict (message_id, status) do nothing;
+
+  v_cur := case v_msg.status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end;
+  v_new := case p_status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end;
+
+  if p_status = 'failed' then
+    update public.messages set status = 'failed', error = coalesce(p_raw, '{}'::jsonb), updated_at = now()
+      where id = v_msg.id;
+  elsif v_new > v_cur then
+    update public.messages set status = p_status, updated_at = now() where id = v_msg.id;
+  end if;
+
+  perform public.publish_event(p_org, 'whatsapp.message.' || p_status,
+    jsonb_build_object('conversationId', v_msg.conversation_id, 'messageId', v_msg.id), 1, null);
+
+  return v_msg.id;
+end; $$;
+grant execute on function public.wa_apply_status(uuid, text, text, timestamptz, jsonb) to service_role;
+
+-- ── Ingestão de mensagem recebida (webhook · service_role) ───────────────────
+-- Faz upsert da conversa (janela de 24h) e insere a mensagem inbound (idempotente
+-- por wa_message_id). Publica whatsapp.message.received.
+create or replace function public.wa_ingest_inbound(
+  p_org uuid, p_phone_number_id uuid, p_contact_wa_id text, p_contact_name text,
+  p_wa_message_id text, p_type text default 'text', p_body text default null,
+  p_payload jsonb default '{}'::jsonb
+) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_conv uuid; v_account uuid; v_msg uuid;
+begin
+  if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+
+  select account_id into v_account from public.whatsapp_phone_numbers where id = p_phone_number_id;
+
+  insert into public.conversations(organization_id, account_id, phone_number_id, contact_wa_id,
+                                   contact_name, status, unread_count, last_message_at,
+                                   last_message_preview, last_inbound_at, window_expires_at)
+  values (p_org, v_account, p_phone_number_id, p_contact_wa_id, p_contact_name, 'open', 1, now(),
+          left(coalesce(p_body, '[' || p_type || ']'), 140), now(), now() + interval '24 hours')
+  on conflict (organization_id, phone_number_id, contact_wa_id) do update set
+    contact_name = coalesce(excluded.contact_name, public.conversations.contact_name),
+    status = case when public.conversations.status = 'closed' then 'open' else public.conversations.status end,
+    unread_count = public.conversations.unread_count + 1,
+    last_message_at = now(),
+    last_message_preview = excluded.last_message_preview,
+    last_inbound_at = now(),
+    window_expires_at = now() + interval '24 hours',
+    updated_at = now()
+  returning id into v_conv;
+
+  insert into public.messages(organization_id, conversation_id, direction, wa_message_id, type,
+                              body, status, sender, payload)
+  values (p_org, v_conv, 'inbound', p_wa_message_id, p_type, p_body, 'received', p_contact_wa_id,
+          coalesce(p_payload, '{}'::jsonb))
+  on conflict (organization_id, wa_message_id) where wa_message_id is not null do nothing
+  returning id into v_msg;
+
+  if v_msg is null then  -- duplicata (idempotência): retorna a existente, não republica
+    select id into v_msg from public.messages
+      where organization_id = p_org and wa_message_id = p_wa_message_id;
+    return v_msg;
+  end if;
+
+  perform public.publish_event(p_org, 'whatsapp.message.received',
+    jsonb_build_object('conversationId', v_conv, 'messageId', v_msg), 1, null);
+
+  return v_msg;
+end; $$;
+grant execute on function public.wa_ingest_inbound(uuid, uuid, text, text, text, text, text, jsonb) to service_role;
+
+-- ── Atribuir conversa (usuário) ──────────────────────────────────────────────
+create or replace function public.assign_conversation(p_org uuid, p_conversation uuid, p_assignee uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.has_permission(p_org, 'whatsapp.assign') then raise exception 'forbidden'; end if;
+  update public.conversations set assigned_to = p_assignee, updated_at = now()
+    where id = p_conversation and organization_id = p_org and deleted_at is null;
+  if not found then raise exception 'conversation not found'; end if;
+  perform public.publish_event(p_org, 'whatsapp.conversation.assigned',
+    jsonb_build_object('conversationId', p_conversation, 'assignedTo', p_assignee), 1, null);
+end; $$;
+grant execute on function public.assign_conversation(uuid, uuid, uuid) to authenticated, service_role;
+
+-- ── Marcar conversa como lida (usuário) ──────────────────────────────────────
+create or replace function public.mark_conversation_read(p_org uuid, p_conversation uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.has_permission(p_org, 'whatsapp.read') then raise exception 'forbidden'; end if;
+  update public.conversations set unread_count = 0, updated_at = now()
+    where id = p_conversation and organization_id = p_org and deleted_at is null;
+end; $$;
+grant execute on function public.mark_conversation_read(uuid, uuid) to authenticated, service_role;
+
+-- ── Contadores da inbox (usuário) ────────────────────────────────────────────
+create or replace function public.inbox_counters(p_org uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_open int; v_unread int; v_mine int;
+begin
+  if not public.has_permission(p_org, 'whatsapp.read') then raise exception 'forbidden'; end if;
+  select count(*) filter (where status = 'open'),
+         coalesce(sum(unread_count), 0),
+         count(*) filter (where assigned_to = auth.uid() and status <> 'closed')
+    into v_open, v_unread, v_mine
+    from public.conversations where organization_id = p_org and deleted_at is null;
+  return jsonb_build_object('open', v_open, 'unread', v_unread, 'mine', v_mine);
+end; $$;
+grant execute on function public.inbox_counters(uuid) to authenticated, service_role;
+
+-- === 0054_whatsapp_seed.sql ===
+-- 0054_whatsapp_seed.sql — Módulo F3.1 · Seeds (RBAC + job_types). Idempotente.
+
+-- ── Permissões do módulo ─────────────────────────────────────────────────────
+insert into public.permissions(key, module, description) values
+  ('whatsapp.read',             'whatsapp', 'Ver inbox e conversas'),
+  ('whatsapp.send',             'whatsapp', 'Enviar mensagens'),
+  ('whatsapp.assign',           'whatsapp', 'Atribuir conversas'),
+  ('whatsapp.templates.manage', 'whatsapp', 'Gerenciar templates'),
+  ('whatsapp.connect',          'whatsapp', 'Conectar/gerenciar conta WABA')
+on conflict (key) do update set module = excluded.module, description = excluded.description;
+
+-- owner/admin: todas.
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.organization_id is null and r.key in ('owner','admin')
+  and p.key in ('whatsapp.read','whatsapp.send','whatsapp.assign','whatsapp.templates.manage','whatsapp.connect')
+on conflict do nothing;
+
+-- member: opera o inbox (ler, enviar, atribuir) — sem conectar conta/gerir templates.
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.organization_id is null and r.key = 'member'
+  and p.key in ('whatsapp.read','whatsapp.send','whatsapp.assign')
+on conflict do nothing;
+
+-- viewer: só leitura.
+insert into public.role_permissions(role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.organization_id is null and r.key = 'viewer'
+  and p.key = 'whatsapp.read'
+on conflict do nothing;
+
+-- ── Tipos de job (allowlist) — cada módulo registra os seus (C3) ─────────────
+insert into public.job_types(key, module, description) values
+  ('whatsapp.send',           'whatsapp', 'Enviar mensagem via Provider'),
+  ('whatsapp.status',         'whatsapp', 'Aplicar status de entrega (sent/delivered/read/failed)'),
+  ('whatsapp.inbound',        'whatsapp', 'Processar mensagem recebida'),
+  ('whatsapp.media.download', 'whatsapp', 'Baixar e armazenar mídia recebida'),
+  ('whatsapp.template.sync',  'whatsapp', 'Sincronizar status de templates com a Meta')
+on conflict (key) do nothing;
+
+-- === 0055_whatsapp_rls.sql ===
+-- 0055_whatsapp_rls.sql — Módulo F3.1 · Row Level Security. Idempotente.
+-- Isolamento por organização + gating por permissão. Escritas de sistema
+-- (RPCs SECURITY DEFINER / worker service_role) ignoram a RLS.
+
+-- ── Tabelas com gating leitura/escrita ───────────────────────────────────────
+do $$
+declare rec record;
+begin
+  for rec in
+    select * from (values
+      ('whatsapp_accounts',      'whatsapp.read', 'whatsapp.connect',           true),
+      ('whatsapp_phone_numbers', 'whatsapp.read', 'whatsapp.connect',           false),
+      ('whatsapp_templates',     'whatsapp.read', 'whatsapp.templates.manage',  true),
+      ('whatsapp_media',         'whatsapp.read', 'whatsapp.send',              false),
+      ('conversations',          'whatsapp.read', 'whatsapp.send',              true),
+      ('messages',               'whatsapp.read', 'whatsapp.send',              false)
+    ) as t(tbl, read_perm, write_perm, soft_delete)
+  loop
+    execute format('alter table public.%I enable row level security', rec.tbl);
+
+    execute format('drop policy if exists %I on public.%I', rec.tbl || '_select', rec.tbl);
+    execute format(
+      'create policy %I on public.%I for select to authenticated using (%s public.has_permission(organization_id, %L))',
+      rec.tbl || '_select', rec.tbl,
+      case when rec.soft_delete then 'deleted_at is null and' else '' end,
+      rec.read_perm);
+
+    execute format('drop policy if exists %I on public.%I', rec.tbl || '_write', rec.tbl);
+    execute format(
+      'create policy %I on public.%I for all to authenticated '
+      || 'using (public.has_permission(organization_id, %L)) '
+      || 'with check (public.has_permission(organization_id, %L))',
+      rec.tbl || '_write', rec.tbl, rec.write_perm, rec.write_perm);
+  end loop;
+end $$;
+
+-- ── Somente leitura para o cliente (escrita só service_role/RPC) ─────────────
+do $$
+declare rec record;
+begin
+  for rec in
+    select * from (values
+      ('message_status_events',    'whatsapp.read'),
+      ('whatsapp_webhook_events',  'whatsapp.connect')
+    ) as t(tbl, read_perm)
+  loop
+    execute format('alter table public.%I enable row level security', rec.tbl);
+    execute format('drop policy if exists %I on public.%I', rec.tbl || '_select', rec.tbl);
+    execute format(
+      'create policy %I on public.%I for select to authenticated using (public.has_permission(organization_id, %L))',
+      rec.tbl || '_select', rec.tbl, rec.read_perm);
+    -- sem policy de escrita: apenas RPCs SECURITY DEFINER / service_role escrevem.
+  end loop;
+end $$;
+
+-- ── Credenciais: RLS habilitada e SEM policies → cliente não acessa o token. ─
+-- Só service_role (worker/webhook) lê/escreve, pois bypassa RLS.
+alter table public.whatsapp_credentials enable row level security;
+
+-- Concede privilégios do PostgREST às novas tabelas (RLS decide o acesso real).
+grant select, insert, update, delete on all tables in schema public to authenticated;
+
+-- === 0056_whatsapp_send_rpcs.sql ===
+-- 0056_whatsapp_send_rpcs.sql — Módulo F3.1 · Conclusão do envio (worker). Idempotente.
+-- O worker (service_role) resolve o contexto de envio (inclui o token, que só
+-- service_role acessa), chama o Provider e registra o desfecho.
+
+-- ── Contexto de envio (service_role) ─────────────────────────────────────────
+-- Junta mensagem + conversa + número + credencial (+ template) num envelope
+-- neutro para o worker. O access_token só sai por aqui (SECURITY DEFINER).
+create or replace function public.wa_send_context(p_message_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  select jsonb_build_object(
+    'organization_id', m.organization_id,
+    'message_id',      m.id,
+    'status',          m.status,
+    'type',            m.type,
+    'body',            m.body,
+    'to',              c.contact_wa_id,
+    'provider',        a.provider,
+    'phone_number_id', pn.phone_number_id,
+    'access_token',    cr.access_token,
+    'template',        case when t.id is not null then jsonb_build_object(
+                          'name', t.name, 'language', t.language, 'components', t.components) end
+  ) into v
+  from public.messages m
+  join public.conversations c   on c.id = m.conversation_id
+  left join public.whatsapp_phone_numbers pn on pn.id = c.phone_number_id
+  left join public.whatsapp_accounts a       on a.id = c.account_id
+  left join public.whatsapp_credentials cr    on cr.account_id = a.id
+  left join public.whatsapp_templates t       on t.id = m.template_id
+  where m.id = p_message_id;
+  return v;
+end; $$;
+grant execute on function public.wa_send_context(uuid) to service_role;
+
+-- ── Marcar enviada (service_role) ────────────────────────────────────────────
+create or replace function public.wa_mark_sent(p_org uuid, p_message_id uuid, p_wa_message_id text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_conv uuid;
+begin
+  update public.messages
+     set wa_message_id = p_wa_message_id, status = 'sent', updated_at = now()
+   where id = p_message_id and organization_id = p_org and status = 'pending'
+   returning conversation_id into v_conv;
+  if v_conv is null then return; end if;  -- já processada (idempotente)
+
+  insert into public.message_status_events(organization_id, message_id, status)
+  values (p_org, p_message_id, 'sent') on conflict (message_id, status) do nothing;
+
+  perform public.publish_event(p_org, 'whatsapp.message.sent',
+    jsonb_build_object('conversationId', v_conv, 'messageId', p_message_id), 1, null);
+end; $$;
+grant execute on function public.wa_mark_sent(uuid, uuid, text) to service_role;
+
+-- ── Marcar falha (service_role) ──────────────────────────────────────────────
+create or replace function public.wa_mark_failed(p_org uuid, p_message_id uuid, p_error jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_conv uuid;
+begin
+  update public.messages
+     set status = 'failed', error = coalesce(p_error, '{}'::jsonb), updated_at = now()
+   where id = p_message_id and organization_id = p_org
+   returning conversation_id into v_conv;
+  if v_conv is null then return; end if;
+
+  perform public.publish_event(p_org, 'whatsapp.message.failed',
+    jsonb_build_object('conversationId', v_conv, 'messageId', p_message_id), 1, null);
+end; $$;
+grant execute on function public.wa_mark_failed(uuid, uuid, jsonb) to service_role;
 

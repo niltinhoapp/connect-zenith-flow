@@ -12,21 +12,26 @@ describe("Core · Provider registry", () => {
   });
 
   it("resolve a interface após registrar um adapter (sem lock-in de vendor)", async () => {
+    const creds = { accessToken: "t", phoneNumberId: "p" };
     const fake: WhatsAppProvider = {
       kind: "whatsapp",
       vendor: "fake",
-      async sendMessage() {
+      async sendText() {
         return { externalId: "x1" };
       },
+      async sendTemplate() {
+        return { externalId: "x2" };
+      },
+      async markRead() {},
       parseWebhook() {
-        return null;
+        return { messages: [], statuses: [] };
       },
     };
     registerProvider(fake);
 
     const wa = getWhatsAppProvider();
     expect(wa.vendor).toBe("fake");
-    expect(await wa.sendMessage({ organizationId: "o", to: "+55", body: "oi" })).toEqual({
+    expect(await wa.sendText({ credentials: creds, to: "+55", body: "oi" })).toEqual({
       externalId: "x1",
     });
   });
