@@ -537,6 +537,20 @@ export interface Database {
       wa_send_context: { Args: { p_message_id: string }; Returns: Json };
       wa_mark_sent: { Args: { p_org: string; p_message_id: string; p_wa_message_id: string }; Returns: undefined };
       wa_mark_failed: { Args: { p_org: string; p_message_id: string; p_error: Json }; Returns: undefined };
+      wa_store_connection: {
+        Args: {
+          p_org: string; p_provider: string; p_waba_id: string | null; p_business_id: string | null;
+          p_name: string | null; p_phone_number_id: string; p_display: string | null;
+          p_verified_name: string | null; p_access_token: string; p_app_secret?: string | null;
+          p_verify_token?: string | null;
+        };
+        Returns: Json;
+      };
+      wa_resolve_phone: { Args: { p_phone_number_id: string }; Returns: Json };
+      wa_log_webhook: {
+        Args: { p_org: string | null; p_provider: string; p_event_type: string; p_external_id: string | null; p_payload?: Json };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -17,7 +17,7 @@ const rpc = async (n, b) => {
   return r.status === 204 ? null : r.json();
 };
 
-const GRAPH = "v21.0";
+const GRAPH = get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 
 // Envio via WhatsApp Cloud API (Meta). Erro 4xx = permanente (marca failed);
 // erro de rede/5xx = transitório (relança → retry/backoff da fila).

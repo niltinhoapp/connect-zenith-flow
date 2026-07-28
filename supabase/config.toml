@@ -16,3 +16,13 @@ enable_confirmations = false
 
 [storage]
 enabled = true
+
+# ── Edge Functions (F3.1 · WhatsApp) ─────────────────────────────────────────
+# Webhook da Meta: público (a Meta chama sem JWT). A segurança é a assinatura
+# X-Hub-Signature-256 + o verify_token.
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+# Conexão de WABA: exige o JWT do usuário (valida org + whatsapp.connect).
+[functions.whatsapp-connect]
+verify_jwt = true
