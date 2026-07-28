@@ -33,5 +33,7 @@ export const queryKeys = {
     messages: (org: string, conversationId: string) =>
       ["whatsapp", org, "messages", conversationId] as const,
     counters: (org: string) => ["whatsapp", org, "counters"] as const,
+    templates: (org: string, filter?: unknown) =>
+      ["whatsapp", org, "templates", filter ?? null] as const,
   },
 } as const;

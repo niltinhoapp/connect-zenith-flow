@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search,
   Send,
@@ -12,6 +12,7 @@ import {
   UserPlus,
   MessageSquare,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -116,9 +117,18 @@ function ConversationList(props: {
       <div className="border-b border-border p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Conversas</h2>
-          <Badge className="rounded-md border-0 bg-primary/15 text-[10px] font-semibold text-primary">
-            {openCount} abertas
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/whatsapp/templates"
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              title="Templates"
+            >
+              <FileText className="h-3.5 w-3.5" /> Templates
+            </Link>
+            <Badge className="rounded-md border-0 bg-primary/15 text-[10px] font-semibold text-primary">
+              {openCount} abertas
+            </Badge>
+          </div>
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />

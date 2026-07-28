@@ -10,6 +10,14 @@ export {
   type MessageStatus,
   type CreateOutboundInput,
 } from "./entities/message";
+export {
+  WhatsAppTemplate,
+  type TemplateProps,
+  type TemplateCategory,
+  type TemplateStatus,
+  type CreateTemplateInput,
+} from "./entities/whatsapp-template";
 export { WaContact } from "./value-objects/wa-contact";
 export type { ConversationRepository, ConversationFilter } from "./repositories/conversation-repository";
 export type { MessageRepository, MessageFilter } from "./repositories/message-repository";
+export type { TemplateRepository, TemplateFilter } from "./repositories/template-repository";

@@ -23,6 +23,7 @@ import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as AutomacoesBuilderRouteImport } from './routes/automacoes.builder'
 import { Route as ClientesIdRouteImport } from './routes/clientes.$id'
 import { Route as ConfiguracoesPapeisRouteImport } from './routes/configuracoes.papeis'
+import { Route as WhatsappTemplatesRouteImport } from './routes/whatsapp_.templates'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const ConfiguracoesPapeisRoute = ConfiguracoesPapeisRouteImport.update({
   path: '/papeis',
   getParentRoute: () => ConfiguracoesRoute,
 } as any)
+const WhatsappTemplatesRoute = WhatsappTemplatesRouteImport.update({
+  id: '/whatsapp_/templates',
+  path: '/whatsapp/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/automacoes/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/configuracoes/papeis': typeof ConfiguracoesPapeisRoute
+  '/whatsapp/templates': typeof WhatsappTemplatesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/automacoes/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/configuracoes/papeis': typeof ConfiguracoesPapeisRoute
+  '/whatsapp/templates': typeof WhatsappTemplatesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/automacoes/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/configuracoes/papeis': typeof ConfiguracoesPapeisRoute
+  '/whatsapp_/templates': typeof WhatsappTemplatesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/automacoes/builder'
     | '/clientes/$id'
     | '/configuracoes/papeis'
+    | '/whatsapp/templates'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/automacoes/builder'
     | '/clientes/$id'
     | '/configuracoes/papeis'
+    | '/whatsapp/templates'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/automacoes/builder'
     | '/clientes/$id'
     | '/configuracoes/papeis'
+    | '/whatsapp_/templates'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
+  WhatsappTemplatesRoute: typeof WhatsappTemplatesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -309,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracoesPapeisRouteImport
       parentRoute: typeof ConfiguracoesRoute
     }
+    '/whatsapp_/templates': {
+      id: '/whatsapp_/templates'
+      path: '/whatsapp/templates'
+      fullPath: '/whatsapp/templates'
+      preLoaderRoute: typeof WhatsappTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RelatoriosRoute: RelatoriosRoute,
   WhatsappRoute: WhatsappRoute,
+  WhatsappTemplatesRoute: WhatsappTemplatesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

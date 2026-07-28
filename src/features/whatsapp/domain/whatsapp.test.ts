@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { WaContact } from "./value-objects/wa-contact";
 import { Conversation } from "./entities/conversation";
 import { Message } from "./entities/message";
+import { WhatsAppTemplate } from "./entities/whatsapp-template";
 
 describe("WhatsApp · WaContact", () => {
   it("normaliza para apenas dígitos (E.164 sem '+')", () => {
@@ -22,12 +23,23 @@ describe("WhatsApp · Conversation", () => {
 
   it("respeita a janela de 24h", () => {
     const c = Conversation.fromPersistence({
-      id: "c", organizationId: "o", accountId: null, phoneNumberId: null,
-      contactWaId: "5511988887777", contactName: null, customerId: null, status: "open",
-      assignedTo: null, unreadCount: 1, lastMessageAt: null, lastMessagePreview: null,
+      id: "c",
+      organizationId: "o",
+      accountId: null,
+      phoneNumberId: null,
+      contactWaId: "5511988887777",
+      contactName: null,
+      customerId: null,
+      status: "open",
+      assignedTo: null,
+      unreadCount: 1,
+      lastMessageAt: null,
+      lastMessagePreview: null,
       lastInboundAt: new Date().toISOString(),
       windowExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
-      createdAt: "", updatedAt: "", deletedAt: null,
+      createdAt: "",
+      updatedAt: "",
+      deletedAt: null,
     });
     expect(c.isWithinWindow()).toBe(true);
     expect(c.canSendFreeform()).toBe(true);
@@ -45,8 +57,12 @@ describe("WhatsApp · Conversation", () => {
 
 describe("WhatsApp · Message", () => {
   it("exige corpo em texto e template em template", () => {
-    expect(() => Message.createOutbound({ organizationId: "o", conversationId: "c", body: "" })).toThrow();
-    expect(() => Message.createOutbound({ organizationId: "o", conversationId: "c", type: "template" })).toThrow();
+    expect(() =>
+      Message.createOutbound({ organizationId: "o", conversationId: "c", body: "" }),
+    ).toThrow();
+    expect(() =>
+      Message.createOutbound({ organizationId: "o", conversationId: "c", type: "template" }),
+    ).toThrow();
   });
 
   it("marca enviada com wa_message_id", () => {
@@ -68,5 +84,31 @@ describe("WhatsApp · Message", () => {
     const m = Message.createOutbound({ organizationId: "o", conversationId: "c", body: "oi" });
     m.markFailed({ code: 131 });
     expect(m.status).toBe("failed");
+  });
+});
+
+describe("WhatsApp · WhatsAppTemplate", () => {
+  it("normaliza o nome e monta components (header/body/footer)", () => {
+    const t = WhatsAppTemplate.create({
+      organizationId: "o",
+      name: "Boas Vindas",
+      bodyText: "Olá!",
+      headerText: "Oi",
+      footerText: "Equipe",
+    });
+    expect(t.name).toBe("boas_vindas");
+    expect(t.status).toBe("pending");
+    expect(t.bodyText).toBe("Olá!");
+    const types = (t.toJSON().components as Array<{ type: string }>).map((c) => c.type);
+    expect(types).toEqual(["HEADER", "BODY", "FOOTER"]);
+  });
+
+  it("rejeita nome inválido e corpo vazio", () => {
+    expect(() =>
+      WhatsAppTemplate.create({ organizationId: "o", name: "a b!", bodyText: "x" }),
+    ).toThrow();
+    expect(() =>
+      WhatsAppTemplate.create({ organizationId: "o", name: "ok", bodyText: "" }),
+    ).toThrow();
   });
 });
