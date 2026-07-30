@@ -1,3 +1,4 @@
+import "@/server/ws-polyfill";
 import { createServerClient } from "@supabase/ssr";
 import { getRequest, setCookie } from "@tanstack/react-start/server";
 import { assertSupabaseEnv } from "@/lib/env";
