@@ -32,54 +32,191 @@ export class MessagingApplicationService {
   }
 
   sendText(conversationId: string, body: string): Promise<Message> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const { data, error } = await this.db.rpc("wa_send_message", {
-        p_org: this.ctx.organizationId,
-        p_conversation: conversationId,
-        p_type: "text",
-        p_body: body,
-      });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-      return this.fetchMessage(data as string);
-    }, { service: "whatsapp.sendText", conversationId });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db.rpc("wa_send_message", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+          p_type: "text",
+          p_body: body,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return this.fetchMessage(data as string);
+      },
+      { service: "whatsapp.sendText", conversationId },
+    );
   }
 
-  sendTemplate(conversationId: string, templateId: string, variables: unknown[] = []): Promise<Message> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const { data, error } = await this.db.rpc("wa_send_message", {
-        p_org: this.ctx.organizationId,
-        p_conversation: conversationId,
-        p_type: "template",
-        p_template_id: templateId,
-        p_payload: { variables } as unknown as Json,
-      });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-      return this.fetchMessage(data as string);
-    }, { service: "whatsapp.sendTemplate", conversationId });
+  sendTemplate(
+    conversationId: string,
+    templateId: string,
+    variables: unknown[] = [],
+  ): Promise<Message> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db.rpc("wa_send_message", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+          p_type: "template",
+          p_template_id: templateId,
+          p_payload: { variables } as unknown as Json,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return this.fetchMessage(data as string);
+      },
+      { service: "whatsapp.sendTemplate", conversationId },
+    );
   }
 
   assign(conversationId: string, assigneeId: string | null): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const { error } = await this.db.rpc("assign_conversation", {
-        p_org: this.ctx.organizationId,
-        p_conversation: conversationId,
-        p_assignee: assigneeId,
-      });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-    }, { service: "whatsapp.assign", conversationId });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.rpc("assign_conversation", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+          p_assignee: assigneeId,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.assign", conversationId },
+    );
   }
 
   markRead(conversationId: string): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const { error } = await this.db.rpc("mark_conversation_read", {
-        p_org: this.ctx.organizationId,
-        p_conversation: conversationId,
-      });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-    }, { service: "whatsapp.markRead", conversationId });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.rpc("mark_conversation_read", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.markRead", conversationId },
+    );
   }
+
+  /** Status de atendimento: open|pending|closed (UI: Aberta|Pendente|Resolvida). */
+  setStatus(conversationId: string, status: "open" | "pending" | "closed"): Promise<void> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.rpc("wa_set_conversation_status", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+          p_status: status,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.setStatus", conversationId },
+    );
+  }
+
+  setTags(conversationId: string, tags: string[]): Promise<void> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.rpc("wa_set_conversation_tags", {
+          p_org: this.ctx.organizationId,
+          p_conversation: conversationId,
+          p_tags: tags,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.setTags", conversationId },
+    );
+  }
+
+  addNote(conversationId: string, body: string): Promise<void> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.from("conversation_notes").insert({
+          organization_id: this.ctx.organizationId,
+          conversation_id: conversationId,
+          author_id: this.ctx.actorId,
+          body,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.addNote", conversationId },
+    );
+  }
+
+  listNotes(conversationId: string): Promise<ConversationNote[]> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db
+          .from("conversation_notes")
+          .select("id, body, author_id, created_at")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return (data ?? []) as ConversationNote[];
+      },
+      { service: "whatsapp.listNotes", conversationId },
+    );
+  }
+
+  listQuickReplies(): Promise<QuickReply[]> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db
+          .from("quick_replies")
+          .select("id, shortcut, title, body")
+          .is("deleted_at", null)
+          .order("shortcut");
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return (data ?? []) as QuickReply[];
+      },
+      { service: "whatsapp.listQuickReplies" },
+    );
+  }
+
+  createQuickReply(input: { shortcut: string; title: string; body: string }): Promise<void> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db.from("quick_replies").insert({
+          organization_id: this.ctx.organizationId,
+          created_by: this.ctx.actorId,
+          ...input,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.createQuickReply" },
+    );
+  }
+
+  deleteQuickReply(id: string): Promise<void> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { error } = await this.db
+          .from("quick_replies")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", id);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "whatsapp.deleteQuickReply", id },
+    );
+  }
+}
+
+export interface ConversationNote {
+  id: string;
+  body: string;
+  author_id: string | null;
+  created_at: string;
+}
+export interface QuickReply {
+  id: string;
+  shortcut: string;
+  title: string;
+  body: string;
 }

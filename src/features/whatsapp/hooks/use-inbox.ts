@@ -97,6 +97,22 @@ export function useSendMessage(conversationId: string | null) {
   });
 }
 
+export function useSendTemplate(conversationId: string | null) {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  const qc = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (templateId: string) =>
+      makeMessaging(session!).sendTemplate(conversationId!, templateId),
+    onSuccess: () => {
+      if (!org || !conversationId) return;
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.messages(org, conversationId) });
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations(org) });
+    },
+  });
+}
+
 export function useAssignConversation() {
   const session = useSession();
   const org = session?.activeOrganization?.organizationId ?? null;

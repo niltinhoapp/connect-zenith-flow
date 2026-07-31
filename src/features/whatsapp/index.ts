@@ -12,14 +12,30 @@ export const MODULE_KEY = "whatsapp" as const;
 export * from "./domain";
 
 // Application
-export { MessagingApplicationService } from "./application/messaging-application-service";
-export { InboxApplicationService, type InboxCounters } from "./application/inbox-application-service";
+export {
+  MessagingApplicationService,
+  type ConversationNote,
+  type QuickReply,
+} from "./application/messaging-application-service";
+export {
+  InboxApplicationService,
+  type InboxCounters,
+} from "./application/inbox-application-service";
 export { TemplateApplicationService } from "./application/template-application-service";
 
 // Infrastructure
-export { ConversationSupabaseRepository, rowToConversation } from "./infrastructure/conversation-supabase-repository";
-export { MessageSupabaseRepository, rowToMessage } from "./infrastructure/message-supabase-repository";
-export { TemplateSupabaseRepository, rowToTemplate } from "./infrastructure/template-supabase-repository";
+export {
+  ConversationSupabaseRepository,
+  rowToConversation,
+} from "./infrastructure/conversation-supabase-repository";
+export {
+  MessageSupabaseRepository,
+  rowToMessage,
+} from "./infrastructure/message-supabase-repository";
+export {
+  TemplateSupabaseRepository,
+  rowToTemplate,
+} from "./infrastructure/template-supabase-repository";
 export { MetaWhatsAppProvider } from "./infrastructure/meta-whatsapp-provider";
 export { EvolutionWhatsAppProvider } from "./infrastructure/evolution-whatsapp-provider";
 export {

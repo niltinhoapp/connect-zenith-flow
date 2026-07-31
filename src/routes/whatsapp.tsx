@@ -13,16 +13,23 @@ import {
   MessageSquare,
   Loader2,
   FileText,
+  Zap,
+  StickyNote,
+  KeyRound,
+  CircleDot,
 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -32,10 +39,25 @@ import {
   useMessages,
   useInboxCounters,
   useSendMessage,
+  useSendTemplate,
   useAssignConversation,
   useMarkConversationRead,
 } from "@/features/whatsapp/hooks/use-inbox";
+import {
+  useSetConversationStatus,
+  useSetConversationTags,
+  useConversationNotes,
+  useAddNote,
+  useQuickReplies,
+} from "@/features/whatsapp/hooks/use-service-desk";
+import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
 import type { ConversationProps } from "@/features/whatsapp";
+
+const STATUS_LABEL: Record<string, string> = {
+  open: "Aberta",
+  pending: "Pendente",
+  closed: "Resolvida",
+};
 
 export const Route = createFileRoute("/whatsapp")({
   head: () => ({
@@ -196,8 +218,12 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const meId = session?.user?.id ?? null;
   const messagesQuery = useMessages(conversation.id);
   const send = useSendMessage(conversation.id);
+  const sendTemplate = useSendTemplate(conversation.id);
   const assign = useAssignConversation();
   const markRead = useMarkConversationRead();
+  const setStatus = useSetConversationStatus();
+  const quickReplies = useQuickReplies();
+  const templatesQuery = useTemplates({ status: "approved" });
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -206,6 +232,10 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     [messagesQuery.data],
   );
   const withinWindow = isWithinWindow(conversation.windowExpiresAt);
+  // Detecta token expirado (falha de envio) → aviso administrativo (sem expor credenciais).
+  const tokenFailed = messages.some((m) => m.direction === "outbound" && m.status === "failed");
+  const approvedTemplates = templatesQuery.data?.items ?? [];
+  const replies = quickReplies.data ?? [];
 
   // Marca como lida ao abrir (se houver não-lidas).
   useEffect(() => {
@@ -220,7 +250,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
 
   const submit = () => {
     const body = draft.trim();
-    if (!body || send.isPending) return;
+    if (!body || send.isPending || !withinWindow) return;
     send.mutate(body, { onSuccess: () => setDraft("") });
   };
 
@@ -267,6 +297,24 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
                 Remover atribuição
               </DropdownMenuItem>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+              Status
+            </DropdownMenuLabel>
+            {(["open", "pending", "closed"] as const).map((s) => (
+              <DropdownMenuItem
+                key={s}
+                onClick={() => setStatus.mutate({ conversationId: conversation.id, status: s })}
+              >
+                <CircleDot
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    conversation.status === s ? "text-primary" : "text-muted-foreground/40",
+                  )}
+                />
+                {STATUS_LABEL[s]}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
@@ -296,6 +344,11 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
                     mine ? "text-primary-foreground/70" : "text-muted-foreground",
                   )}
                 >
+                  {mine && (
+                    <span className="mr-1">
+                      {m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
+                    </span>
+                  )}
                   {hhmm(m.createdAt)}
                   {mine && <StatusTick status={m.status} />}
                 </div>
@@ -306,11 +359,72 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
+        {tokenFailed && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+            <KeyRound className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              Falha de autenticação com a Meta — o token do WhatsApp pode ter expirado. Um
+              administrador precisa reconectar a conta.
+            </span>
+          </div>
+        )}
         {!withinWindow && (
           <p className="mb-2 px-1 text-[11px] text-warning">
-            Fora da janela de 24h — a Meta só permite iniciar com um template aprovado.
+            Fora da janela de 24h — a Meta só permite iniciar com um{" "}
+            <strong>template aprovado</strong>.
           </p>
         )}
+
+        {/* Respostas rápidas + templates */}
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1">
+          {withinWindow && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+                  <Zap className="h-3 w-3" /> Respostas rápidas
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                {replies.length === 0 ? (
+                  <DropdownMenuItem disabled>Nenhuma resposta rápida</DropdownMenuItem>
+                ) : (
+                  replies.map((r) => (
+                    <DropdownMenuItem key={r.id} onClick={() => setDraft(r.body)}>
+                      <span className="font-mono text-[10px] text-primary">{r.shortcut}</span>
+                      <span className="ml-2 truncate">{r.title}</span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+                <FileText className="h-3 w-3" /> Template
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+              <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                Templates aprovados
+              </DropdownMenuLabel>
+              {approvedTemplates.length === 0 ? (
+                <DropdownMenuItem disabled>Nenhum template aprovado</DropdownMenuItem>
+              ) : (
+                approvedTemplates.map((t) => {
+                  const tpl = t.toJSON();
+                  return (
+                    <DropdownMenuItem key={tpl.id} onClick={() => sendTemplate.mutate(tpl.id)}>
+                      <span className="font-mono text-[11px]">{tpl.name}</span>
+                      <span className="ml-2 text-[10px] text-muted-foreground">{tpl.language}</span>
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" disabled title="Mídia (em breve)">
             <Paperclip className="h-4 w-4 text-muted-foreground" />
@@ -324,13 +438,16 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
                 submit();
               }
             }}
-            placeholder="Digite uma mensagem..."
-            className="h-8 border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
+            placeholder={
+              withinWindow ? "Digite uma mensagem..." : "Fora da janela — use um template"
+            }
+            disabled={!withinWindow}
+            className="h-8 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 disabled:opacity-60"
           />
           <Button
             size="icon"
             onClick={submit}
-            disabled={!draft.trim() || send.isPending}
+            disabled={!withinWindow || !draft.trim() || send.isPending}
             className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90"
           >
             {send.isPending ? (
@@ -340,9 +457,9 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             )}
           </Button>
         </div>
-        {send.isError && (
+        {(send.isError || sendTemplate.isError) && (
           <p className="mt-1 px-1 text-[11px] text-destructive">
-            Falha ao enviar. Tente novamente.
+            Falha ao enviar. Verifique a conexão/limite e tente novamente.
           </p>
         )}
       </div>
@@ -376,8 +493,33 @@ function EmptyThread() {
 
 // ── Painel do contato ────────────────────────────────────────────────────────
 function ContactPanel({ conversation }: { conversation: ConversationProps | null }) {
+  const setTags = useSetConversationTags();
+  const notesQuery = useConversationNotes(conversation?.id ?? null);
+  const addNote = useAddNote(conversation?.id ?? null);
+  const [tagInput, setTagInput] = useState("");
+  const [noteInput, setNoteInput] = useState("");
+
   if (!conversation) return <aside className="hidden border-l border-border lg:block" />;
   const withinWindow = isWithinWindow(conversation.windowExpiresAt);
+  const notes = notesQuery.data ?? [];
+
+  const addTag = () => {
+    const t = tagInput.trim().toLowerCase();
+    if (!t || conversation.tags.includes(t)) return;
+    setTags.mutate({ conversationId: conversation.id, tags: [...conversation.tags, t] });
+    setTagInput("");
+  };
+  const removeTag = (t: string) =>
+    setTags.mutate({
+      conversationId: conversation.id,
+      tags: conversation.tags.filter((x) => x !== t),
+    });
+  const submitNote = () => {
+    const b = noteInput.trim();
+    if (!b) return;
+    addNote.mutate(b, { onSuccess: () => setNoteInput("") });
+  };
+
   return (
     <aside className="hidden min-h-0 flex-col border-l border-border lg:flex">
       <div className="flex flex-col items-center border-b border-border p-6 text-center">
@@ -396,10 +538,12 @@ function ContactPanel({ conversation }: { conversation: ConversationProps | null
               "rounded-md border-0 text-[10px] ring-1 ring-inset",
               conversation.status === "open"
                 ? "bg-success/10 text-success ring-success/25"
-                : "bg-muted text-muted-foreground ring-border",
+                : conversation.status === "pending"
+                  ? "bg-warning/10 text-warning ring-warning/25"
+                  : "bg-muted text-muted-foreground ring-border",
             )}
           >
-            {conversation.status}
+            {STATUS_LABEL[conversation.status] ?? conversation.status}
           </Badge>
           <Badge
             className={cn(
@@ -413,16 +557,81 @@ function ContactPanel({ conversation }: { conversation: ConversationProps | null
           </Badge>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-5">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Detalhes
-        </p>
+
+      <div className="flex-1 space-y-5 overflow-y-auto p-5">
         <dl className="space-y-2 text-xs">
           <Row label="Não lidas" value={String(conversation.unreadCount)} />
           <Row label="Atribuída" value={conversation.assignedTo ? "Sim" : "—"} />
           <Row label="Cliente (CRM)" value={conversation.customerId ? "Vinculado" : "—"} />
           <Row label="Última mensagem" value={hhmm(conversation.lastMessageAt) || "—"} />
         </dl>
+
+        {/* Tags */}
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Tags
+          </p>
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {conversation.tags.length === 0 && (
+              <span className="text-xs text-muted-foreground">Sem tags</span>
+            )}
+            {conversation.tags.map((t) => (
+              <Badge
+                key={t}
+                className="cursor-pointer rounded-md border-0 bg-primary/10 text-[10px] text-primary"
+                onClick={() => removeTag(t)}
+                title="Remover"
+              >
+                {t} ✕
+              </Badge>
+            ))}
+          </div>
+          <Input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+            placeholder="Adicionar tag + Enter"
+            className="h-8 text-xs"
+          />
+        </div>
+
+        {/* Notas internas */}
+        <div>
+          <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <StickyNote className="h-3 w-3" /> Notas internas
+          </p>
+          <div className="mb-2 space-y-1.5">
+            {notes.length === 0 && (
+              <span className="text-xs text-muted-foreground">Nenhuma nota</span>
+            )}
+            {notes.map((n) => (
+              <div key={n.id} className="rounded-lg border border-border bg-card p-2 text-xs">
+                <p className="whitespace-pre-wrap break-words">{n.body}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{hhmm(n.created_at)}</p>
+              </div>
+            ))}
+          </div>
+          <Textarea
+            value={noteInput}
+            onChange={(e) => setNoteInput(e.target.value)}
+            placeholder="Nota visível só para a equipe..."
+            className="min-h-16 text-xs"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-1.5 h-7 w-full text-xs"
+            disabled={!noteInput.trim() || addNote.isPending}
+            onClick={submitNote}
+          >
+            Adicionar nota
+          </Button>
+        </div>
       </div>
     </aside>
   );

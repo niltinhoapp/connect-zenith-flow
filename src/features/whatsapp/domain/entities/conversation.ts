@@ -18,6 +18,7 @@ export interface ConversationProps {
   lastMessagePreview: string | null;
   lastInboundAt: string | null;
   windowExpiresAt: string | null;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -63,6 +64,7 @@ export class Conversation extends Entity<ConversationProps> {
       lastMessagePreview: null,
       lastInboundAt: null,
       windowExpiresAt: null,
+      tags: [],
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
