@@ -37,3 +37,6 @@ dist-ssr
 !.env.example
 # npm lock (projeto usa bun)
 package-lock.json
+
+# Supabase CLI temp
+supabase/.temp/
