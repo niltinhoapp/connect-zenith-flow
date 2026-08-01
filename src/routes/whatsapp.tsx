@@ -582,6 +582,81 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   );
 }
 
+// ── Bolha (texto + mídia) ────────────────────────────────────────────────────
+interface LocalMediaRow {
+  id: string;
+  caption: string | null;
+  at: string;
+  media: MessageMedia;
+}
+
+/** Extrai mídia do payload da mensagem (somente leitura visual). */
+function mediaFromMessage(m: {
+  type: string;
+  body: string | null;
+  payload: Record<string, unknown>;
+}): MessageMedia | null {
+  const kind =
+    m.type === "image" ? "image" : m.type === "audio" ? "audio" : m.type === "document" ? "document" : null;
+  if (!kind) return null;
+  const p = m.payload ?? {};
+  const url = typeof p["url"] === "string" ? (p["url"] as string) : null;
+  const name =
+    typeof p["filename"] === "string" ? (p["filename"] as string) : m.body || `arquivo.${kind}`;
+  return {
+    kind,
+    url: url ?? "",
+    name,
+    size: typeof p["size"] === "number" ? (p["size"] as number) : undefined,
+    mime: typeof p["mime_type"] === "string" ? (p["mime_type"] as string) : undefined,
+    state: url ? undefined : "error",
+  };
+}
+
+function MessageBubble(props: {
+  mine: boolean;
+  body: string | null;
+  fallbackLabel?: string;
+  media?: MessageMedia | null;
+  author: string;
+  time: string;
+  status: string;
+}) {
+  const { mine, body, fallbackLabel, media, author, time, status } = props;
+  return (
+    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[75%] lg:max-w-[70%]",
+          mine
+            ? "rounded-br-md bg-primary text-primary-foreground"
+            : "rounded-bl-md border border-border bg-card text-foreground",
+        )}
+      >
+        {media && (
+          <div className={cn(body ? "mb-2" : undefined)}>
+            <MessageMediaBubble media={media} mine={mine} />
+          </div>
+        )}
+        {(body || (!media && fallbackLabel)) && (
+          <p className="whitespace-pre-wrap break-words">{body || fallbackLabel}</p>
+        )}
+        <div
+          className={cn(
+            "mt-1 flex items-center justify-end gap-1 text-[10px]",
+            mine ? "text-primary-foreground/70" : "text-muted-foreground",
+          )}
+        >
+          {mine && <span className="mr-1">{author}</span>}
+          {time}
+          {mine && <StatusTick status={status} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function StatusTick({ status }: { status: string }) {
   if (status === "pending") return <Clock className="h-3 w-3" />;
   if (status === "failed") return <AlertCircle className="h-3 w-3 text-destructive" />;
