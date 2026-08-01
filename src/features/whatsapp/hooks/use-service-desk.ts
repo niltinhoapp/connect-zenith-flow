@@ -23,6 +23,21 @@ function useOrg() {
   return { session, org: session?.activeOrganization?.organizationId ?? null };
 }
 
+export function useSendMedia(conversationId: string | null) {
+  const { session, org } = useOrg();
+  const qc = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (v: { file: File; caption?: string }) =>
+      makeService(session!).sendMedia(conversationId!, v.file, v.caption),
+    onSuccess: () => {
+      if (!org || !conversationId) return;
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.messages(org, conversationId) });
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations(org) });
+    },
+  });
+}
+
 export function useSetConversationStatus() {
   const { session, org } = useOrg();
   const qc = useQueryClient();

@@ -49,6 +49,7 @@ import {
   useConversationNotes,
   useAddNote,
   useQuickReplies,
+  useSendMedia,
 } from "@/features/whatsapp/hooks/use-service-desk";
 import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
 import type { ConversationProps } from "@/features/whatsapp";
@@ -66,7 +67,6 @@ import {
   detectKind,
   validateMediaFile,
 } from "@/features/whatsapp/components/media/media-utils";
-
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
@@ -272,11 +272,13 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const setStatus = useSetConversationStatus();
   const quickReplies = useQuickReplies();
   const templatesQuery = useTemplates({ status: "approved" });
+  const sendMedia = useSendMedia(conversation.id);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pendingFileRef = useRef<File | null>(null);
 
-  // Anexo (protótipo visual — nenhum upload/storage é realizado).
+  // Anexo: preview local + envio REAL (upload Storage → RPC → worker → Meta).
   const [attachment, setAttachment] = useState<DraftAttachment | null>(null);
   const [attachmentStatus, setAttachmentStatus] = useState<AttachmentStatus>("idle");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -294,6 +296,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     setFileError(null);
     setAttachmentError(null);
     setAttachmentStatus("idle");
+    pendingFileRef.current = file;
     setAttachment({
       id: crypto.randomUUID(),
       kind: detectKind(file.type)!,
@@ -312,31 +315,42 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   };
 
   const sendAttachment = () => {
-    if (!attachment || attachmentStatus === "sending") return;
+    const file = pendingFileRef.current;
+    if (!attachment || !file || attachmentStatus === "sending") return;
     setAttachmentStatus("sending");
     setAttachmentError(null);
-    window.setTimeout(() => {
-      setAttachmentStatus("success");
-      setLocalSent((rows) => [
-        ...rows,
-        {
-          id: attachment.id,
-          caption: draft.trim() || null,
-          at: new Date().toISOString(),
-          media: {
-            kind: attachment.kind,
-            url: attachment.url,
-            name: attachment.name,
-            size: attachment.size,
-            mime: attachment.mime,
-          },
+    const captionText = draft.trim();
+    const snapshot = attachment;
+    sendMedia.mutate(
+      { file, caption: captionText || undefined },
+      {
+        onSuccess: () => {
+          setAttachmentStatus("success");
+          setLocalSent((rows) => [
+            ...rows,
+            {
+              id: snapshot.id,
+              caption: captionText || null,
+              at: new Date().toISOString(),
+              media: {
+                kind: snapshot.kind,
+                url: snapshot.url,
+                name: snapshot.name,
+                size: snapshot.size,
+                mime: snapshot.mime,
+              },
+            },
+          ]);
+          setDraft("");
+          window.setTimeout(clearAttachment, 600);
         },
-      ]);
-      setDraft("");
-      window.setTimeout(clearAttachment, 600);
-    }, 900);
+        onError: (e) => {
+          setAttachmentStatus("error");
+          setAttachmentError(e instanceof Error ? e.message : "Falha ao enviar o anexo.");
+        },
+      },
+    );
   };
-
 
   const messages = useMemo(
     () => (messagesQuery.data?.items ?? []).map((m) => m.toJSON()),
@@ -368,7 +382,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     if (!body || send.isPending || !withinWindow) return;
     send.mutate(body, { onSuccess: () => setDraft("") });
   };
-
 
   return (
     <section className="flex min-h-0 flex-col">
@@ -464,7 +477,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             status="sent"
           />
         ))}
-
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
@@ -609,7 +621,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             Falha ao enviar. Verifique a conexão/limite e tente novamente.
           </p>
         )}
-
       </div>
     </section>
   );
@@ -630,7 +641,13 @@ function mediaFromMessage(m: {
   payload: Record<string, unknown>;
 }): MessageMedia | null {
   const kind =
-    m.type === "image" ? "image" : m.type === "audio" ? "audio" : m.type === "document" ? "document" : null;
+    m.type === "image"
+      ? "image"
+      : m.type === "audio"
+        ? "audio"
+        : m.type === "document"
+          ? "document"
+          : null;
   if (!kind) return null;
   const p = m.payload ?? {};
   const url = typeof p["url"] === "string" ? (p["url"] as string) : null;
@@ -688,7 +705,6 @@ function MessageBubble(props: {
     </div>
   );
 }
-
 
 function StatusTick({ status }: { status: string }) {
   if (status === "pending") return <Clock className="h-3 w-3" />;

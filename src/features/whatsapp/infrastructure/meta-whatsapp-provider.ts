@@ -50,7 +50,11 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
   readonly kind = "whatsapp" as const;
   readonly vendor = "meta";
 
-  sendText(input: { credentials: WhatsAppCredentials; to: string; body: string }): Promise<WhatsAppSendResult> {
+  sendText(input: {
+    credentials: WhatsAppCredentials;
+    to: string;
+    body: string;
+  }): Promise<WhatsAppSendResult> {
     return postGraph(input.credentials, {
       to: input.to,
       type: "text",
@@ -83,9 +87,78 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         Authorization: `Bearer ${input.credentials.accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messaging_product: "whatsapp", status: "read", message_id: input.externalId }),
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: input.externalId,
+      }),
     });
     if (!res.ok) throw new Error(`meta markRead ${res.status}`);
+  }
+
+  async uploadMedia(input: {
+    credentials: WhatsAppCredentials;
+    bytes: Uint8Array;
+    mime: string;
+    filename?: string;
+  }): Promise<{ mediaId: string }> {
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", input.mime);
+    // Blob a partir do binário (funciona no worker/edge; sem depender de fs).
+    form.append(
+      "file",
+      new Blob([input.bytes as unknown as BlobPart], { type: input.mime }),
+      input.filename ?? "file",
+    );
+    const res = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/${input.credentials.phoneNumberId}/media`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${input.credentials.accessToken}` },
+        body: form,
+      },
+    );
+    const data = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      error?: { message?: string };
+    };
+    if (!res.ok || !data.id)
+      throw new Error(`meta upload ${res.status}: ${data?.error?.message ?? "sem id"}`);
+    return { mediaId: data.id };
+  }
+
+  sendMedia(input: {
+    credentials: WhatsAppCredentials;
+    to: string;
+    type: "image" | "audio" | "document";
+    mediaId: string;
+    caption?: string | null;
+    filename?: string | null;
+  }): Promise<WhatsAppSendResult> {
+    const mediaObj: Record<string, unknown> = { id: input.mediaId };
+    if (input.caption && (input.type === "image" || input.type === "document"))
+      mediaObj.caption = input.caption;
+    if (input.filename && input.type === "document") mediaObj.filename = input.filename;
+    return postGraph(input.credentials, { to: input.to, type: input.type, [input.type]: mediaObj });
+  }
+
+  async downloadMedia(input: {
+    credentials: WhatsAppCredentials;
+    mediaId: string;
+  }): Promise<{ bytes: Uint8Array; mime: string }> {
+    const auth = { Authorization: `Bearer ${input.credentials.accessToken}` };
+    const metaRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${input.mediaId}`, {
+      headers: auth,
+    });
+    const meta = (await metaRes.json().catch(() => ({}))) as { url?: string; mime_type?: string };
+    if (!metaRes.ok || !meta.url) throw new Error(`meta media meta ${metaRes.status}`);
+    const binRes = await fetch(meta.url, { headers: auth });
+    if (!binRes.ok) throw new Error(`meta media download ${binRes.status}`);
+    return {
+      bytes: new Uint8Array(await binRes.arrayBuffer()),
+      mime: meta.mime_type ?? "application/octet-stream",
+    };
   }
 
   parseWebhook(payload: unknown): WhatsAppWebhookBatch {
@@ -98,7 +171,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         const phoneNumberId = String(obj(value.metadata).phone_number_id ?? "");
         const contacts = arr(value.contacts).map(obj);
         const contactName = contacts.length
-          ? (String(obj(contacts[0].profile).name ?? "") || null)
+          ? String(obj(contacts[0].profile).name ?? "") || null
           : null;
 
         for (const raw of arr(value.messages).map(obj)) {
