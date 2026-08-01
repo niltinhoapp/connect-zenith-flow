@@ -340,37 +340,30 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         )}
-        {messages.map((m) => {
-          const mine = m.direction === "outbound";
-          return (
-            <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm",
-                  mine
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md border border-border bg-card text-foreground",
-                )}
-              >
-                <p className="whitespace-pre-wrap break-words">{m.body || `[${m.type}]`}</p>
-                <div
-                  className={cn(
-                    "mt-1 flex items-center justify-end gap-1 text-[10px]",
-                    mine ? "text-primary-foreground/70" : "text-muted-foreground",
-                  )}
-                >
-                  {mine && (
-                    <span className="mr-1">
-                      {m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
-                    </span>
-                  )}
-                  {hhmm(m.createdAt)}
-                  {mine && <StatusTick status={m.status} />}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {messages.map((m) => (
+          <MessageBubble
+            key={m.id}
+            mine={m.direction === "outbound"}
+            body={m.body}
+            fallbackLabel={`[${m.type}]`}
+            media={mediaFromMessage(m)}
+            author={m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
+            time={hhmm(m.createdAt)}
+            status={m.status}
+          />
+        ))}
+        {localSent.map((row) => (
+          <MessageBubble
+            key={row.id}
+            mine
+            body={row.caption}
+            media={row.media}
+            author="Você"
+            time={hhmm(row.at)}
+            status="sent"
+          />
+        ))}
+
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
