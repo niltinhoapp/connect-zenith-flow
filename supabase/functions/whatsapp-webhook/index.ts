@@ -51,6 +51,16 @@ function bodyOf(msg: Obj, type: string): string | null {
   return caption ? String(caption) : null;
 }
 
+const MEDIA_TYPES = ["image", "audio", "document", "video", "sticker"];
+/** Extrai id/mime/filename de uma mensagem de mídia; null se não for mídia. */
+function mediaOf(msg: Obj, type: string): { id: string; mime: string; filename: string | null } | null {
+  if (!MEDIA_TYPES.includes(type)) return null;
+  const m = obj((msg as Obj)[type]);
+  const id = m.id ? String(m.id) : "";
+  if (!id) return null;
+  return { id, mime: m.mime_type ? String(m.mime_type) : "", filename: m.filename ? String(m.filename) : null };
+}
+
 async function handlePost(raw: string): Promise<Response> {
   let payload: Obj;
   try { payload = obj(JSON.parse(raw)); } catch { return new Response("bad json", { status: 400 }); }
@@ -70,11 +80,11 @@ async function handlePost(raw: string): Promise<Response> {
       const contacts = arr(value.contacts).map(obj);
       const contactName = contacts.length ? String(obj(contacts[0].profile).name ?? "") || null : null;
 
-      // Mensagens recebidas
+      // Mensagens recebidas (texto inalterado; mídia é aditiva)
       for (const raw2 of arr(value.messages).map(obj)) {
         const type = String(raw2.type ?? "text");
         const wamid = String(raw2.id ?? "");
-        await admin.rpc("wa_ingest_inbound", {
+        const { data: msgId } = await admin.rpc("wa_ingest_inbound", {
           p_org: org, p_phone_number_id: phoneId, p_contact_wa_id: String(raw2.from ?? ""),
           p_contact_name: contactName, p_wa_message_id: wamid, p_type: type,
           p_body: bodyOf(raw2, type), p_payload: raw2,
@@ -82,6 +92,14 @@ async function handlePost(raw: string): Promise<Response> {
         await admin.rpc("wa_log_webhook", {
           p_org: org, p_provider: "meta", p_event_type: "message", p_external_id: wamid, p_payload: raw2,
         });
+        // Mídia inbound: registra + enfileira o download (idempotente por external id).
+        const media = mediaOf(raw2, type);
+        if (media && msgId) {
+          await admin.rpc("wa_register_inbound_media", {
+            p_org: org, p_message_id: msgId as string, p_external_media_id: media.id,
+            p_mime: media.mime, p_filename: media.filename,
+          });
+        }
       }
 
       // Status de entrega

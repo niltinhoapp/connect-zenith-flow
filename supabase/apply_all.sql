@@ -3289,6 +3289,12 @@ create or replace function public.wa_register_inbound_media(
 declare v_media uuid;
 begin
   if auth.uid() is not null and not public.is_org_member(p_org) then raise exception 'forbidden'; end if;
+  -- Idempotência por external_media_id (reentregas do webhook não duplicam).
+  select id into v_media from public.whatsapp_media
+    where organization_id = p_org and external_media_id = p_external_media_id and direction = 'inbound'
+    limit 1;
+  if v_media is not null then return v_media; end if;
+
   insert into public.whatsapp_media(organization_id, direction, external_media_id, mime_type, filename, status)
   values (p_org, 'inbound', p_external_media_id, p_mime, p_filename, 'pending')
   returning id into v_media;

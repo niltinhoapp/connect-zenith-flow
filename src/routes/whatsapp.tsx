@@ -50,9 +50,10 @@ import {
   useAddNote,
   useQuickReplies,
   useSendMedia,
+  useMediaBatch,
 } from "@/features/whatsapp/hooks/use-service-desk";
 import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
-import type { ConversationProps } from "@/features/whatsapp";
+import type { ConversationProps, MediaView } from "@/features/whatsapp";
 import {
   MessageMediaBubble,
   type MessageMedia,
@@ -362,11 +363,28 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
 
+  // Mídia real: resolve signed URLs das mensagens que têm mídia.
+  const mediaIds = useMemo(
+    () => messages.map((m) => m.mediaId).filter((id): id is string => Boolean(id)),
+    [messages],
+  );
+  const mediaBatch = useMediaBatch(mediaIds);
+  const mediaMap = mediaBatch.data ?? {};
+
   // Marca como lida ao abrir (se houver não-lidas).
   useEffect(() => {
     if (conversation.unreadCount > 0) markRead.mutate(conversation.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
+
+  // Item 9: quando a mídia outbound persistida aparece, remove o preview otimista.
+  const outboundMediaCount = messages.filter((m) => m.direction === "outbound" && m.mediaId).length;
+  const prevOutboundMediaRef = useRef(0);
+  useEffect(() => {
+    if (outboundMediaCount > prevOutboundMediaRef.current && localSent.length) setLocalSent([]);
+    prevOutboundMediaRef.current = outboundMediaCount;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outboundMediaCount]);
 
   // Rola para o fim quando chegam mensagens.
   useEffect(() => {
@@ -460,7 +478,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             mine={m.direction === "outbound"}
             body={m.body}
             fallbackLabel={`[${m.type}]`}
-            media={mediaFromMessage(m)}
+            media={resolveMedia(m, mediaMap)}
             author={m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
             time={hhmm(m.createdAt)}
             status={m.status}
@@ -634,33 +652,20 @@ interface LocalMediaRow {
   media: MessageMedia;
 }
 
-/** Extrai mídia do payload da mensagem (somente leitura visual). */
-function mediaFromMessage(m: {
-  type: string;
-  body: string | null;
-  payload: Record<string, unknown>;
-}): MessageMedia | null {
-  const kind =
-    m.type === "image"
-      ? "image"
-      : m.type === "audio"
-        ? "audio"
-        : m.type === "document"
-          ? "document"
-          : null;
-  if (!kind) return null;
-  const p = m.payload ?? {};
-  const url = typeof p["url"] === "string" ? (p["url"] as string) : null;
-  const name =
-    typeof p["filename"] === "string" ? (p["filename"] as string) : m.body || `arquivo.${kind}`;
-  return {
-    kind,
-    url: url ?? "",
-    name,
-    size: typeof p["size"] === "number" ? (p["size"] as number) : undefined,
-    mime: typeof p["mime_type"] === "string" ? (p["mime_type"] as string) : undefined,
-    state: url ? undefined : "error",
-  };
+/**
+ * Resolve a mídia REAL de uma mensagem: usa a signed URL vinda do `useMediaBatch`
+ * (mediaMap). Enquanto o download/URL não está pronto, mostra estado de loading;
+ * se não houver `mediaId`, não é mídia. Nunca usa URL permanente/token.
+ */
+function resolveMedia(
+  m: { type: string; mediaId: string | null },
+  mediaMap: Record<string, MediaView>,
+): MessageMedia | null {
+  if (!m.mediaId) return null;
+  const found = mediaMap[m.mediaId];
+  if (found) return found;
+  const kind = m.type === "image" ? "image" : m.type === "audio" ? "audio" : "document";
+  return { kind, url: "", name: `arquivo.${kind}`, state: "loading" };
 }
 
 function MessageBubble(props: {

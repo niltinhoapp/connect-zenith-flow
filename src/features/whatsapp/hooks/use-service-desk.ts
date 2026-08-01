@@ -7,6 +7,7 @@ import {
   MessageSupabaseRepository,
   type ConversationNote,
   type QuickReply,
+  type MediaView,
 } from "@/features/whatsapp";
 
 function makeService(session: AuthSession): MessagingApplicationService {
@@ -35,6 +36,22 @@ export function useSendMedia(conversationId: string | null) {
       qc.invalidateQueries({ queryKey: queryKeys.whatsapp.messages(org, conversationId) });
       qc.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations(org) });
     },
+  });
+}
+
+export function useMediaBatch(mediaIds: string[]) {
+  const { session, org } = useOrg();
+  const key = [...mediaIds].sort().join(",");
+  return useQuery<Record<string, MediaView>>({
+    queryKey: [...queryKeys.whatsapp.all(org ?? "none"), "media", key],
+    enabled: Boolean(org && mediaIds.length),
+    // Continua puxando enquanto houver mídia em "loading" (download pendente no worker).
+    refetchInterval: (query) => {
+      const data = query.state.data as Record<string, MediaView> | undefined;
+      const anyLoading = data && Object.values(data).some((m) => m.state === "loading");
+      return anyLoading ? 4000 : false;
+    },
+    queryFn: () => makeService(session!).getMedia(mediaIds),
   });
 }
 

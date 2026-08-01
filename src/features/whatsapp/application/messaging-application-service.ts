@@ -242,6 +242,55 @@ export class MessagingApplicationService {
     );
   }
 
+  /**
+   * Resolve as mídias de um conjunto de ids (para render na thread): tipo, nome,
+   * tamanho, MIME e **signed URL temporária** apenas para as já armazenadas. Nunca
+   * expõe token nem URL permanente. Estado: ready | loading | error.
+   */
+  getMedia(mediaIds: string[]): Promise<Record<string, MediaView>> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const ids = [...new Set(mediaIds)].filter(Boolean);
+        if (ids.length === 0) return {};
+        const { data, error } = await this.db
+          .from("whatsapp_media")
+          .select("id, mime_type, filename, size_bytes, storage_path, status")
+          .in("id", ids);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        const out: Record<string, MediaView> = {};
+        for (const row of data ?? []) {
+          const kind = mimeToMediaType(row.mime_type ?? "") ?? "document";
+          let url = "";
+          let state: MediaView["state"] = "loading";
+          if (row.status === "stored" && row.storage_path) {
+            const signed = await this.db.storage
+              .from("whatsapp-media")
+              .createSignedUrl(row.storage_path, 3600);
+            if (signed.data?.signedUrl) {
+              url = signed.data.signedUrl;
+              state = "ready";
+            } else {
+              state = "error";
+            }
+          } else if (row.status === "failed") {
+            state = "error";
+          }
+          out[row.id] = {
+            kind,
+            url,
+            name: row.filename ?? "arquivo",
+            size: row.size_bytes ?? undefined,
+            mime: row.mime_type ?? undefined,
+            state,
+          };
+        }
+        return out;
+      },
+      { service: "whatsapp.getMedia" },
+    );
+  }
+
   /** URL assinada (temporária) para exibir/baixar uma mídia armazenada. */
   mediaSignedUrl(storagePath: string, expiresSeconds = 3600): Promise<string> {
     return guard(
@@ -282,4 +331,13 @@ export interface QuickReply {
   shortcut: string;
   title: string;
   body: string;
+}
+/** Mídia resolvida para render (estrutura compatível com MessageMedia da UI). */
+export interface MediaView {
+  kind: "image" | "audio" | "document";
+  url: string;
+  name: string;
+  size?: number;
+  mime?: string;
+  state: "ready" | "loading" | "error";
 }
