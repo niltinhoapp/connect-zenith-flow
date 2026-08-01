@@ -52,6 +52,21 @@ import {
 } from "@/features/whatsapp/hooks/use-service-desk";
 import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
 import type { ConversationProps } from "@/features/whatsapp";
+import {
+  MessageMediaBubble,
+  type MessageMedia,
+} from "@/features/whatsapp/components/media/message-media";
+import {
+  AttachmentPreview,
+  type AttachmentStatus,
+  type DraftAttachment,
+} from "@/features/whatsapp/components/media/attachment-preview";
+import {
+  ACCEPTED_MEDIA,
+  detectKind,
+  validateMediaFile,
+} from "@/features/whatsapp/components/media/media-utils";
+
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
