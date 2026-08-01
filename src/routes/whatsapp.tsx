@@ -501,8 +501,37 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
           </DropdownMenu>
         </div>
 
+        {attachment && (
+          <AttachmentPreview
+            attachment={attachment}
+            status={attachmentStatus}
+            errorMessage={attachmentError}
+            onRemove={clearAttachment}
+          />
+        )}
+        {fileError && (
+          <p className="mb-2 flex items-center gap-1.5 px-1 text-[11px] text-destructive">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            {fileError}
+          </p>
+        )}
+
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" disabled title="Mídia (em breve)">
+          <input
+            ref={fileRef}
+            type="file"
+            accept={ACCEPTED_MEDIA}
+            className="hidden"
+            onChange={(e) => pickFile(e.target.files?.[0])}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => fileRef.current?.click()}
+            disabled={!withinWindow || attachmentStatus === "sending"}
+            title="Anexar imagem, PDF ou áudio"
+          >
             <Paperclip className="h-4 w-4 text-muted-foreground" />
           </Button>
           <Input
@@ -515,18 +544,27 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
               }
             }}
             placeholder={
-              withinWindow ? "Digite uma mensagem..." : "Fora da janela — use um template"
+              attachment
+                ? "Adicione uma legenda (opcional)..."
+                : withinWindow
+                  ? "Digite uma mensagem..."
+                  : "Fora da janela — use um template"
             }
             disabled={!withinWindow}
-            className="h-8 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 disabled:opacity-60"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 disabled:opacity-60"
           />
           <Button
             size="icon"
             onClick={submit}
-            disabled={!withinWindow || !draft.trim() || send.isPending}
-            className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90"
+            disabled={
+              !withinWindow ||
+              (!draft.trim() && !attachment) ||
+              send.isPending ||
+              attachmentStatus === "sending"
+            }
+            className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90"
           >
-            {send.isPending ? (
+            {send.isPending || attachmentStatus === "sending" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
@@ -538,6 +576,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             Falha ao enviar. Verifique a conexão/limite e tente novamente.
           </p>
         )}
+
       </div>
     </section>
   );
