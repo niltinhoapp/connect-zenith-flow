@@ -103,11 +103,17 @@ function isWithinWindow(windowExpiresAt: string | null): boolean {
 }
 
 // ── Página ───────────────────────────────────────────────────────────────────
+type StatusFilter = "open" | "pending" | "closed" | null;
+
 function WhatsAppPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
 
-  const conversationsQuery = useConversations(search ? { search } : undefined);
+  const conversationsQuery = useConversations({
+    ...(search ? { search } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
+  });
   const countersQuery = useInboxCounters();
   const conversations = useMemo(
     () => (conversationsQuery.data?.items ?? []).map((c) => c.toJSON()),
@@ -126,6 +132,8 @@ function WhatsAppPage() {
           openCount={countersQuery.data?.open ?? 0}
           search={search}
           onSearch={setSearch}
+          statusFilter={statusFilter}
+          onStatusFilter={setStatusFilter}
         />
         {selected ? (
           <ConversationView key={selected.id} conversation={selected} />
@@ -147,8 +155,17 @@ function ConversationList(props: {
   openCount: number;
   search: string;
   onSearch: (v: string) => void;
+  statusFilter: StatusFilter;
+  onStatusFilter: (v: StatusFilter) => void;
 }) {
   const { conversations, selectedId, onSelect, loading, openCount, search, onSearch } = props;
+  const { statusFilter, onStatusFilter } = props;
+  const filters: { value: StatusFilter; label: string }[] = [
+    { value: null, label: "Todas" },
+    { value: "open", label: "Abertas" },
+    { value: "pending", label: "Pendentes" },
+    { value: "closed", label: "Resolvidas" },
+  ];
   return (
     <aside className="flex min-h-0 flex-col border-r border-border">
       <div className="border-b border-border p-4">
@@ -175,6 +192,22 @@ function ConversationList(props: {
             placeholder="Buscar conversa..."
             className="h-9 rounded-lg border-border bg-background pl-8 text-sm"
           />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {filters.map((f) => (
+            <button
+              key={f.label}
+              onClick={() => onStatusFilter(f.value)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                statusFilter === f.value
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
