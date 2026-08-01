@@ -324,13 +324,18 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   // Rola para o fim quando chegam mensagens.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+  }, [messages.length, localSent.length]);
 
   const submit = () => {
+    if (attachment) {
+      sendAttachment();
+      return;
+    }
     const body = draft.trim();
     if (!body || send.isPending || !withinWindow) return;
     send.mutate(body, { onSuccess: () => setDraft("") });
   };
+
 
   return (
     <section className="flex min-h-0 flex-col">
