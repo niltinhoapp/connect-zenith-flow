@@ -52,6 +52,21 @@ import {
 } from "@/features/whatsapp/hooks/use-service-desk";
 import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
 import type { ConversationProps } from "@/features/whatsapp";
+import {
+  MessageMediaBubble,
+  type MessageMedia,
+} from "@/features/whatsapp/components/media/message-media";
+import {
+  AttachmentPreview,
+  type AttachmentStatus,
+  type DraftAttachment,
+} from "@/features/whatsapp/components/media/attachment-preview";
+import {
+  ACCEPTED_MEDIA,
+  detectKind,
+  validateMediaFile,
+} from "@/features/whatsapp/components/media/media-utils";
+
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
@@ -226,6 +241,69 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const templatesQuery = useTemplates({ status: "approved" });
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Anexo (protótipo visual — nenhum upload/storage é realizado).
+  const [attachment, setAttachment] = useState<DraftAttachment | null>(null);
+  const [attachmentStatus, setAttachmentStatus] = useState<AttachmentStatus>("idle");
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [localSent, setLocalSent] = useState<LocalMediaRow[]>([]);
+
+  const pickFile = (file: File | null | undefined) => {
+    if (!file) return;
+    const check = validateMediaFile(file);
+    if (!check.ok) {
+      setFileError(check.error ?? "Arquivo inválido.");
+      setAttachment(null);
+      return;
+    }
+    setFileError(null);
+    setAttachmentError(null);
+    setAttachmentStatus("idle");
+    setAttachment({
+      id: crypto.randomUUID(),
+      kind: detectKind(file.type)!,
+      name: file.name,
+      size: file.size,
+      mime: file.type,
+      url: URL.createObjectURL(file),
+    });
+  };
+
+  const clearAttachment = () => {
+    setAttachment(null);
+    setAttachmentStatus("idle");
+    setAttachmentError(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const sendAttachment = () => {
+    if (!attachment || attachmentStatus === "sending") return;
+    setAttachmentStatus("sending");
+    setAttachmentError(null);
+    window.setTimeout(() => {
+      setAttachmentStatus("success");
+      setLocalSent((rows) => [
+        ...rows,
+        {
+          id: attachment.id,
+          caption: draft.trim() || null,
+          at: new Date().toISOString(),
+          media: {
+            kind: attachment.kind,
+            url: attachment.url,
+            name: attachment.name,
+            size: attachment.size,
+            mime: attachment.mime,
+          },
+        },
+      ]);
+      setDraft("");
+      window.setTimeout(clearAttachment, 600);
+    }, 900);
+  };
+
 
   const messages = useMemo(
     () => (messagesQuery.data?.items ?? []).map((m) => m.toJSON()),
@@ -246,13 +324,18 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   // Rola para o fim quando chegam mensagens.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+  }, [messages.length, localSent.length]);
 
   const submit = () => {
+    if (attachment) {
+      sendAttachment();
+      return;
+    }
     const body = draft.trim();
     if (!body || send.isPending || !withinWindow) return;
     send.mutate(body, { onSuccess: () => setDraft("") });
   };
+
 
   return (
     <section className="flex min-h-0 flex-col">
@@ -325,37 +408,30 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         )}
-        {messages.map((m) => {
-          const mine = m.direction === "outbound";
-          return (
-            <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-2.5 text-sm",
-                  mine
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md border border-border bg-card text-foreground",
-                )}
-              >
-                <p className="whitespace-pre-wrap break-words">{m.body || `[${m.type}]`}</p>
-                <div
-                  className={cn(
-                    "mt-1 flex items-center justify-end gap-1 text-[10px]",
-                    mine ? "text-primary-foreground/70" : "text-muted-foreground",
-                  )}
-                >
-                  {mine && (
-                    <span className="mr-1">
-                      {m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
-                    </span>
-                  )}
-                  {hhmm(m.createdAt)}
-                  {mine && <StatusTick status={m.status} />}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {messages.map((m) => (
+          <MessageBubble
+            key={m.id}
+            mine={m.direction === "outbound"}
+            body={m.body}
+            fallbackLabel={`[${m.type}]`}
+            media={mediaFromMessage(m)}
+            author={m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
+            time={hhmm(m.createdAt)}
+            status={m.status}
+          />
+        ))}
+        {localSent.map((row) => (
+          <MessageBubble
+            key={row.id}
+            mine
+            body={row.caption}
+            media={row.media}
+            author="Você"
+            time={hhmm(row.at)}
+            status="sent"
+          />
+        ))}
+
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
@@ -425,8 +501,37 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
           </DropdownMenu>
         </div>
 
+        {attachment && (
+          <AttachmentPreview
+            attachment={attachment}
+            status={attachmentStatus}
+            errorMessage={attachmentError}
+            onRemove={clearAttachment}
+          />
+        )}
+        {fileError && (
+          <p className="mb-2 flex items-center gap-1.5 px-1 text-[11px] text-destructive">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            {fileError}
+          </p>
+        )}
+
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" disabled title="Mídia (em breve)">
+          <input
+            ref={fileRef}
+            type="file"
+            accept={ACCEPTED_MEDIA}
+            className="hidden"
+            onChange={(e) => pickFile(e.target.files?.[0])}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => fileRef.current?.click()}
+            disabled={!withinWindow || attachmentStatus === "sending"}
+            title="Anexar imagem, PDF ou áudio"
+          >
             <Paperclip className="h-4 w-4 text-muted-foreground" />
           </Button>
           <Input
@@ -439,18 +544,27 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
               }
             }}
             placeholder={
-              withinWindow ? "Digite uma mensagem..." : "Fora da janela — use um template"
+              attachment
+                ? "Adicione uma legenda (opcional)..."
+                : withinWindow
+                  ? "Digite uma mensagem..."
+                  : "Fora da janela — use um template"
             }
             disabled={!withinWindow}
-            className="h-8 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 disabled:opacity-60"
+            className="h-8 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 disabled:opacity-60"
           />
           <Button
             size="icon"
             onClick={submit}
-            disabled={!withinWindow || !draft.trim() || send.isPending}
-            className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90"
+            disabled={
+              !withinWindow ||
+              (!draft.trim() && !attachment) ||
+              send.isPending ||
+              attachmentStatus === "sending"
+            }
+            className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90"
           >
-            {send.isPending ? (
+            {send.isPending || attachmentStatus === "sending" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
@@ -462,10 +576,86 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             Falha ao enviar. Verifique a conexão/limite e tente novamente.
           </p>
         )}
+
       </div>
     </section>
   );
 }
+
+// ── Bolha (texto + mídia) ────────────────────────────────────────────────────
+interface LocalMediaRow {
+  id: string;
+  caption: string | null;
+  at: string;
+  media: MessageMedia;
+}
+
+/** Extrai mídia do payload da mensagem (somente leitura visual). */
+function mediaFromMessage(m: {
+  type: string;
+  body: string | null;
+  payload: Record<string, unknown>;
+}): MessageMedia | null {
+  const kind =
+    m.type === "image" ? "image" : m.type === "audio" ? "audio" : m.type === "document" ? "document" : null;
+  if (!kind) return null;
+  const p = m.payload ?? {};
+  const url = typeof p["url"] === "string" ? (p["url"] as string) : null;
+  const name =
+    typeof p["filename"] === "string" ? (p["filename"] as string) : m.body || `arquivo.${kind}`;
+  return {
+    kind,
+    url: url ?? "",
+    name,
+    size: typeof p["size"] === "number" ? (p["size"] as number) : undefined,
+    mime: typeof p["mime_type"] === "string" ? (p["mime_type"] as string) : undefined,
+    state: url ? undefined : "error",
+  };
+}
+
+function MessageBubble(props: {
+  mine: boolean;
+  body: string | null;
+  fallbackLabel?: string;
+  media?: MessageMedia | null;
+  author: string;
+  time: string;
+  status: string;
+}) {
+  const { mine, body, fallbackLabel, media, author, time, status } = props;
+  return (
+    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm sm:max-w-[75%] lg:max-w-[70%]",
+          mine
+            ? "rounded-br-md bg-primary text-primary-foreground"
+            : "rounded-bl-md border border-border bg-card text-foreground",
+        )}
+      >
+        {media && (
+          <div className={cn(body ? "mb-2" : undefined)}>
+            <MessageMediaBubble media={media} mine={mine} />
+          </div>
+        )}
+        {(body || (!media && fallbackLabel)) && (
+          <p className="whitespace-pre-wrap break-words">{body || fallbackLabel}</p>
+        )}
+        <div
+          className={cn(
+            "mt-1 flex items-center justify-end gap-1 text-[10px]",
+            mine ? "text-primary-foreground/70" : "text-muted-foreground",
+          )}
+        >
+          {mine && <span className="mr-1">{author}</span>}
+          {time}
+          {mine && <StatusTick status={status} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function StatusTick({ status }: { status: string }) {
   if (status === "pending") return <Clock className="h-3 w-3" />;
