@@ -241,6 +241,69 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const templatesQuery = useTemplates({ status: "approved" });
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Anexo (protótipo visual — nenhum upload/storage é realizado).
+  const [attachment, setAttachment] = useState<DraftAttachment | null>(null);
+  const [attachmentStatus, setAttachmentStatus] = useState<AttachmentStatus>("idle");
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [localSent, setLocalSent] = useState<LocalMediaRow[]>([]);
+
+  const pickFile = (file: File | null | undefined) => {
+    if (!file) return;
+    const check = validateMediaFile(file);
+    if (!check.ok) {
+      setFileError(check.error ?? "Arquivo inválido.");
+      setAttachment(null);
+      return;
+    }
+    setFileError(null);
+    setAttachmentError(null);
+    setAttachmentStatus("idle");
+    setAttachment({
+      id: crypto.randomUUID(),
+      kind: detectKind(file.type)!,
+      name: file.name,
+      size: file.size,
+      mime: file.type,
+      url: URL.createObjectURL(file),
+    });
+  };
+
+  const clearAttachment = () => {
+    setAttachment(null);
+    setAttachmentStatus("idle");
+    setAttachmentError(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const sendAttachment = () => {
+    if (!attachment || attachmentStatus === "sending") return;
+    setAttachmentStatus("sending");
+    setAttachmentError(null);
+    window.setTimeout(() => {
+      setAttachmentStatus("success");
+      setLocalSent((rows) => [
+        ...rows,
+        {
+          id: attachment.id,
+          caption: draft.trim() || null,
+          at: new Date().toISOString(),
+          media: {
+            kind: attachment.kind,
+            url: attachment.url,
+            name: attachment.name,
+            size: attachment.size,
+            mime: attachment.mime,
+          },
+        },
+      ]);
+      setDraft("");
+      window.setTimeout(clearAttachment, 600);
+    }, 900);
+  };
+
 
   const messages = useMemo(
     () => (messagesQuery.data?.items ?? []).map((m) => m.toJSON()),
