@@ -358,8 +358,10 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     [messagesQuery.data],
   );
   const withinWindow = isWithinWindow(conversation.windowExpiresAt);
-  // Detecta token expirado (falha de envio) → aviso administrativo (sem expor credenciais).
-  const tokenFailed = messages.some((m) => m.direction === "outbound" && m.status === "failed");
+  // Aviso administrativo só quando o ENVIO MAIS RECENTE falhou (evita alarme por
+  // falha histórica; não expõe credenciais).
+  const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
+  const tokenFailed = lastOutbound?.status === "failed";
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
 
