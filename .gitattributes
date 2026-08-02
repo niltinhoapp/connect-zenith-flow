@@ -1,0 +1,21 @@
+# Normalização de fim de linha — o repositório é LF (todas as ferramentas do
+# projeto geram LF). Sem isto, com core.autocrlf=true no Windows, arquivos
+# gerados por ferramentas (ex.: routeTree.gen.ts do TanStack Router) eram
+# re-marcados como "modified" a cada dev/build e apareciam os avisos
+# "LF will be replaced by CRLF". Aqui o git passa a tratar tudo como LF.
+* text=auto eol=lf
+
+# Arquivo gerado pelo TanStack Router — sempre LF; marcado como gerado.
+src/routeTree.gen.ts linguist-generated text eol=lf
+
+# Binários — nunca normalizar.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.svg  text eol=lf
+*.woff  binary
+*.woff2 binary
+*.lockb binary
