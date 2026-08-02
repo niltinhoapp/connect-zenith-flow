@@ -34,7 +34,18 @@ export interface WhatsAppInboundMessage {
   from: string; // wa_id do contato
   contactName: string | null;
   externalId: string; // wa_message_id
-  type: "text" | "image" | "document" | "audio" | "video" | "sticker" | "location" | "contacts" | "interactive" | "reaction" | "system";
+  type:
+    | "text"
+    | "image"
+    | "document"
+    | "audio"
+    | "video"
+    | "sticker"
+    | "location"
+    | "contacts"
+    | "interactive"
+    | "reaction"
+    | "system";
   body: string | null;
   mediaId: string | null;
   phoneNumberId: string; // número que recebeu (Meta phone_number_id)
@@ -70,6 +81,27 @@ export interface WhatsAppProvider extends Provider {
     components?: unknown[];
   }): Promise<WhatsAppSendResult>;
   markRead(input: { credentials: WhatsAppCredentials; externalId: string }): Promise<void>;
+  /** Faz upload de um binário para o fornecedor; retorna o media id. */
+  uploadMedia(input: {
+    credentials: WhatsAppCredentials;
+    bytes: Uint8Array;
+    mime: string;
+    filename?: string;
+  }): Promise<{ mediaId: string }>;
+  /** Envia uma mensagem de mídia (por media id previamente enviado). */
+  sendMedia(input: {
+    credentials: WhatsAppCredentials;
+    to: string;
+    type: "image" | "audio" | "document";
+    mediaId: string;
+    caption?: string | null;
+    filename?: string | null;
+  }): Promise<WhatsAppSendResult>;
+  /** Baixa uma mídia recebida (resolve a URL e busca o binário). */
+  downloadMedia(input: {
+    credentials: WhatsAppCredentials;
+    mediaId: string;
+  }): Promise<{ bytes: Uint8Array; mime: string }>;
   /** Interpreta o payload de webhook do fornecedor num lote neutro. */
   parseWebhook(payload: unknown): WhatsAppWebhookBatch;
 }
@@ -101,27 +133,16 @@ export interface SMSProvider extends Provider {
 
 export interface StorageProvider extends Provider {
   kind: "storage";
-  createSignedUploadUrl(input: {
-    organizationId: string;
-    path: string;
-  }): Promise<{ url: string }>;
+  createSignedUploadUrl(input: { organizationId: string; path: string }): Promise<{ url: string }>;
   getPublicUrl(input: { organizationId: string; path: string }): string;
 }
 
 export interface PaymentProvider extends Provider {
   kind: "payment";
-  createCheckout(input: {
-    organizationId: string;
-    planId: string;
-  }): Promise<{ url: string }>;
+  createCheckout(input: { organizationId: string; planId: string }): Promise<{ url: string }>;
 }
 
 export type AnyProvider =
-  | WhatsAppProvider
-  | AIProvider
-  | EmailProvider
-  | SMSProvider
-  | StorageProvider
-  | PaymentProvider;
+  WhatsAppProvider | AIProvider | EmailProvider | SMSProvider | StorageProvider | PaymentProvider;
 
 export type ProviderKind = AnyProvider["kind"];

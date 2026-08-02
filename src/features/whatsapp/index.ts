@@ -16,6 +16,7 @@ export {
   MessagingApplicationService,
   type ConversationNote,
   type QuickReply,
+  type MediaView,
 } from "./application/messaging-application-service";
 export {
   InboxApplicationService,

@@ -894,6 +894,39 @@ export interface Database {
         Args: { p_org: string; p_conversation: string; p_tags: string[] };
         Returns: undefined;
       };
+      wa_send_media: {
+        Args: {
+          p_org: string;
+          p_conversation: string;
+          p_type: string;
+          p_storage_path: string;
+          p_mime: string;
+          p_size: number;
+          p_filename?: string | null;
+          p_caption?: string | null;
+        };
+        Returns: string;
+      };
+      wa_register_inbound_media: {
+        Args: {
+          p_org: string;
+          p_message_id: string;
+          p_external_media_id: string;
+          p_mime: string;
+          p_filename?: string | null;
+        };
+        Returns: string;
+      };
+      wa_media_stored: {
+        Args: {
+          p_media_id: string;
+          p_storage_path: string;
+          p_sha256?: string | null;
+          p_size?: number | null;
+        };
+        Returns: undefined;
+      };
+      wa_media_download_context: { Args: { p_media_id: string }; Returns: Json };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

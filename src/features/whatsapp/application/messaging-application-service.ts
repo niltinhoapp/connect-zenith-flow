@@ -206,6 +206,118 @@ export class MessagingApplicationService {
       { service: "whatsapp.deleteQuickReply", id },
     );
   }
+
+  /**
+   * Envio de mídia: valida, sobe o arquivo para o Storage privado (RLS por org)
+   * e chama a RPC wa_send_media (cria mensagem+mídia + enfileira whatsapp.send).
+   * O worker baixa do Storage, faz upload p/ a Meta e envia — o token nunca sai
+   * do backend. Retorna a mensagem (pending).
+   */
+  sendMedia(conversationId: string, file: File, caption?: string): Promise<Message> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const type = mimeToMediaType(file.type);
+        if (!type) throw new InfrastructureError("Formato de mídia não suportado.");
+        const org = this.ctx.organizationId;
+        const path = `${org}/${conversationId}/${crypto.randomUUID()}-${sanitizeName(file.name)}`;
+        const up = await this.db.storage
+          .from("whatsapp-media")
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (up.error) throw new InfrastructureError(up.error.message, { cause: up.error });
+        const { data, error } = await this.db.rpc("wa_send_media", {
+          p_org: org,
+          p_conversation: conversationId,
+          p_type: type,
+          p_storage_path: path,
+          p_mime: file.type,
+          p_size: file.size,
+          p_filename: file.name,
+          p_caption: caption ?? null,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return this.fetchMessage(data as string);
+      },
+      { service: "whatsapp.sendMedia", conversationId },
+    );
+  }
+
+  /**
+   * Resolve as mídias de um conjunto de ids (para render na thread): tipo, nome,
+   * tamanho, MIME e **signed URL temporária** apenas para as já armazenadas. Nunca
+   * expõe token nem URL permanente. Estado: ready | loading | error.
+   */
+  getMedia(mediaIds: string[]): Promise<Record<string, MediaView>> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const ids = [...new Set(mediaIds)].filter(Boolean);
+        if (ids.length === 0) return {};
+        const { data, error } = await this.db
+          .from("whatsapp_media")
+          .select("id, mime_type, filename, size_bytes, storage_path, status")
+          .in("id", ids);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        const out: Record<string, MediaView> = {};
+        for (const row of data ?? []) {
+          const kind = mimeToMediaType(row.mime_type ?? "") ?? "document";
+          let url = "";
+          let state: MediaView["state"] = "loading";
+          if (row.status === "stored" && row.storage_path) {
+            const signed = await this.db.storage
+              .from("whatsapp-media")
+              .createSignedUrl(row.storage_path, 3600);
+            if (signed.data?.signedUrl) {
+              url = signed.data.signedUrl;
+              state = "ready";
+            } else {
+              state = "error";
+            }
+          } else if (row.status === "failed") {
+            state = "error";
+          }
+          out[row.id] = {
+            kind,
+            url,
+            name: row.filename ?? "arquivo",
+            size: row.size_bytes ?? undefined,
+            mime: row.mime_type ?? undefined,
+            state,
+          };
+        }
+        return out;
+      },
+      { service: "whatsapp.getMedia" },
+    );
+  }
+
+  /** URL assinada (temporária) para exibir/baixar uma mídia armazenada. */
+  mediaSignedUrl(storagePath: string, expiresSeconds = 3600): Promise<string> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db.storage
+          .from("whatsapp-media")
+          .createSignedUrl(storagePath, expiresSeconds);
+        if (error || !data?.signedUrl) {
+          throw new InfrastructureError(error?.message ?? "URL de mídia indisponível");
+        }
+        return data.signedUrl;
+      },
+      { service: "whatsapp.mediaSignedUrl" },
+    );
+  }
+}
+
+/** Mapeia MIME → tipo de mídia da Cloud API. */
+export function mimeToMediaType(mime: string): "image" | "audio" | "document" | null {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime === "application/pdf") return "document";
+  return null;
+}
+function sanitizeName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80);
 }
 
 export interface ConversationNote {
@@ -219,4 +331,13 @@ export interface QuickReply {
   shortcut: string;
   title: string;
   body: string;
+}
+/** Mídia resolvida para render (estrutura compatível com MessageMedia da UI). */
+export interface MediaView {
+  kind: "image" | "audio" | "document";
+  url: string;
+  name: string;
+  size?: number;
+  mime?: string;
+  state: "ready" | "loading" | "error";
 }

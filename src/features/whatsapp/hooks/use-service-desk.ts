@@ -7,6 +7,7 @@ import {
   MessageSupabaseRepository,
   type ConversationNote,
   type QuickReply,
+  type MediaView,
 } from "@/features/whatsapp";
 
 function makeService(session: AuthSession): MessagingApplicationService {
@@ -21,6 +22,37 @@ function makeService(session: AuthSession): MessagingApplicationService {
 function useOrg() {
   const session = useSession();
   return { session, org: session?.activeOrganization?.organizationId ?? null };
+}
+
+export function useSendMedia(conversationId: string | null) {
+  const { session, org } = useOrg();
+  const qc = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (v: { file: File; caption?: string }) =>
+      makeService(session!).sendMedia(conversationId!, v.file, v.caption),
+    onSuccess: () => {
+      if (!org || !conversationId) return;
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.messages(org, conversationId) });
+      qc.invalidateQueries({ queryKey: queryKeys.whatsapp.conversations(org) });
+    },
+  });
+}
+
+export function useMediaBatch(mediaIds: string[]) {
+  const { session, org } = useOrg();
+  const key = [...mediaIds].sort().join(",");
+  return useQuery<Record<string, MediaView>>({
+    queryKey: [...queryKeys.whatsapp.all(org ?? "none"), "media", key],
+    enabled: Boolean(org && mediaIds.length),
+    // Continua puxando enquanto houver mídia em "loading" (download pendente no worker).
+    refetchInterval: (query) => {
+      const data = query.state.data as Record<string, MediaView> | undefined;
+      const anyLoading = data && Object.values(data).some((m) => m.state === "loading");
+      return anyLoading ? 4000 : false;
+    },
+    queryFn: () => makeService(session!).getMedia(mediaIds),
+  });
 }
 
 export function useSetConversationStatus() {

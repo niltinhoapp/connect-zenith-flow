@@ -23,6 +23,15 @@ describe("Core · Provider registry", () => {
         return { externalId: "x2" };
       },
       async markRead() {},
+      async uploadMedia() {
+        return { mediaId: "m1" };
+      },
+      async sendMedia() {
+        return { externalId: "x3" };
+      },
+      async downloadMedia() {
+        return { bytes: new Uint8Array(), mime: "image/png" };
+      },
       parseWebhook() {
         return { messages: [], statuses: [] };
       },

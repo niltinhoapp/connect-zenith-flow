@@ -49,9 +49,11 @@ import {
   useConversationNotes,
   useAddNote,
   useQuickReplies,
+  useSendMedia,
+  useMediaBatch,
 } from "@/features/whatsapp/hooks/use-service-desk";
 import { useTemplates } from "@/features/whatsapp/hooks/use-templates";
-import type { ConversationProps } from "@/features/whatsapp";
+import type { ConversationProps, MediaView } from "@/features/whatsapp";
 import {
   MessageMediaBubble,
   type MessageMedia,
@@ -66,7 +68,6 @@ import {
   detectKind,
   validateMediaFile,
 } from "@/features/whatsapp/components/media/media-utils";
-
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
@@ -272,11 +273,13 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const setStatus = useSetConversationStatus();
   const quickReplies = useQuickReplies();
   const templatesQuery = useTemplates({ status: "approved" });
+  const sendMedia = useSendMedia(conversation.id);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pendingFileRef = useRef<File | null>(null);
 
-  // Anexo (protótipo visual — nenhum upload/storage é realizado).
+  // Anexo: preview local + envio REAL (upload Storage → RPC → worker → Meta).
   const [attachment, setAttachment] = useState<DraftAttachment | null>(null);
   const [attachmentStatus, setAttachmentStatus] = useState<AttachmentStatus>("idle");
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -294,6 +297,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     setFileError(null);
     setAttachmentError(null);
     setAttachmentStatus("idle");
+    pendingFileRef.current = file;
     setAttachment({
       id: crypto.randomUUID(),
       kind: detectKind(file.type)!,
@@ -312,47 +316,77 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   };
 
   const sendAttachment = () => {
-    if (!attachment || attachmentStatus === "sending") return;
+    const file = pendingFileRef.current;
+    if (!attachment || !file || attachmentStatus === "sending") return;
     setAttachmentStatus("sending");
     setAttachmentError(null);
-    window.setTimeout(() => {
-      setAttachmentStatus("success");
-      setLocalSent((rows) => [
-        ...rows,
-        {
-          id: attachment.id,
-          caption: draft.trim() || null,
-          at: new Date().toISOString(),
-          media: {
-            kind: attachment.kind,
-            url: attachment.url,
-            name: attachment.name,
-            size: attachment.size,
-            mime: attachment.mime,
-          },
+    const captionText = draft.trim();
+    const snapshot = attachment;
+    sendMedia.mutate(
+      { file, caption: captionText || undefined },
+      {
+        onSuccess: () => {
+          setAttachmentStatus("success");
+          setLocalSent((rows) => [
+            ...rows,
+            {
+              id: snapshot.id,
+              caption: captionText || null,
+              at: new Date().toISOString(),
+              media: {
+                kind: snapshot.kind,
+                url: snapshot.url,
+                name: snapshot.name,
+                size: snapshot.size,
+                mime: snapshot.mime,
+              },
+            },
+          ]);
+          setDraft("");
+          window.setTimeout(clearAttachment, 600);
         },
-      ]);
-      setDraft("");
-      window.setTimeout(clearAttachment, 600);
-    }, 900);
+        onError: (e) => {
+          setAttachmentStatus("error");
+          setAttachmentError(e instanceof Error ? e.message : "Falha ao enviar o anexo.");
+        },
+      },
+    );
   };
-
 
   const messages = useMemo(
     () => (messagesQuery.data?.items ?? []).map((m) => m.toJSON()),
     [messagesQuery.data],
   );
   const withinWindow = isWithinWindow(conversation.windowExpiresAt);
-  // Detecta token expirado (falha de envio) → aviso administrativo (sem expor credenciais).
-  const tokenFailed = messages.some((m) => m.direction === "outbound" && m.status === "failed");
+  // Aviso administrativo só quando o ENVIO MAIS RECENTE falhou (evita alarme por
+  // falha histórica; não expõe credenciais).
+  const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
+  const tokenFailed = lastOutbound?.status === "failed";
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
+
+  // Mídia real: resolve signed URLs das mensagens que têm mídia.
+  const mediaIds = useMemo(
+    () => messages.map((m) => m.mediaId).filter((id): id is string => Boolean(id)),
+    [messages],
+  );
+  const mediaBatch = useMediaBatch(mediaIds);
+  const mediaMap = mediaBatch.data ?? {};
 
   // Marca como lida ao abrir (se houver não-lidas).
   useEffect(() => {
     if (conversation.unreadCount > 0) markRead.mutate(conversation.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
+
+  // Item 9: quando a mídia outbound persistida aparece, remove o preview otimista.
+  const outboundMediaCount = messages.filter((m) => m.direction === "outbound" && m.mediaId).length;
+  const prevOutboundMediaRef = useRef(0);
+  useEffect(() => {
+    if (outboundMediaCount > prevOutboundMediaRef.current && localSent.length) setLocalSent([]);
+    prevOutboundMediaRef.current = outboundMediaCount;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outboundMediaCount]);
 
   // Rola para o fim quando chegam mensagens.
   useEffect(() => {
@@ -368,7 +402,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     if (!body || send.isPending || !withinWindow) return;
     send.mutate(body, { onSuccess: () => setDraft("") });
   };
-
 
   return (
     <section className="flex min-h-0 flex-col">
@@ -447,7 +480,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             mine={m.direction === "outbound"}
             body={m.body}
             fallbackLabel={`[${m.type}]`}
-            media={mediaFromMessage(m)}
+            media={resolveMedia(m, mediaMap)}
             author={m.sentBy ? (m.sentBy === meId ? "Você" : "Atendente") : "Automação"}
             time={hhmm(m.createdAt)}
             status={m.status}
@@ -464,7 +497,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             status="sent"
           />
         ))}
-
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
@@ -609,7 +641,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
             Falha ao enviar. Verifique a conexão/limite e tente novamente.
           </p>
         )}
-
       </div>
     </section>
   );
@@ -623,27 +654,20 @@ interface LocalMediaRow {
   media: MessageMedia;
 }
 
-/** Extrai mídia do payload da mensagem (somente leitura visual). */
-function mediaFromMessage(m: {
-  type: string;
-  body: string | null;
-  payload: Record<string, unknown>;
-}): MessageMedia | null {
-  const kind =
-    m.type === "image" ? "image" : m.type === "audio" ? "audio" : m.type === "document" ? "document" : null;
-  if (!kind) return null;
-  const p = m.payload ?? {};
-  const url = typeof p["url"] === "string" ? (p["url"] as string) : null;
-  const name =
-    typeof p["filename"] === "string" ? (p["filename"] as string) : m.body || `arquivo.${kind}`;
-  return {
-    kind,
-    url: url ?? "",
-    name,
-    size: typeof p["size"] === "number" ? (p["size"] as number) : undefined,
-    mime: typeof p["mime_type"] === "string" ? (p["mime_type"] as string) : undefined,
-    state: url ? undefined : "error",
-  };
+/**
+ * Resolve a mídia REAL de uma mensagem: usa a signed URL vinda do `useMediaBatch`
+ * (mediaMap). Enquanto o download/URL não está pronto, mostra estado de loading;
+ * se não houver `mediaId`, não é mídia. Nunca usa URL permanente/token.
+ */
+function resolveMedia(
+  m: { type: string; mediaId: string | null },
+  mediaMap: Record<string, MediaView>,
+): MessageMedia | null {
+  if (!m.mediaId) return null;
+  const found = mediaMap[m.mediaId];
+  if (found) return found;
+  const kind = m.type === "image" ? "image" : m.type === "audio" ? "audio" : "document";
+  return { kind, url: "", name: `arquivo.${kind}`, state: "loading" };
 }
 
 function MessageBubble(props: {
@@ -688,7 +712,6 @@ function MessageBubble(props: {
     </div>
   );
 }
-
 
 function StatusTick({ status }: { status: string }) {
   if (status === "pending") return <Clock className="h-3 w-3" />;

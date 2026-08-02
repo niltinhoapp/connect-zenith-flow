@@ -14,6 +14,9 @@ function fakeProvider(overrides: Partial<WhatsAppProvider> = {}): WhatsAppProvid
     sendText: vi.fn(async () => ({ externalId: "wamid.sent" })),
     sendTemplate: vi.fn(async () => ({ externalId: "wamid.tpl" })),
     markRead: vi.fn(async () => {}),
+    uploadMedia: vi.fn(async () => ({ mediaId: "media.1" })),
+    sendMedia: vi.fn(async () => ({ externalId: "wamid.media" })),
+    downloadMedia: vi.fn(async () => ({ bytes: new Uint8Array(), mime: "image/png" })),
     parseWebhook: () => ({ messages: [], statuses: [] }),
     ...overrides,
   };
@@ -29,16 +32,34 @@ function fakeGateway(ctx: WhatsAppSendContext | null): WhatsAppGateway & {
   return {
     sent,
     failed,
-    async sendContext() { return ctx; },
-    async markSent(o, m, e) { sent.push([o, m, e]); },
-    async markFailed(o, m, e) { failed.push([o, m, e]); },
-    async claim(o, k) { if (claimed.has(k)) return false; claimed.add(k); return true; },
+    async sendContext() {
+      return ctx;
+    },
+    async markSent(o, m, e) {
+      sent.push([o, m, e]);
+    },
+    async markFailed(o, m, e) {
+      failed.push([o, m, e]);
+    },
+    async claim(o, k) {
+      if (claimed.has(k)) return false;
+      claimed.add(k);
+      return true;
+    },
   };
 }
 
 const baseCtx: WhatsAppSendContext = {
-  organization_id: "o", message_id: "m1", status: "pending", type: "text", body: "oi",
-  to: "5511988887777", provider: "meta", phone_number_id: "PNID", access_token: "TOKEN", template: null,
+  organization_id: "o",
+  message_id: "m1",
+  status: "pending",
+  type: "text",
+  body: "oi",
+  to: "5511988887777",
+  provider: "meta",
+  phone_number_id: "PNID",
+  access_token: "TOKEN",
+  template: null,
 };
 
 describe("WhatsApp · send handler", () => {
@@ -67,7 +88,11 @@ describe("WhatsApp · send handler", () => {
   });
 
   it("relança erro transitório para retry", async () => {
-    const provider = fakeProvider({ sendText: vi.fn(async () => { throw new Error("network"); }) });
+    const provider = fakeProvider({
+      sendText: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
     const gw = fakeGateway(baseCtx);
     await expect(
       createWhatsAppSendHandler(provider, gw)({ payload: { message_id: "m1" } }),
@@ -80,15 +105,43 @@ describe("WhatsApp · MetaWhatsAppProvider.parseWebhook", () => {
   it("extrai mensagens e status de um envelope da Meta", () => {
     const provider = new MetaWhatsAppProvider();
     const batch = provider.parseWebhook({
-      entry: [{ changes: [{ value: {
-        metadata: { phone_number_id: "PNID" },
-        contacts: [{ profile: { name: "Ana" }, wa_id: "5511988887777" }],
-        messages: [{ from: "5511988887777", id: "wamid.in", type: "text", text: { body: "olá" }, timestamp: "1700000000" }],
-        statuses: [{ id: "wamid.out", status: "delivered", timestamp: "1700000100", recipient_id: "5511988887777" }],
-      } }] }],
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                metadata: { phone_number_id: "PNID" },
+                contacts: [{ profile: { name: "Ana" }, wa_id: "5511988887777" }],
+                messages: [
+                  {
+                    from: "5511988887777",
+                    id: "wamid.in",
+                    type: "text",
+                    text: { body: "olá" },
+                    timestamp: "1700000000",
+                  },
+                ],
+                statuses: [
+                  {
+                    id: "wamid.out",
+                    status: "delivered",
+                    timestamp: "1700000100",
+                    recipient_id: "5511988887777",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
     });
     expect(batch.messages).toHaveLength(1);
-    expect(batch.messages[0]).toMatchObject({ from: "5511988887777", body: "olá", contactName: "Ana", phoneNumberId: "PNID" });
+    expect(batch.messages[0]).toMatchObject({
+      from: "5511988887777",
+      body: "olá",
+      contactName: "Ana",
+      phoneNumberId: "PNID",
+    });
     expect(batch.statuses).toEqual([
       expect.objectContaining({ externalId: "wamid.out", status: "delivered" }),
     ]);
