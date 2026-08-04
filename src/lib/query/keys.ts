@@ -36,4 +36,11 @@ export const queryKeys = {
     templates: (org: string, filter?: unknown) =>
       ["whatsapp", org, "templates", filter ?? null] as const,
   },
+  automacoes: {
+    all: (org: string) => ["automacoes", org] as const,
+    list: (org: string) => ["automacoes", org, "list"] as const,
+    detail: (org: string, id: string) => ["automacoes", org, "detail", id] as const,
+    runs: (org: string, id: string) => ["automacoes", org, "runs", id] as const,
+    runSteps: (org: string, runId: string) => ["automacoes", org, "runSteps", runId] as const,
+  },
 } as const;

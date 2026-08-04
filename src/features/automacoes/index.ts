@@ -7,3 +7,13 @@
  * src/routes and are migrated to consume this module without visual changes.
  */
 export const MODULE_KEY = "automacoes" as const;
+
+export * from "./domain/engine";
+export {
+  AutomacaoApplicationService,
+  type SaveAutomationInput,
+  type FlowGraphInput,
+  type AutomationRow,
+  type AutomationRunRow,
+  type AutomationRunStepRow,
+} from "./application/automacao-application-service";
