@@ -315,7 +315,14 @@ async function runOnce() {
       await rpc("complete_job", { p_id: job.id, p_result: result ?? {} });
       console.log(`✓ ${job.type} ${job.id}`);
     } catch (e) {
-      const outcome = await rpc("fail_job", { p_id: job.id, p_error: String(e?.message ?? e) }).catch(() => "?");
+      const err = String(e?.message ?? e);
+      const outcome = await rpc("fail_job", { p_id: job.id, p_error: err }).catch(() => "?");
+      // Esgotou retries (DLQ): marca a run como failed (publica automation.failed).
+      if (outcome === "dead" && job.type === "automation.run" && job.payload?.run_id) {
+        await rpc("automation_advance_run", {
+          p_run_id: job.payload.run_id, p_current_node: null, p_status: "failed", p_error: err,
+        }).catch((e2) => console.warn(`  ! falha ao marcar run failed: ${e2?.message ?? e2}`));
+      }
       console.warn(`✗ ${job.type} ${job.id} → ${outcome}`);
     }
   }
