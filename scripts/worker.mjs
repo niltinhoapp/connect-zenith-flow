@@ -270,9 +270,9 @@ const handlers = {
         await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: step.type, p_status: "ok", p_input: {}, p_output: { result: step.result }, p_error: null });
         continue;
       }
-      // Ação — idempotência de execução por (run, nó): reentrega não reexecuta.
-      const first = await rpc("claim_idempotency", { p_org: org, p_key: `automation.run:${runId}:${step.node}` });
-      if (!first) continue;
+      // Idempotência retry-safe: pula só se este nó de ação já concluiu com 'ok'.
+      // (a falha NÃO marca conclusão → o retry reexecuta; sem mascarar falha.)
+      if (await rpc("automation_node_done", { p_run_id: runId, p_node: step.node })) continue;
       const resolved = interpolate(step.config, flowCtx);
       try {
         const out = step.action === "webhook.call"
