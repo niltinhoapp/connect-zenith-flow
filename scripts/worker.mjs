@@ -93,6 +93,114 @@ async function metaDownloadMedia(ctx) {
   return { bytes: new Uint8Array(await b.arrayBuffer()), mime: md.mime_type || ctx.mime || "application/octet-stream" };
 }
 
+// ── Motor de automações — espelho de src/features/automacoes/domain/engine.ts ─
+// (o worker é .mjs e não importa TS; a versão TS + testes é a spec autoritativa)
+const MAX_STEPS = 200;
+const UNIT_MS = { seconds: 1000, minutes: 60000, hours: 3600000, days: 86400000 };
+const _getNode = (g, k) => g.nodes.find((n) => n.node_key === k);
+function _entryNode(g) {
+  const t = g.nodes.find((n) => n.type === "trigger");
+  if (t) return t;
+  const targets = new Set(g.edges.map((e) => e.to_node));
+  return g.nodes.find((n) => !targets.has(n.node_key));
+}
+function _resolveNext(g, from, branch) {
+  const out = g.edges.filter((e) => e.from_node === from);
+  if (!out.length) return null;
+  if (branch !== undefined) {
+    const labeled = out.find((e) => e.branch === (branch ? "yes" : "no"));
+    if (labeled) return labeled.to_node;
+    const linear = out.find((e) => !e.branch);
+    return branch && linear ? linear.to_node : null;
+  }
+  return (out.find((e) => !e.branch) ?? out[0]).to_node;
+}
+function _resolveField(ctx, path) {
+  if (!path) return undefined;
+  return path.split(".").reduce((a, k) => (a && typeof a === "object" ? a[k] : undefined), ctx);
+}
+function _coerce(v, type) {
+  if (v == null) return v;
+  if (type === "number") return typeof v === "number" ? v : Number(v);
+  if (type === "boolean") return typeof v === "boolean" ? v : v === "true" || v === true || v === 1;
+  if (type === "date") { const t = v instanceof Date ? v.getTime() : Date.parse(String(v)); return Number.isNaN(t) ? NaN : t; }
+  return typeof v === "string" ? v : String(v);
+}
+function _evalCondition(c, ctx) {
+  const raw = _resolveField(ctx, c.field), op = c.op, vt = c.valueType;
+  if (op === "exists") return raw !== undefined && raw !== null && raw !== "";
+  if (op === "not_exists") return raw === undefined || raw === null || raw === "";
+  if (op === "in") { const list = Array.isArray(c.value) ? c.value : [c.value]; return list.some((i) => _coerce(raw, vt) === _coerce(i, vt)); }
+  if (op === "contains" || op === "not_contains") {
+    const needle = _coerce(c.value, vt ?? "text");
+    const hit = Array.isArray(raw) ? raw.map((x) => _coerce(x, vt ?? "text")).includes(needle) : String(raw ?? "").includes(String(needle ?? ""));
+    return op === "contains" ? hit : !hit;
+  }
+  if (op === "starts_with") return String(raw ?? "").startsWith(String(c.value ?? ""));
+  const l = _coerce(raw, vt), r = _coerce(c.value, vt);
+  switch (op) { case "eq": return l === r; case "ne": return l !== r; case "gt": return l > r; case "gte": return l >= r; case "lt": return l < r; case "lte": return l <= r; default: return false; }
+}
+function _delayMs(cfg) {
+  if (typeof cfg.ms === "number") return Math.max(0, cfg.ms);
+  return Math.max(0, Number(cfg.amount ?? 0) * (UNIT_MS[String(cfg.unit ?? "minutes")] ?? 60000));
+}
+function planFrom(g, startKey, ctx) {
+  const steps = []; let cur;
+  if (!startKey) { const e = _entryNode(g); cur = e ? _resolveNext(g, e.node_key) : null; } else cur = startKey;
+  for (let i = 0; i < MAX_STEPS && cur; i++) {
+    const node = _getNode(g, cur);
+    if (!node) return { steps, done: true };
+    if (node.type === "condition" || node.type === "branch") {
+      const result = _evalCondition(node.config, ctx);
+      steps.push({ node: node.node_key, type: node.type, result });
+      cur = _resolveNext(g, node.node_key, result); continue;
+    }
+    if (node.type === "delay") {
+      const next = _resolveNext(g, node.node_key);
+      if (!next) return { steps, done: true };
+      return { steps, wait: { node: next, ms: _delayMs(node.config) }, done: false };
+    }
+    if (node.type === "action") {
+      steps.push({ node: node.node_key, type: "action", action: String(node.config.action ?? ""), config: node.config });
+      cur = _resolveNext(g, node.node_key); continue;
+    }
+    cur = _resolveNext(g, node.node_key);
+  }
+  return { steps, done: cur === null };
+}
+
+// Interpola {{caminho}} no config do nó com o contexto da run (valores concretos).
+function interpolate(config, ctx) {
+  const walk = (v) => {
+    if (typeof v === "string") {
+      const exact = v.match(/^\{\{\s*([\w.]+)\s*\}\}$/);
+      if (exact) { const r = _resolveField(ctx, exact[1]); return r === undefined ? v : r; }
+      return v.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, p) => { const r = _resolveField(ctx, p); return r == null ? "" : String(r); });
+    }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") { const o = {}; for (const k of Object.keys(v)) o[k] = walk(v[k]); return o; }
+    return v;
+  };
+  return walk(config || {});
+}
+
+// Ação externa (webhook) — fronteira de Provider no worker; 5xx = transitório.
+async function callWebhook(cfg) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const method = (cfg.method || "POST").toUpperCase();
+    const r = await fetch(cfg.url, {
+      method,
+      headers: { "Content-Type": "application/json", ...(cfg.headers || {}) },
+      body: method === "GET" ? undefined : JSON.stringify(cfg.body ?? {}),
+      signal: ctrl.signal,
+    });
+    if (!r.ok && r.status >= 500) throw new Error(`webhook ${r.status}`);
+    return { status: r.status };
+  } finally { clearTimeout(to); }
+}
+
 // Handlers registrados por tipo (módulos futuros adicionam os seus).
 const handlers = {
   "noop": async () => {},
@@ -142,6 +250,54 @@ const handlers = {
     await storagePut(path, dl.bytes, dl.mime);
     await rpc("wa_media_stored", { p_media_id: mediaId, p_storage_path: path, p_size: dl.bytes.length });
   },
+  "automation.run": async (job) => {
+    const runId = job.payload?.run_id;
+    if (!runId) return;
+    const ctx = await rpc("automation_run_context", { p_run_id: runId });
+    if (!ctx) return;
+    if (["succeeded", "failed", "canceled"].includes(ctx.status)) return; // idempotente
+    const org = ctx.organization_id;
+    const flowCtx = ctx.context || {};
+
+    // Marca em execução (publica automation.started na 1ª vez).
+    await rpc("automation_advance_run", { p_run_id: runId, p_current_node: ctx.current_node, p_status: "running", p_error: null });
+
+    const graph = { nodes: ctx.nodes || [], edges: ctx.edges || [] };
+    const plan = planFrom(graph, ctx.current_node, flowCtx);
+
+    for (const step of plan.steps) {
+      if (step.type === "condition" || step.type === "branch") {
+        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: step.type, p_status: "ok", p_input: {}, p_output: { result: step.result }, p_error: null });
+        continue;
+      }
+      // Ação — idempotência de execução por (run, nó): reentrega não reexecuta.
+      const first = await rpc("claim_idempotency", { p_org: org, p_key: `automation.run:${runId}:${step.node}` });
+      if (!first) continue;
+      const resolved = interpolate(step.config, flowCtx);
+      try {
+        const out = step.action === "webhook.call"
+          ? await callWebhook(resolved)
+          : await rpc("automation_action", { p_org: org, p_action: step.action, p_config: resolved });
+        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: "action", p_status: "ok", p_input: resolved, p_output: out ?? {}, p_error: null });
+      } catch (e) {
+        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: "action", p_status: "failed", p_input: resolved, p_output: {}, p_error: String(e?.message ?? e) });
+        throw e; // deixa a fila fazer retry/backoff/DLQ
+      }
+    }
+
+    if (plan.wait) {
+      const at = new Date(Date.now() + plan.wait.ms).toISOString();
+      await rpc("automation_record_step", { p_run_id: runId, p_node: plan.wait.node, p_type: "delay", p_status: "waiting", p_input: {}, p_output: { resume_at: at }, p_error: null });
+      await rpc("automation_advance_run", { p_run_id: runId, p_current_node: plan.wait.node, p_status: "running", p_error: null });
+      await rpc("enqueue_job", {
+        p_org: org, p_type: "automation.run", p_payload: { run_id: runId }, p_available_at: at,
+        p_priority: 0, p_max_attempts: 5, p_trace_id: null, p_correlation_id: null,
+        p_idempotency_key: `automation.run:${runId}:resume:${plan.wait.node}`, p_payload_version: 1,
+      });
+    } else {
+      await rpc("automation_advance_run", { p_run_id: runId, p_current_node: null, p_status: "succeeded", p_error: null });
+    }
+  },
 };
 
 const WORKER = `worker-local-${process.pid}`;
@@ -159,7 +315,14 @@ async function runOnce() {
       await rpc("complete_job", { p_id: job.id, p_result: result ?? {} });
       console.log(`✓ ${job.type} ${job.id}`);
     } catch (e) {
-      const outcome = await rpc("fail_job", { p_id: job.id, p_error: String(e?.message ?? e) }).catch(() => "?");
+      const err = String(e?.message ?? e);
+      const outcome = await rpc("fail_job", { p_id: job.id, p_error: err }).catch(() => "?");
+      // Esgotou retries (DLQ): marca a run como failed (publica automation.failed).
+      if (outcome === "dead" && job.type === "automation.run" && job.payload?.run_id) {
+        await rpc("automation_advance_run", {
+          p_run_id: job.payload.run_id, p_current_node: null, p_status: "failed", p_error: err,
+        }).catch((e2) => console.warn(`  ! falha ao marcar run failed: ${e2?.message ?? e2}`));
+      }
       console.warn(`✗ ${job.type} ${job.id} → ${outcome}`);
     }
   }

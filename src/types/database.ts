@@ -711,9 +711,165 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["quick_replies"]["Row"]>;
         Relationships: [];
       };
+      automations: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          name: string;
+          description: string | null;
+          status: "draft" | "active" | "paused";
+          trigger_type: string;
+          trigger_config: Json;
+          current_version: number;
+          created_by: string | null;
+          deleted_at: string | null;
+        };
+        Insert: { organization_id: string; name: string; trigger_type: string } & Partial<
+          Database["public"]["Tables"]["automations"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["automations"]["Row"]>;
+        Relationships: [];
+      };
+      automation_versions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          graph: Json;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: { organization_id: string; automation_id: string; version: number } & Partial<
+          Database["public"]["Tables"]["automation_versions"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["automation_versions"]["Row"]>;
+        Relationships: [];
+      };
+      automation_nodes: {
+        Row: {
+          id: string;
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          node_key: string;
+          type: "trigger" | "condition" | "delay" | "action" | "branch";
+          config: Json;
+          position: Json;
+          created_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          node_key: string;
+          type: string;
+        } & Partial<Database["public"]["Tables"]["automation_nodes"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["automation_nodes"]["Row"]>;
+        Relationships: [];
+      };
+      automation_edges: {
+        Row: {
+          id: string;
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          from_node: string;
+          to_node: string;
+          branch: "yes" | "no" | null;
+          created_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          from_node: string;
+          to_node: string;
+        } & Partial<Database["public"]["Tables"]["automation_edges"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["automation_edges"]["Row"]>;
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          automation_id: string;
+          version: number;
+          trigger_event: string | null;
+          context: Json;
+          status: "queued" | "running" | "succeeded" | "failed" | "paused" | "canceled";
+          current_node: string | null;
+          idempotency_key: string | null;
+          error: string | null;
+          started_at: string | null;
+          finished_at: string | null;
+        };
+        Insert: { organization_id: string; automation_id: string; version: number } & Partial<
+          Database["public"]["Tables"]["automation_runs"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["automation_runs"]["Row"]>;
+        Relationships: [];
+      };
+      automation_run_steps: {
+        Row: {
+          id: string;
+          organization_id: string;
+          run_id: string;
+          node_key: string;
+          type: string;
+          status: "ok" | "failed" | "skipped" | "waiting";
+          input: Json;
+          output: Json;
+          error: string | null;
+          occurred_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          run_id: string;
+          node_key: string;
+          type: string;
+          status: string;
+        } & Partial<Database["public"]["Tables"]["automation_run_steps"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["automation_run_steps"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
+      automation_save: {
+        Args: {
+          p_org: string;
+          p_id: string | null;
+          p_name: string;
+          p_description: string | null;
+          p_trigger_type: string;
+          p_trigger_config: Json;
+          p_graph: Json;
+        };
+        Returns: Json;
+      };
+      automation_set_status: {
+        Args: { p_org: string; p_id: string; p_status: string };
+        Returns: undefined;
+      };
+      automation_duplicate: {
+        Args: { p_org: string; p_id: string };
+        Returns: string;
+      };
+      automation_delete: {
+        Args: { p_org: string; p_id: string };
+        Returns: undefined;
+      };
+      automation_start_run: {
+        Args: {
+          p_org: string;
+          p_automation_id: string;
+          p_trigger_event: string | null;
+          p_context?: Json;
+          p_idempotency?: string | null;
+        };
+        Returns: string;
+      };
       provision_organization: {
         Args: { p_name: string };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
