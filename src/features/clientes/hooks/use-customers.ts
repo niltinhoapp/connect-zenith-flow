@@ -18,12 +18,13 @@ import {
  * A UI nunca toca o repository; o service é a única porta de entrada.
  */
 function makeService(session: AuthSession): CustomerApplicationService {
-  const repo = new CustomerSupabaseRepository(getSupabaseBrowserClient());
+  const db = getSupabaseBrowserClient();
+  const repo = new CustomerSupabaseRepository(db);
   return new CustomerApplicationService(repo, {
     organizationId: session.activeOrganization!.organizationId,
     actorId: session.user.id,
     enabledModules: session.enabledModules,
-  });
+  }, db);
 }
 
 export function useCustomers(filter?: CustomerFilter) {

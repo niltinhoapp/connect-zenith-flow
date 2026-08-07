@@ -111,6 +111,24 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
     expect(new Set(keys).size).toBe(keys.length); // todos únicos
   });
 
+  it("canoniza aliases de parâmetros (camelCase/sinônimos → snake_case do executor)", () => {
+    const out = normalizeAiFlow({
+      trigger_type: "customer.created",
+      nodes: [
+        { node_key: "t", type: "trigger", config: { trigger_type: "customer.created" } },
+        { node_key: "tag", type: "action", config: { action: "customer.add_tag", customerId: "{{customerId}}", tag: "vip" } },
+        { node_key: "note", type: "action", config: { action: "crm.create_note", customerId: "{{customerId}}", content: "Origem: automação" } },
+      ],
+      edges: [{ from_node: "t", to_node: "tag" }, { from_node: "tag", to_node: "note" }],
+    });
+    const tag = out.graph.nodes.find((n) => n.node_key === "tag")!;
+    expect(tag.config.customer_id).toBe("{{customerId}}"); // customerId → customer_id
+    expect(tag.config.customerId).toBeUndefined();
+    const note = out.graph.nodes.find((n) => n.node_key === "note")!;
+    expect(note.config.body).toBe("Origem: automação"); // content → body
+    expect(note.config.customer_id).toBe("{{customerId}}");
+  });
+
   it("aplica defaults de nome/descrição em entrada vazia", () => {
     const out = normalizeAiFlow({});
     expect(out.name).toBe("Automação gerada por IA");

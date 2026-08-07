@@ -68,8 +68,33 @@ const FLOW_SCHEMA = {
   required: ["name", "trigger_type", "nodes", "edges"],
 };
 
-const SYSTEM = `Você é um projetista de automações do ConnectWeb. A pessoa descreve, em português, um fluxo de automação de CRM/WhatsApp e você produz um GRAFO válido usando a ferramenta build_flow.
-Regras: sempre exatamente 1 nó "trigger" (config.trigger_type entre os permitidos); condition/branch usam {field, op, value, valueType} e ligam-se por arestas branch "yes"/"no"; delay usa {amount, unit}; action usa {action, ...parâmetros} com {{campo}} para valores do gatilho (ex.: {{conversationId}}, {{customerId}}); conecte os nós a partir do trigger; use APENAS gatilhos/ações/operadores permitidos; seja conciso.`;
+const SYSTEM = `Você é um projetista de automações do ConnectWeb. A pessoa descreve, em português, um fluxo de CRM/WhatsApp e você produz um GRAFO válido usando a ferramenta build_flow.
+
+Estrutura: sempre exatamente 1 nó "trigger" (config.trigger_type permitido); condition/branch usam {field, op, value, valueType} e ligam-se por arestas branch "yes"/"no"; delay usa {amount, unit}; conecte tudo a partir do trigger.
+
+PARÂMETROS DAS AÇÕES (use EXATAMENTE estes nomes de campo, snake_case):
+- whatsapp.send: {conversation_id, body}
+- whatsapp.send_template: {conversation_id, template_id}
+- whatsapp.set_status: {conversation_id, status}
+- conversation.assign: {conversation_id, assignee_id}
+- conversation.add_tags: {conversation_id, tags:[...]}
+- customer.create: {first_name, last_name, email, phone, status, source}
+- customer.update: {customer_id, first_name, email, phone, status}
+- customer.add_tag / customer.remove_tag: {customer_id, tag}
+- deal.create: {customer_id, pipeline_id, stage_id, title, amount}
+- deal.move_stage / deal.won: {deal_id, stage_id}
+- crm.create_note: {customer_id, title, body}
+- webhook.call: {url, method, body}
+- wait: {}
+
+INTERPOLAÇÃO {{campo}} — use SÓ os campos que o gatilho fornece:
+- customer.created / customer.updated → {{customerId}}   (ex.: customer_id: "{{customerId}}")
+- deal.created / deal.won / deal.stage.changed → {{dealId}}
+- whatsapp.message.received / sent → {{conversationId}}
+- manual / scheduled / lead.created / customer.created → NÃO invente campos; se não houver, deixe o valor fixo ou vazio.
+Nunca use um {{campo}} que o gatilho não fornece (ex.: NÃO use {{lead.first_name}}).
+
+Use APENAS gatilhos/ações/operadores permitidos. Seja conciso e prático.`;
 
 async function generateFlow(description: string): Promise<unknown> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {

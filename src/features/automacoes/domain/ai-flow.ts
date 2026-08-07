@@ -70,6 +70,20 @@ const asArr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const inList = <T extends readonly string[]>(list: T, v: string): v is T[number] =>
   (list as readonly string[]).includes(v);
 
+// Aliases de parâmetros que a IA costuma gerar → nomes que o executor lê.
+const PARAM_ALIAS: Record<string, string> = {
+  customerId: "customer_id",
+  conversationId: "conversation_id",
+  dealId: "deal_id",
+  assigneeId: "assignee_id",
+  templateId: "template_id",
+  pipelineId: "pipeline_id",
+  stageId: "stage_id",
+  content: "body",
+  text: "body",
+  message: "body",
+};
+
 /** Sanitiza o config de um nó por tipo, mantendo só campos conhecidos. */
 function sanitizeConfig(type: NodeType, raw: Record<string, unknown>): Record<string, unknown> {
   if (type === "condition" || type === "branch") {
@@ -94,10 +108,13 @@ function sanitizeConfig(type: NodeType, raw: Record<string, unknown>): Record<st
     const action = str(raw.action);
     const safeAction = inList(AI_ACTIONS, action) ? action : "wait";
     const out: Record<string, unknown> = { action: safeAction };
-    // Copia parâmetros escalares (a IA descreve os campos; interpolação {{}} é permitida).
-    for (const [k, v] of Object.entries(raw)) {
-      if (k === "action") continue;
-      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = v;
+    // Copia parâmetros escalares, canonizando aliases comuns da IA (camelCase e
+    // sinônimos) para os nomes que o executor `automation_action` lê (snake_case).
+    for (const [k0, v] of Object.entries(raw)) {
+      if (k0 === "action") continue;
+      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+        out[PARAM_ALIAS[k0] ?? k0] = v;
+      }
     }
     return out;
   }
