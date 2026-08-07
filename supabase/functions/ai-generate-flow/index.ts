@@ -86,11 +86,13 @@ async function generateFlow(description: string): Promise<unknown> {
       // effort ≤ high) para uma resposta determinística em tool_use.
       thinking: { type: "disabled" },
       system: SYSTEM,
+      // Sem strict: o config dos nós é livre (varia por ação), então o schema
+      // é guia — tool_choice força a ferramenta e o normalizeAiFlow (testado)
+      // é a garantia de segurança do lado do cliente.
       tools: [{
         name: "build_flow",
         description: "Registra o grafo de automação projetado.",
         input_schema: FLOW_SCHEMA,
-        strict: true,
       }],
       tool_choice: { type: "tool", name: "build_flow" },
       messages: [{ role: "user", content: `Descreva como automação (use build_flow): ${description.trim()}` }],
