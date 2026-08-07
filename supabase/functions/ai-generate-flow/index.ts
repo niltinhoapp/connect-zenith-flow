@@ -94,6 +94,9 @@ INTERPOLAÇÃO {{campo}} — use SÓ os campos que o gatilho fornece:
 - manual / scheduled / lead.created / customer.created → NÃO invente campos; se não houver, deixe o valor fixo ou vazio.
 Nunca use um {{campo}} que o gatilho não fornece (ex.: NÃO use {{lead.first_name}}).
 
+CADA nó de ação DEVE ter o campo chamado exatamente "action" (nunca "action_type" nem "type") com o nome da ação. Exemplo de um nó de ação correto:
+{"node_key":"add_tag","type":"action","config":{"action":"customer.add_tag","customer_id":"{{customerId}}","tag":"lead-quente"}}
+
 Use APENAS gatilhos/ações/operadores permitidos. Seja conciso e prático.`;
 
 async function generateFlow(description: string): Promise<unknown> {

@@ -105,13 +105,14 @@ function sanitizeConfig(type: NodeType, raw: Record<string, unknown>): Record<st
     };
   }
   if (type === "action") {
-    const action = str(raw.action);
+    // A IA às vezes nomeia o campo da ação como action_type/type/name.
+    const action = str(raw.action) || str(raw.action_type) || str(raw.type) || str(raw.name);
     const safeAction = inList(AI_ACTIONS, action) ? action : "wait";
     const out: Record<string, unknown> = { action: safeAction };
     // Copia parâmetros escalares, canonizando aliases comuns da IA (camelCase e
     // sinônimos) para os nomes que o executor `automation_action` lê (snake_case).
     for (const [k0, v] of Object.entries(raw)) {
-      if (k0 === "action") continue;
+      if (k0 === "action" || k0 === "action_type" || k0 === "type" || k0 === "name") continue;
       if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
         out[PARAM_ALIAS[k0] ?? k0] = v;
       }
