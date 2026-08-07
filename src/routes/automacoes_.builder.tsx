@@ -247,7 +247,11 @@ function BuilderPage() {
       name: name.trim() || "Sem nome",
       description: description.trim() || null,
       triggerType,
-      triggerConfig: {},
+      // Gatilho agendado: leva a schedule (config.schedule do nó trigger) ao
+      // trigger_config da automação — é o que o worker lê para disparar.
+      triggerConfig: triggerType === "scheduled"
+        ? ((nodes.find((n) => n.type === "trigger")?.config.schedule as Record<string, unknown>) ?? {})
+        : {},
       graph: {
         nodes: nodes.map((n) => ({ node_key: n.node_key, type: n.type, config: n.config, position: { x: n.x, y: n.y } })),
         edges: edges.map((e) => ({ from_node: e.from_node, to_node: e.to_node, branch: e.branch ?? null })),
@@ -482,6 +486,47 @@ function Inspector(props: {
             </Select>
           </Field>
         )}
+
+        {node.type === "trigger" && String(c.trigger_type) === "scheduled" && (() => {
+          const sc = (c.schedule && typeof c.schedule === "object" ? c.schedule : {}) as Record<string, unknown>;
+          const mode = String(sc.mode ?? "interval");
+          const setSc = (patch: Record<string, unknown>) => onConfig({ schedule: { ...sc, ...patch } });
+          return (
+            <>
+              <Field label="Frequência">
+                <Select value={mode} onValueChange={(v) => setSc({ mode: v })}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="interval" className="text-xs">A cada intervalo</SelectItem>
+                    <SelectItem value="daily" className="text-xs">Todo dia (horário)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {mode === "daily" ? (
+                <Field label="Horário (UTC · HH:MM)">
+                  <Input value={String(sc.at ?? "09:00")} onChange={(e) => setSc({ at: e.target.value })} className="h-9 text-xs" placeholder="09:00" />
+                </Field>
+              ) : (
+                <>
+                  <Field label="A cada">
+                    <Input type="number" min={1} value={String(sc.every ?? 1)} onChange={(e) => setSc({ every: Number(e.target.value) })} className="h-9 text-xs" />
+                  </Field>
+                  <Field label="Unidade">
+                    <Select value={String(sc.unit ?? "minutes")} onValueChange={(v) => setSc({ unit: v })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minutes" className="text-xs">minutos</SelectItem>
+                        <SelectItem value="hours" className="text-xs">horas</SelectItem>
+                        <SelectItem value="days" className="text-xs">dias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </>
+              )}
+              <p className="text-[10px] text-muted-foreground">Dispara sozinho quando o fluxo está ativo. Horário em UTC.</p>
+            </>
+          );
+        })()}
 
         {isCond && (
           <>

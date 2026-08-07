@@ -300,6 +300,55 @@ const handlers = {
   },
 };
 
+// ── Agendador — espelho de src/features/automacoes/domain/schedule.ts ─────────
+const SCHED_UNIT_MS = { minutes: 60000, hours: 3600000, days: 86400000 };
+function parseSchedule(c) {
+  if (!c || typeof c !== "object") return null;
+  const mode = String(c.mode ?? (c.every ? "interval" : c.at ? "daily" : ""));
+  if (mode === "interval") {
+    const every = Math.floor(Number(c.every)); const unit = String(c.unit);
+    if (!Number.isFinite(every) || every < 1 || !(unit in SCHED_UNIT_MS)) return null;
+    return { mode: "interval", every, unit };
+  }
+  if (mode === "daily") {
+    const at = String(c.at ?? "");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) return null;
+    return { mode: "daily", at };
+  }
+  return null;
+}
+function nextRunAt(config, from = new Date()) {
+  const s = parseSchedule(config); if (!s) return null;
+  if (s.mode === "interval") return new Date(from.getTime() + s.every * SCHED_UNIT_MS[s.unit]);
+  const [h, m] = s.at.split(":").map(Number);
+  const next = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), h, m, 0, 0));
+  if (next.getTime() <= from.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+// Dispara automações "scheduled" vencidas e reprograma o próximo horário.
+// Idempotente por slot (start_run dedup por 'sched:<slot>'); reprograma a partir
+// de "agora" (pula slots perdidos se o worker esteve fora, evitando enxurrada).
+async function dispatchScheduled() {
+  const due = (await rpc("automation_due_scheduled", { p_limit: 50 })) ?? [];
+  const now = new Date();
+  for (const a of due) {
+    const next = nextRunAt(a.trigger_config, now);
+    if (!next) continue; // schedule inválida: ignora
+    if (a.next_run_at == null) {
+      await rpc("automation_set_next_run", { p_id: a.id, p_next: next.toISOString() }); // 1ª vez: só agenda
+      continue;
+    }
+    const slot = new Date(a.next_run_at).toISOString();
+    await rpc("automation_start_run", {
+      p_org: a.organization_id, p_automation_id: a.id, p_trigger_event: "scheduled",
+      p_context: { scheduledAt: slot }, p_idempotency: `sched:${slot}`,
+    }).catch((e) => console.warn(`  ! start_run scheduled ${a.id}: ${e?.message ?? e}`));
+    await rpc("automation_set_next_run", { p_id: a.id, p_next: next.toISOString() });
+    console.log(`⏰ scheduled ${a.id} → run (slot ${slot}); próximo ${next.toISOString()}`);
+  }
+}
+
 const WORKER = `worker-local-${process.pid}`;
 let running = true;
 process.on("SIGINT", () => { running = false; });
@@ -329,8 +378,13 @@ async function runOnce() {
 }
 
 console.log(`[worker] iniciado (${WORKER}) → ${BASE}`);
+let lastSched = 0;
 while (running) {
   try { await runOnce(); } catch (e) { console.error("[worker] loop:", e.message); }
+  // Agendador: verifica a cada ~30s (não a cada tick) os fluxos "scheduled".
+  try {
+    if (Date.now() - lastSched > 30000) { lastSched = Date.now(); await dispatchScheduled(); }
+  } catch (e) { console.error("[worker] scheduled:", e.message); }
   await new Promise((r) => setTimeout(r, 2000));
 }
 console.log("[worker] parado.");

@@ -10,6 +10,13 @@ export const MODULE_KEY = "automacoes" as const;
 
 export * from "./domain/engine";
 export {
+  nextRunAt,
+  parseSchedule,
+  describeSchedule,
+  type Schedule,
+  type ScheduleUnit,
+} from "./domain/schedule";
+export {
   AutomacaoApplicationService,
   type SaveAutomationInput,
   type FlowGraphInput,
