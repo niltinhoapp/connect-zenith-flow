@@ -18,7 +18,7 @@ import {
   useAutomationGraph, useSaveAutomation, useTestAutomation,
 } from "@/features/automacoes/hooks/use-automacoes";
 
-export const Route = createFileRoute("/automacoes/builder")({
+export const Route = createFileRoute("/automacoes_/builder")({
   validateSearch: (s: Record<string, unknown>): { id?: string } => ({
     id: typeof s.id === "string" ? s.id : undefined,
   }),
@@ -155,13 +155,14 @@ function BuilderPage() {
 
   // ── Mutações de grafo ──────────────────────────────────────────────────────
   function addNode(type: NodeType, config: Record<string, unknown>) {
-    const n = nodes.filter((x) => x.type === type).length;
     const key = `${type}_${Date.now().toString(36)}`;
-    const count = nodes.length;
-    setNodes((prev) => [...prev, {
-      node_key: key, type, config: { ...config },
-      x: 80 + (count % 4) * 60, y: 80 + (count % 6) * 44,
-    }]);
+    setNodes((prev) => {
+      // nasce à direita do nó mais à direita (nunca sobreposto ao gatilho)
+      const maxX = prev.reduce((m, n) => Math.max(m, n.x), 0);
+      const x = prev.length === 0 ? 80 : maxX + 280;
+      const y = 80 + (prev.length % 4) * 130;
+      return [...prev, { node_key: key, type, config: { ...config }, x, y }];
+    });
     setSelected(key);
   }
   function updateConfig(key: string, patch: Record<string, unknown>) {

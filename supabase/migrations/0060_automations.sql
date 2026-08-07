@@ -172,3 +172,9 @@ begin
       using (public.has_permission(organization_id, 'automacoes.read'))$p$, t);
   end loop;
 end $$;
+
+-- ── Grants (o papel authenticated só acessa a tabela com GRANT; RLS filtra linhas)
+-- Sem isto o frontend recebe 403 "permission denied for table". Padrão do projeto:
+-- re-conceder em "all tables" ao fim de cada migration que cria tabelas.
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;

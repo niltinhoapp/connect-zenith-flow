@@ -20,7 +20,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
-import { Route as AutomacoesBuilderRouteImport } from './routes/automacoes.builder'
+import { Route as AutomacoesBuilderRouteImport } from './routes/automacoes_.builder'
 import { Route as ClientesIdRouteImport } from './routes/clientes.$id'
 import { Route as ConfiguracoesPapeisRouteImport } from './routes/configuracoes.papeis'
 import { Route as WhatsappTemplatesRouteImport } from './routes/whatsapp_.templates'
@@ -81,9 +81,9 @@ const WhatsappRoute = WhatsappRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AutomacoesBuilderRoute = AutomacoesBuilderRouteImport.update({
-  id: '/builder',
-  path: '/builder',
-  getParentRoute: () => AutomacoesRoute,
+  id: '/automacoes_/builder',
+  path: '/automacoes/builder',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesIdRoute = ClientesIdRouteImport.update({
   id: '/$id',
@@ -103,7 +103,7 @@ const WhatsappTemplatesRoute = WhatsappTemplatesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/automacoes': typeof AutomacoesRouteWithChildren
+  '/automacoes': typeof AutomacoesRoute
   '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRouteWithChildren
@@ -120,7 +120,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/automacoes': typeof AutomacoesRouteWithChildren
+  '/automacoes': typeof AutomacoesRoute
   '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRouteWithChildren
@@ -138,7 +138,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/automacoes': typeof AutomacoesRouteWithChildren
+  '/automacoes': typeof AutomacoesRoute
   '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRouteWithChildren
@@ -148,7 +148,7 @@ export interface FileRoutesById {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
   '/whatsapp': typeof WhatsappRoute
-  '/automacoes/builder': typeof AutomacoesBuilderRoute
+  '/automacoes_/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
   '/configuracoes/papeis': typeof ConfiguracoesPapeisRoute
   '/whatsapp_/templates': typeof WhatsappTemplatesRoute
@@ -201,7 +201,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/relatorios'
     | '/whatsapp'
-    | '/automacoes/builder'
+    | '/automacoes_/builder'
     | '/clientes/$id'
     | '/configuracoes/papeis'
     | '/whatsapp_/templates'
@@ -209,7 +209,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AutomacoesRoute: typeof AutomacoesRouteWithChildren
+  AutomacoesRoute: typeof AutomacoesRoute
   CadastroRoute: typeof CadastroRoute
   ClientesRoute: typeof ClientesRouteWithChildren
   ConfiguracoesRoute: typeof ConfiguracoesRouteWithChildren
@@ -219,6 +219,7 @@ export interface RootRouteChildren {
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RelatoriosRoute: typeof RelatoriosRoute
   WhatsappRoute: typeof WhatsappRoute
+  AutomacoesBuilderRoute: typeof AutomacoesBuilderRoute
   WhatsappTemplatesRoute: typeof WhatsappTemplatesRoute
 }
 
@@ -301,12 +302,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/automacoes/builder': {
-      id: '/automacoes/builder'
-      path: '/builder'
+    '/automacoes_/builder': {
+      id: '/automacoes_/builder'
+      path: '/automacoes/builder'
       fullPath: '/automacoes/builder'
       preLoaderRoute: typeof AutomacoesBuilderRouteImport
-      parentRoute: typeof AutomacoesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/clientes/$id': {
       id: '/clientes/$id'
@@ -331,18 +332,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AutomacoesRouteChildren {
-  AutomacoesBuilderRoute: typeof AutomacoesBuilderRoute
-}
-
-const AutomacoesRouteChildren: AutomacoesRouteChildren = {
-  AutomacoesBuilderRoute: AutomacoesBuilderRoute,
-}
-
-const AutomacoesRouteWithChildren = AutomacoesRoute._addFileChildren(
-  AutomacoesRouteChildren,
-)
 
 interface ClientesRouteChildren {
   ClientesIdRoute: typeof ClientesIdRoute
@@ -370,7 +359,7 @@ const ConfiguracoesRouteWithChildren = ConfiguracoesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AutomacoesRoute: AutomacoesRouteWithChildren,
+  AutomacoesRoute: AutomacoesRoute,
   CadastroRoute: CadastroRoute,
   ClientesRoute: ClientesRouteWithChildren,
   ConfiguracoesRoute: ConfiguracoesRouteWithChildren,
@@ -380,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RelatoriosRoute: RelatoriosRoute,
   WhatsappRoute: WhatsappRoute,
+  AutomacoesBuilderRoute: AutomacoesBuilderRoute,
   WhatsappTemplatesRoute: WhatsappTemplatesRoute,
 }
 export const routeTree = rootRouteImport
