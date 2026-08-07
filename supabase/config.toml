@@ -26,3 +26,8 @@ verify_jwt = false
 # Conexão de WABA: exige o JWT do usuário (valida org + whatsapp.connect).
 [functions.whatsapp-connect]
 verify_jwt = true
+
+# AI Automation Copilot: exige JWT do usuário (valida org + automacoes.manage).
+# Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+[functions.ai-generate-flow]
+verify_jwt = true

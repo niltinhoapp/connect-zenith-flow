@@ -108,6 +108,16 @@ export function useDeleteAutomation() {
   });
 }
 
+export function useGenerateFlow() {
+  const session = useSession();
+  const invalidate = useInvalidateList();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (description: string) => makeService(session!).generateAndSaveFlow(description),
+    onSuccess: invalidate,
+  });
+}
+
 export function useTestAutomation() {
   const session = useSession();
   const { org } = useOrg();

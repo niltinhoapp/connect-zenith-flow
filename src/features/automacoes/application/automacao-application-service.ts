@@ -5,6 +5,7 @@ import { assertModuleEnabled } from "@/core/feature-flags";
 import { InfrastructureError } from "@/core/errors";
 import type { ServiceContext } from "@/core/application/context";
 import type { FlowEdge, FlowNode } from "../domain/engine";
+import { normalizeAiFlow } from "../domain/ai-flow";
 
 export type AutomationRow = Database["public"]["Tables"]["automations"]["Row"];
 export type AutomationRunRow = Database["public"]["Tables"]["automation_runs"]["Row"];
@@ -106,6 +107,46 @@ export class AutomacaoApplicationService {
         return data as unknown as { id: string; version: number };
       },
       { service: "automacoes.save" },
+    );
+  }
+
+  /**
+   * AI Copilot: gera um fluxo a partir de uma descrição, normaliza a saída da
+   * IA (não-confiável) e salva como RASCUNHO para revisão humana no builder.
+   * A chave da IA fica na Edge Function (secret); o cliente nunca a vê.
+   */
+  generateAndSaveFlow(description: string): Promise<{ id: string; name: string }> {
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db.functions.invoke("ai-generate-flow", {
+          body: { description, organizationId: this.ctx.organizationId },
+        });
+        if (error) {
+          // tenta extrair a mensagem real do corpo da Edge Function
+          let msg = error.message;
+          try {
+            const ctx = (error as { context?: Response }).context;
+            if (ctx && typeof ctx.json === "function") msg = (await ctx.json())?.error ?? msg;
+          } catch { /* ignore */ }
+          throw new InfrastructureError(msg, { cause: error });
+        }
+        const flow = (data as { flow?: unknown })?.flow;
+        const normalized = normalizeAiFlow(flow ?? {});
+        const { data: saved, error: sErr } = await this.db.rpc("automation_save", {
+          p_org: this.ctx.organizationId,
+          p_id: null,
+          p_name: normalized.name,
+          p_description: normalized.description,
+          p_trigger_type: normalized.triggerType,
+          p_trigger_config: {} as Json,
+          p_graph: normalized.graph as unknown as Json,
+        });
+        if (sErr) throw new InfrastructureError(sErr.message, { cause: sErr });
+        const res = saved as unknown as { id: string };
+        return { id: res.id, name: normalized.name };
+      },
+      { service: "automacoes.generateAndSaveFlow" },
     );
   }
 

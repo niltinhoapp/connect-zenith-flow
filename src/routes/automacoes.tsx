@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Plus, Sparkles, MessageCircle, Mail, Clock, Zap, UserPlus, Filter, MoreHorizontal, ArrowRight, Play, Copy, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
@@ -15,11 +15,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
   useAutomations,
   useSetAutomationStatus,
   useDuplicateAutomation,
   useDeleteAutomation,
   useTestAutomation,
+  useGenerateFlow,
 } from "@/features/automacoes/hooks/use-automacoes";
 
 export const Route = createFileRoute("/automacoes")({
@@ -54,6 +64,21 @@ function AutomacoesPage() {
   const duplicate = useDuplicateAutomation();
   const remove = useDeleteAutomation();
   const test = useTestAutomation();
+  const generate = useGenerateFlow();
+  const navigate = useNavigate();
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState("");
+
+  function runGenerate() {
+    if (aiText.trim().length < 4) return;
+    generate.mutate(aiText.trim(), {
+      onSuccess: (res) => {
+        setAiOpen(false);
+        setAiText("");
+        navigate({ to: "/automacoes/builder", search: { id: res.id } });
+      },
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -199,11 +224,46 @@ function AutomacoesPage() {
               </p>
             </div>
           </div>
-          <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90">
+          <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90" onClick={() => setAiOpen(true)}>
             Gerar com IA <ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      <Dialog open={aiOpen} onOpenChange={(o) => { if (!generate.isPending) setAiOpen(o); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> Gerar automação com IA
+            </DialogTitle>
+            <DialogDescription>
+              Descreva o fluxo em português. A IA monta o rascunho — você revisa e ativa no builder.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            value={aiText}
+            onChange={(e) => setAiText(e.target.value)}
+            rows={5}
+            className="text-sm"
+            placeholder="Ex.: Quando um lead é criado pelo WhatsApp, se a origem for 'site', enviar uma mensagem de boas-vindas e criar uma nota no CRM."
+            disabled={generate.isPending}
+          />
+          {generate.isError && (
+            <p className="text-xs text-destructive">
+              {(generate.error as Error)?.message ?? "Falha ao gerar. Verifique se a IA está configurada."}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={generate.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={runGenerate} disabled={generate.isPending || aiText.trim().length < 4} className="bg-primary hover:bg-primary/90">
+              {generate.isPending ? "Gerando…" : "Gerar rascunho"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

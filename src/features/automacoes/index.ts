@@ -10,6 +10,13 @@ export const MODULE_KEY = "automacoes" as const;
 
 export * from "./domain/engine";
 export {
+  normalizeAiFlow,
+  AI_TRIGGERS,
+  AI_ACTIONS,
+  type AiRawFlow,
+  type NormalizedFlow,
+} from "./domain/ai-flow";
+export {
   AutomacaoApplicationService,
   type SaveAutomationInput,
   type FlowGraphInput,
