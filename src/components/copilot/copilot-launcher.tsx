@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, HelpCircle, ArrowRight, CheckCircle2, Circle, Loader2, ShieldAlert, MessageSquare, Copy, Check } from "lucide-react";
+import { Sparkles, HelpCircle, ArrowRight, Loader2, ShieldAlert, MessageSquare, Copy, Check } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet";
@@ -13,14 +13,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { helpForRoute } from "./route-help";
-import { ONBOARDING_STEPS, useOnboarding } from "./onboarding";
+import { OnboardingChecklist } from "./onboarding-checklist";
 import { useCopilot } from "./use-copilot";
 import { useInsertDraft } from "./copilot-focus";
 
@@ -42,8 +41,7 @@ export function CopilotLauncher() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const help = helpForRoute(pathname);
-  const { org, tools, state, run, confirm, cancelConfirm, clear, focus } = useCopilot();
-  const onboarding = useOnboarding(org);
+  const { tools, state, run, confirm, cancelConfirm, clear, focus } = useCopilot();
   const insertDraft = useInsertDraft();
   const [copied, setCopied] = useState(false);
 
@@ -71,7 +69,7 @@ export function CopilotLauncher() {
       <SheetTrigger asChild>
         <button
           aria-label="Ajuda e IA"
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-105"
+          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Sparkles className="h-4 w-4" /> Ajuda + IA
         </button>
@@ -93,41 +91,9 @@ export function CopilotLauncher() {
           </TabsList>
 
           <ScrollArea className="min-h-0 flex-1 px-5 py-4">
-            {/* ── Primeiros passos ─────────────────────────────────────── */}
-            <TabsContent value="passos" className="mt-0 space-y-4">
-              <div>
-                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Implantação</span>
-                  <span className="tabular-nums">{onboarding.completed}/{onboarding.total}</span>
-                </div>
-                <Progress value={onboarding.percent} className="h-2" />
-              </div>
-              {onboarding.allDone && (
-                <div className="rounded-lg border border-success/25 bg-success/10 p-3 text-xs text-success">
-                  🎉 Tudo pronto! Seu ConnectWeb está configurado.
-                </div>
-              )}
-              <ul className="space-y-2">
-                {ONBOARDING_STEPS.map((step) => {
-                  const done = onboarding.done[step.id];
-                  return (
-                    <li key={step.id} className="rounded-xl border border-border bg-card p-3">
-                      <div className="flex items-start gap-3">
-                        <button onClick={() => onboarding.toggle(step.id)} className="mt-0.5 shrink-0" aria-label="Concluir passo">
-                          {done ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <p className={cn("text-sm font-medium", done && "text-muted-foreground line-through")}>{step.title}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{step.desc}</p>
-                          <Button variant="ghost" size="sm" className="mt-1 h-7 gap-1 px-2 text-[11px] text-primary" onClick={() => go(step.to)}>
-                            {step.cta} <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+            {/* ── Primeiros passos (checklist data-driven) ─────────────── */}
+            <TabsContent value="passos" className="mt-0">
+              <OnboardingChecklist onNavigate={go} />
             </TabsContent>
 
             {/* ── Ajuda contextual da rota ─────────────────────────────── */}

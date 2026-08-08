@@ -40,9 +40,10 @@ export const ROUTE_HELP: RouteHelp[] = [
     title: "WhatsApp",
     intro: "Central de conversas com a API oficial da Meta — atenda e responda seus clientes.",
     tips: [
+      "Conecte o número em Configurações → Integrações antes de usar.",
+      "A caixa de entrada (à esquerda) lista as conversas; clique para abrir.",
+      "Selecione uma conversa e use a IA para resumir ou rascunhar a resposta.",
       "Fora da janela de 24h, use um template para reengajar.",
-      "Marque conversas com tags e atribua a um responsável.",
-      "Crie respostas rápidas para os textos que você mais usa.",
     ],
   },
   {
@@ -61,30 +62,41 @@ export const ROUTE_HELP: RouteHelp[] = [
     title: "CRM — Negócios",
     intro: "Acompanhe oportunidades pelo funil: do primeiro contato ao fechamento.",
     tips: [
-      "Mova negócios entre estágios para acompanhar o progresso.",
-      "Ganhar/mover um negócio pode disparar automações.",
+      "Arraste o cartão de uma coluna para outra para mudar o estágio.",
+      "Cada coluna é uma etapa do funil; avance conforme o negócio evolui.",
+      "Ganhar ou mover um negócio pode disparar automações.",
     ],
   },
   {
     match: "/relatorios",
     title: "Relatórios",
     intro: "Acompanhe os números do seu negócio ao longo do tempo.",
-    tips: ["Compare períodos para ver tendências.", "Use como base para decidir onde focar."],
+    tips: [
+      "Use os filtros de período para escolher o intervalo (semana, mês...).",
+      "Cada indicador mostra um número e a tendência em relação ao período anterior.",
+      "Compare períodos para ver o que melhorou e onde focar.",
+    ],
   },
   {
     match: "/configuracoes",
     title: "Configurações",
-    intro: "Empresa, equipe, papéis/permissões e integrações.",
+    intro: "Sua conta, empresa, segurança e integrações — tudo em um só lugar.",
     tips: [
-      "Conecte o WhatsApp oficial para enviar e receber mensagens.",
-      "Defina papéis e permissões da sua equipe.",
+      "Perfil: seu nome e senha. Empresa: nome e módulos ativos.",
+      "Segurança: ative a verificação em duas etapas e encerre outras sessões.",
+      "Integrações: conecte o WhatsApp oficial para enviar e receber mensagens.",
+      "Defina papéis e permissões da sua equipe em Papéis.",
     ],
   },
   {
     match: "/dashboard",
     title: "Dashboard",
     intro: "Visão geral do seu dia: conversas, clientes e negócios num lugar só.",
-    tips: ["Use os atalhos para pular direto para onde precisa agir."],
+    tips: [
+      "Os cartões no topo resumem os números principais (clientes, conversas, negócios).",
+      "Cada número reflete os dados reais da sua empresa, atualizados automaticamente.",
+      "Use os atalhos para pular direto para onde precisa agir.",
+    ],
   },
 ];
 
