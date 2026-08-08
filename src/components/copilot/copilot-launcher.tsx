@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, HelpCircle, ArrowRight, CheckCircle2, Circle, Loader2, ShieldAlert, MessageSquare } from "lucide-react";
+import { Sparkles, HelpCircle, ArrowRight, CheckCircle2, Circle, Loader2, ShieldAlert, MessageSquare, Copy, Check } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet";
@@ -22,13 +22,20 @@ import { cn } from "@/lib/utils";
 import { helpForRoute } from "./route-help";
 import { ONBOARDING_STEPS, useOnboarding } from "./onboarding";
 import { useCopilot } from "./use-copilot";
+import { useInsertDraft } from "./copilot-focus";
 
-const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "Externo" };
+const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "IA" };
 const RISK_CLS: Record<string, string> = {
   read: "bg-muted text-muted-foreground",
   write: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/25",
-  external: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/25",
+  external: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/25",
 };
+
+/** Ferramentas de IA da conversa: só aparecem no WhatsApp com conversa selecionada. */
+const WHATSAPP_ASSIST = new Set<string>([
+  "whatsapp.conversation.summarize",
+  "whatsapp.reply.draft",
+]);
 
 export function CopilotLauncher() {
   const [open, setOpen] = useState(false);
@@ -37,8 +44,27 @@ export function CopilotLauncher() {
   const help = helpForRoute(pathname);
   const { org, tools, state, run, confirm, cancelConfirm, clear, focus } = useCopilot();
   const onboarding = useOnboarding(org);
+  const insertDraft = useInsertDraft();
+  const [copied, setCopied] = useState(false);
+
+  const onWhatsApp = pathname.startsWith("/whatsapp");
+  const hasConversation = focus?.type === "conversation";
+  // As ferramentas de IA da conversa só aparecem no WhatsApp com conversa ativa.
+  const visibleTools = tools.filter(
+    (t) => !WHATSAPP_ASSIST.has(t.name) || (onWhatsApp && hasConversation),
+  );
 
   const go = (to: string) => { navigate({ to: to as never }); setOpen(false); };
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard?.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard indisponível — o texto continua visível para cópia manual */
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -138,28 +164,72 @@ export function CopilotLauncher() {
                   <span>Contexto: {focus.label ?? "conversa selecionada"}</span>
                 </div>
               )}
-              {state.result && (
-                <div className="rounded-lg border border-success/25 bg-success/10 p-3">
-                  <p className="text-xs text-success">{state.result.summary}</p>
-                  <div className="mt-2 flex gap-2">
-                    {state.result.navigateTo && (
-                      <Button size="sm" className="h-7 gap-1 text-[11px]" onClick={() => go(state.result!.navigateTo!)}>
-                        Abrir <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clear}>Fechar</Button>
+              {state.result && (() => {
+                const r = state.result;
+                const isDraft = r.tool === "whatsapp.reply.draft";
+                const isSummary = r.tool === "whatsapp.conversation.summarize";
+                const isAssist = isDraft || isSummary;
+                const heading = isDraft
+                  ? "Rascunho de resposta"
+                  : isSummary
+                    ? "Resumo da conversa"
+                    : "Resultado";
+                return (
+                  <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                    <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-primary">
+                      <Sparkles className="h-3 w-3" /> {heading}
+                    </p>
+                    <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
+                      {r.summary}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {isAssist && (
+                        <Button
+                          size="sm" variant="outline"
+                          className="h-7 gap-1 text-[11px]"
+                          onClick={() => void copy(r.summary)}
+                        >
+                          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                          {copied ? "Copiado" : "Copiar"}
+                        </Button>
+                      )}
+                      {isDraft && (
+                        <Button
+                          size="sm"
+                          className="h-7 gap-1 text-[11px]"
+                          onClick={() => { if (insertDraft(r.summary)) { clear(); setOpen(false); } }}
+                        >
+                          Inserir no campo <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {!isAssist && r.navigateTo && (
+                        <Button size="sm" className="h-7 gap-1 text-[11px]" onClick={() => go(r.navigateTo!)}>
+                          Abrir <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clear}>Fechar</Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {state.error && <p className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{state.error}</p>}
 
-              {tools.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma ação da IA disponível para o seu perfil/tela ainda. Explore as abas “Primeiros passos” e “Ajuda”.
-                </p>
+              {onWhatsApp && !hasConversation && (
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  Selecione uma conversa para usar a IA.
+                </div>
+              )}
+
+              {visibleTools.length === 0 ? (
+                onWhatsApp && !hasConversation ? null : (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhuma ação da IA disponível para o seu perfil/tela ainda. Explore as abas “Primeiros passos” e “Ajuda”.
+                  </p>
+                )
               ) : (
                 <ul className="space-y-2">
-                  {tools.map((tool) => (
+                  {visibleTools.map((tool) => (
                     <li key={tool.name} className="rounded-xl border border-border bg-card p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -193,16 +263,30 @@ export function CopilotLauncher() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação
+              {state.pendingConfirm?.risk === "external"
+                ? <><Sparkles className="h-4 w-4 text-primary" /> Processar com IA</>
+                : <><ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação</>}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              A ação <span className="font-medium text-foreground">{state.pendingConfirm?.title}</span> faz alterações.
-              Deseja executar agora?
+              {state.pendingConfirm?.risk === "external" ? (
+                <>
+                  O conteúdo desta conversa será enviado à IA para gerar{" "}
+                  <span className="font-medium text-foreground">{state.pendingConfirm?.title}</span>.
+                  Nada é alterado e nenhuma mensagem é enviada ao cliente — o resultado fica só para você revisar.
+                </>
+              ) : (
+                <>
+                  A ação <span className="font-medium text-foreground">{state.pendingConfirm?.title}</span> faz alterações.
+                  Deseja executar agora?
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={cancelConfirm}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirm}>Confirmar e executar</AlertDialogAction>
+            <AlertDialogAction onClick={confirm}>
+              {state.pendingConfirm?.risk === "external" ? "Processar com IA" : "Confirmar e executar"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

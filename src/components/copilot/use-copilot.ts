@@ -29,6 +29,12 @@ const friendly = (e: unknown): string => {
   return e instanceof Error ? e.message : "Não foi possível executar agora.";
 };
 
+/** Ferramentas que recebem o foco da tela (conversa) como input. */
+const CONTEXTUAL_TOOLS = new Set<string>([
+  "whatsapp.conversation.summarize",
+  "whatsapp.reply.draft",
+]);
+
 export function useCopilot() {
   const session = useSession();
   const org = session?.activeOrganization?.organizationId ?? null;
@@ -62,8 +68,9 @@ export function useCopilot() {
       if (!context) return;
       setState((s) => ({ ...s, running: tool.name, error: null, pendingConfirm: null }));
       try {
-        // Só o foco (ex.: conversationId) vira input; o resto é server-side.
-        const input = focusToToolInput(focus);
+        // Input contextual por ferramenta: só as ferramentas de conversa
+        // recebem o foco (conversationId). O resto é resolvido server-side.
+        const input = CONTEXTUAL_TOOLS.has(tool.name) ? focusToToolInput(focus) : {};
         const result = await executeCopilotTool({ tool: tool.name, input, confirmed }, context);
         setState({ running: null, pendingConfirm: null, result: { ...result, tool: tool.name }, error: null });
       } catch (e) {

@@ -17,15 +17,12 @@ import {
   StickyNote,
   KeyRound,
   CircleDot,
-  Sparkles,
-  X,
 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useSetCopilotFocus } from "@/components/copilot/copilot-focus";
-import { useConversationAssist } from "@/components/copilot/use-conversation-assist";
+import { useSetCopilotFocus, useRegisterDraftSink } from "@/components/copilot/copilot-focus";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -291,7 +288,6 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const messagesQuery = useMessages(conversation.id);
   const send = useSendMessage(conversation.id);
   const sendTemplate = useSendTemplate(conversation.id);
-  const assist = useConversationAssist(conversation.id);
   const assign = useAssignConversation();
   const markRead = useMarkConversationRead();
   const setStatus = useSetConversationStatus();
@@ -299,6 +295,13 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const templatesQuery = useTemplates({ status: "approved" });
   const sendMedia = useSendMedia(conversation.id);
   const [draft, setDraft] = useState("");
+  const registerDraftSink = useRegisterDraftSink();
+
+  // O painel "Ajuda + IA" insere um rascunho da IA neste compositor (nunca envia).
+  useEffect(() => {
+    registerDraftSink((text) => setDraft(text));
+    return () => registerDraftSink(null);
+  }, [registerDraftSink]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
@@ -588,71 +591,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {assist.available && (
-            <>
-              <button
-                type="button"
-                onClick={() => assist.assist("summary")}
-                disabled={assist.loading !== null}
-                className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
-                title="Resumir esta conversa com IA"
-              >
-                {assist.loading === "summary" ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3 w-3" />
-                )}
-                Resumir com IA
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const text = await assist.assist("draft");
-                  if (text) {
-                    setDraft(text);
-                    assist.clear();
-                  }
-                }}
-                disabled={assist.loading !== null}
-                className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
-                title="Gerar um rascunho de resposta com IA"
-              >
-                {assist.loading === "draft" ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3 w-3" />
-                )}
-                Rascunho com IA
-              </button>
-            </>
-          )}
         </div>
-
-        {assist.result?.mode === "summary" && (
-          <div className="mb-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1 text-[11px] font-medium text-primary">
-                <Sparkles className="h-3 w-3" /> Resumo da IA
-              </span>
-              <button
-                type="button"
-                onClick={assist.clear}
-                className="text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Fechar resumo"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <p className="whitespace-pre-wrap text-xs text-foreground">{assist.result.text}</p>
-          </div>
-        )}
-        {assist.error && (
-          <p className="mb-2 flex items-center gap-1.5 px-1 text-[11px] text-destructive">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            {assist.error}
-          </p>
-        )}
 
         {attachment && (
           <AttachmentPreview
