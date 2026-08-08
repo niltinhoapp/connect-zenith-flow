@@ -20,6 +20,11 @@ import {
   CustomerSupabaseRepository,
   createCustomersOverviewTool,
 } from "@/features/clientes";
+import {
+  SupabaseWhatsAppAssistant,
+  createWhatsAppConversationSummaryTool,
+  createWhatsAppReplyDraftTool,
+} from "@/features/whatsapp";
 
 function serviceContext(session: AuthSession): ServiceContext {
   return {
@@ -50,16 +55,18 @@ export function useClientCopilotTools(session: AuthSession | null): number {
       context,
       db,
     );
+    const whatsappAssistant = new SupabaseWhatsAppAssistant(db);
 
     replaceCopilotTools([
       createDashboardMetricsTool(dashboard),
       createReportsOverviewTool(reports),
       createCrmPipelineTool(crm),
       createCustomersOverviewTool(customers),
+      createWhatsAppConversationSummaryTool(whatsappAssistant),
+      createWhatsAppReplyDraftTool(whatsappAssistant),
     ]);
     setCatalogVersion((version) => version + 1);
   }, [organizationId, session]);
 
   return catalogVersion;
 }
-
