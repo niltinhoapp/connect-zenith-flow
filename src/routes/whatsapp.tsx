@@ -470,7 +470,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   // Aviso administrativo só quando o ENVIO MAIS RECENTE falhou (evita alarme por
   // falha histórica; não expõe credenciais).
   const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
-  const tokenFailed = lastOutbound?.status === "failed";
+  const lastSendFailed = lastOutbound?.status === "failed";
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
 
@@ -621,12 +621,12 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
-        {tokenFailed && (
+        {lastSendFailed && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
             <KeyRound className="h-3.5 w-3.5 shrink-0" />
             <span>
-              Falha de autenticação com a Meta — o token do WhatsApp pode ter expirado. Um
-              administrador precisa reconectar a conta.
+              A última mensagem não foi enviada. Verifique a conexão, a janela de atendimento
+              e o template utilizado antes de tentar novamente.
             </span>
           </div>
         )}

@@ -23,6 +23,24 @@ const webhooksKey = (org: string) => ["settings", org, "webhooks"] as const;
 const apiKeysKey = (org: string) => ["settings", org, "api-keys"] as const;
 const apiScopesKey = ["settings", "api-scopes"] as const;
 
+async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error && typeof error === "object" && "context" in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      const payload = await context.clone().json().catch(() => null) as
+        | { error?: unknown; detail?: unknown }
+        | null;
+      const detail = payload?.detail && typeof payload.detail === "object"
+        ? JSON.stringify(payload.detail)
+        : payload?.detail;
+      if (typeof payload?.error === "string") {
+        return detail ? `${payload.error}: ${String(detail)}` : payload.error;
+      }
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 function makeService(session: AuthSession) {
   return new SettingsApplicationService(getSupabaseBrowserClient(), {
     organizationId: session.activeOrganization!.organizationId,
@@ -112,7 +130,12 @@ export function useConnectWhatsApp() {
           phoneNumberId: input.phoneNumberId,
         },
       });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
+      if (error) {
+        throw new InfrastructureError(
+          await edgeFunctionErrorMessage(error, "Falha ao conectar o WhatsApp."),
+          { cause: error },
+        );
+      }
       if (!data?.ok) throw new InfrastructureError(String(data?.error ?? "Falha ao conectar o WhatsApp."));
       return data;
     },
