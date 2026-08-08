@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail, Lock, User, Building2, ArrowRight, Check } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,8 +21,6 @@ export const Route = createFileRoute("/cadastro")({
 });
 
 function CadastroPage() {
-  const navigate = useNavigate();
-  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -33,8 +31,9 @@ function CadastroPage() {
     try {
       await signUpWithOrganization(values);
       toast.success("Conta e workspace criados! Bem-vindo.");
-      await router.invalidate();
-      await navigate({ to: "/" });
+      // O provisionamento altera sessão e organização ativa. Uma navegação
+      // completa faz o SSR reconstruir esse contexto a partir dos cookies.
+      window.location.assign("/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível criar a conta.");
     }

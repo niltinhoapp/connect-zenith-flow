@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,8 +23,6 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const navigate = useNavigate();
-  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -34,8 +32,9 @@ function LoginPage() {
   const onSubmit = handleSubmit(async (values) => {
     try {
       await signIn(values);
-      await router.invalidate();
-      await navigate({ to: "/" });
+      // Requisição completa: garante que o guard SSR receba os cookies que o
+      // Supabase acabou de gravar, sem reutilizar o contexto anônimo da rota.
+      window.location.assign("/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível entrar.");
     }
