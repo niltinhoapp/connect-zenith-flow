@@ -10,6 +10,7 @@ tiver as credenciais, é só configurar os secrets e validar o fluxo.
 | `whatsapp-webhook` | não | Recebe mensagens/status da Meta (GET verify + POST). Valida `X-Hub-Signature-256`, roteia ao tenant e persiste via RPC. |
 | `whatsapp-connect` | sim | Conecta uma WABA à organização (Embedded Signup `code` **ou** token manual). Assina o webhook e grava conta/número/credencial. |
 | `ai-generate-flow` | sim | AI Automation Copilot: descrição em linguagem natural → grafo de automação (Claude Opus 5). Valida RBAC (`automacoes.manage`). Secret: `ANTHROPIC_API_KEY`. Deploy: `supabase functions deploy ai-generate-flow`. |
+| `ai-whatsapp-assist` | sim | Resume conversas e prepara respostas sem enviar. Resolve organização pela conversa, valida `whatsapp.read` + `ia.use` e mede créditos de IA. |
 
 ## 1. Secrets (uma vez)
 

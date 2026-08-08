@@ -53,3 +53,4 @@ export {
   createWhatsAppReplyDraftTool,
   registerWhatsAppCopilotTools,
 } from "./copilot-tools";
+export { SupabaseWhatsAppAssistant } from "./infrastructure/supabase-whatsapp-assistant";

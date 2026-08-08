@@ -31,3 +31,7 @@ verify_jwt = true
 # Secret: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 [functions.ai-generate-flow]
 verify_jwt = true
+
+# Assistente de WhatsApp: lê a conversa sob RLS e nunca envia mensagens.
+[functions.ai-whatsapp-assist]
+verify_jwt = true

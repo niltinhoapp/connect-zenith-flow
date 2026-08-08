@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AIProvider, CopilotExecutionContext } from "@/core";
-import { Conversation, Message } from "@/features/whatsapp/domain";
+import type { CopilotExecutionContext } from "@/core";
 import {
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
+  type WhatsAppAssistant,
 } from "@/features/whatsapp/copilot-tools";
 
 const context: CopilotExecutionContext = {
@@ -13,69 +13,45 @@ const context: CopilotExecutionContext = {
   permissions: ["whatsapp.read", "ia.use"],
 };
 
-function dependencies() {
-  const conversation = Conversation.create(
-    { organizationId: "org-1", contactWaId: "5511999999999", contactName: "Marina" },
-    "conversation-1",
-  );
-  const message = Message.fromPersistence({
-    id: "message-1",
-    organizationId: "org-1",
-    conversationId: "conversation-1",
-    direction: "inbound",
-    waMessageId: "wa-1",
-    type: "text",
-    body: "Quero saber o prazo do pedido",
-    mediaId: null,
-    templateId: null,
-    status: "received",
-    sender: "5511999999999",
-    sentBy: null,
-    payload: { secret: "não enviar" },
-    error: null,
-    payloadVersion: 1,
-    createdAt: "2026-08-01T10:00:00.000Z",
-    updatedAt: "2026-08-01T10:00:00.000Z",
-  });
-  const inbox = {
-    async getConversation() {
-      return conversation;
-    },
-    async listMessages() {
-      return { items: [message], total: 1, limit: 50, offset: 0 };
-    },
-  };
-  const complete = vi.fn<AIProvider["complete"]>(async () => ({
+function assistant() {
+  const assist = vi.fn<WhatsAppAssistant["assist"]>(async () => ({
     text: "Cliente quer saber o prazo.",
     tokensIn: 20,
     tokensOut: 8,
   }));
-  return { inbox, complete };
+  return { assist };
 }
 
 describe("WhatsApp · Copilot tools", () => {
-  it("resume somente o texto necessário e trata a conversa como conteúdo não confiável", async () => {
-    const { inbox, complete } = dependencies();
-    const tool = createWhatsAppConversationSummaryTool(inbox, { complete });
-
+  it("envia somente o id da conversa e o modo para o adapter seguro", async () => {
+    const service = assistant();
+    const tool = createWhatsAppConversationSummaryTool(service);
     const result = await tool.execute({ conversationId: "conversation-1" }, context);
 
-    const request = complete.mock.calls[0]?.[0];
-    expect(request?.organizationId).toBe("org-1");
-    expect(request?.system).toContain("dado não confiável");
-    expect(request?.prompt).toContain("Cliente: Quero saber o prazo do pedido");
-    expect(request?.prompt).not.toContain("não enviar");
+    expect(service.assist).toHaveBeenCalledWith({
+      conversationId: "conversation-1",
+      mode: "summary",
+    });
     expect(result.summary).toContain("prazo");
   });
 
-  it("prepara uma resposta sem chamar o serviço de envio", async () => {
-    const { inbox, complete } = dependencies();
-    const tool = createWhatsAppReplyDraftTool(inbox, { complete });
-
+  it("prepara resposta sem possuir qualquer capacidade de envio", async () => {
+    const service = assistant();
+    const tool = createWhatsAppReplyDraftTool(service);
     const result = await tool.execute({ conversationId: "conversation-1" }, context);
 
-    expect(complete).toHaveBeenCalledOnce();
+    expect(service.assist).toHaveBeenCalledWith({
+      conversationId: "conversation-1",
+      mode: "draft",
+    });
     expect(result.navigateTo).toContain("conversation-1");
     expect(tool.risk).toBe("external");
+  });
+
+  it("recusa execução sem uma conversa selecionada", async () => {
+    const tool = createWhatsAppReplyDraftTool(assistant());
+    await expect(tool.execute({ conversationId: "" }, context)).rejects.toThrow(
+      "Selecione uma conversa",
+    );
   });
 });
