@@ -28,6 +28,8 @@ export type AuthSession = {
   permissions: string[];
   /** Módulos habilitados na organização ativa (feature flags). */
   enabledModules: string[];
+  /** Há um fator verificado e esta sessão ainda precisa concluir o segundo passo. */
+  mfaRequired: boolean;
 };
 
 export const fetchSession = createServerFn({ method: "GET" }).handler(
@@ -38,6 +40,9 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return null;
+
+    const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const mfaRequired = assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2";
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -117,6 +122,7 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
       activeOrganization,
       permissions,
       enabledModules,
+      mfaRequired,
     };
   },
 );

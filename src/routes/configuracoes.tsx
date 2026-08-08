@@ -15,6 +15,8 @@ import {
   LockKeyhole,
   Trash2,
   Webhook,
+  ShieldCheck,
+  LogOut,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
 import { plans, defaultPlanId, type PlanId } from "@/config/plans";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   updateProfileSchema,
   updateWorkspaceSchema,
@@ -288,21 +291,73 @@ function NotificationsSection({ org }: { org: string }) {
 
 function SecuritySection({ email }: { email: string }) {
   const [sending, setSending] = useState(false);
+  const [factor, setFactor] = useState<{ id: string; status: string } | null>(null);
+  const [enrollment, setEnrollment] = useState<{ id: string; qr: string; secret: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
+  useEffect(() => {
+    getSupabaseBrowserClient().auth.mfa.listFactors().then(({ data }) => {
+      const current = data?.totp?.find((item) => item.status === "verified") ?? data?.totp?.[0];
+      setFactor(current ? { id: current.id, status: current.status } : null);
+    });
+  }, []);
   const reset = async () => {
     setSending(true);
     try { await requestPasswordReset(email); toast.success("Enviamos as instruções para seu e-mail."); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível enviar."); }
     finally { setSending(false); }
   };
+  const startMfa = async () => {
+    setMfaBusy(true);
+    try {
+      const { data, error } = await getSupabaseBrowserClient().auth.mfa.enroll({ factorType: "totp", friendlyName: "ConnectWeb" });
+      if (error) throw error;
+      setEnrollment({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível iniciar o 2FA."); }
+    finally { setMfaBusy(false); }
+  };
+  const verifyMfa = async () => {
+    if (!enrollment || code.trim().length !== 6) return;
+    setMfaBusy(true);
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.mfa.challengeAndVerify({ factorId: enrollment.id, code: code.trim() });
+      if (error) throw error;
+      setFactor({ id: enrollment.id, status: "verified" });
+      setEnrollment(null);
+      setCode("");
+      toast.success("Autenticação em dois fatores ativada.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Código inválido."); }
+    finally { setMfaBusy(false); }
+  };
+  const disableMfa = async () => {
+    if (!factor) return;
+    setMfaBusy(true);
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.mfa.unenroll({ factorId: factor.id });
+      if (error) throw error;
+      setFactor(null);
+      toast.success("Autenticação em dois fatores desativada.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível desativar o 2FA."); }
+    finally { setMfaBusy(false); }
+  };
+  const closeOtherSessions = async () => {
+    const { error } = await getSupabaseBrowserClient().auth.signOut({ scope: "others" });
+    if (error) toast.error(error.message); else toast.success("Outras sessões foram encerradas.");
+  };
   return (
+    <div className="space-y-4">
     <SectionCard title="Segurança" description="Acesso à sua conta">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Alterar senha</p><p className="text-xs text-muted-foreground">Receba um link seguro em {email}.</p></div></div>
         <Button variant="outline" onClick={reset} disabled={sending}>{sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar link</Button>
       </div>
-      <Separator className="my-5" />
-      <p className="text-xs text-muted-foreground">Autenticação em dois fatores e gestão de sessões ainda não estão habilitadas.</p>
     </SectionCard>
+    <SectionCard title="Autenticação em dois fatores" description="Proteja a conta com um aplicativo autenticador">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">Aplicativo autenticador</p><Badge variant={factor?.status === "verified" ? "default" : "secondary"}>{factor?.status === "verified" ? "Ativo" : "Desativado"}</Badge></div><p className="text-xs text-muted-foreground">Use Google Authenticator, Microsoft Authenticator ou similar.</p></div></div>{factor?.status === "verified" ? <Button variant="outline" disabled={mfaBusy} onClick={disableMfa}>Desativar</Button> : <Button variant="outline" disabled={mfaBusy || Boolean(enrollment)} onClick={startMfa}>Ativar 2FA</Button>}</div>
+      {enrollment && <div className="mt-5 rounded-xl border border-border p-4"><div className="grid gap-4 sm:grid-cols-[180px_1fr]"><img src={enrollment.qr} alt="QR code para configurar autenticação em dois fatores" className="h-44 w-44 rounded-lg bg-white p-2" /><div><p className="text-sm font-medium">1. Escaneie o QR code</p><p className="mt-1 text-xs text-muted-foreground">Se preferir, use a chave: <span className="break-all font-mono text-foreground">{enrollment.secret}</span></p><Label className="mt-4 block">2. Digite o código de 6 números</Label><div className="mt-1.5 flex gap-2"><Input inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className="max-w-44" /><Button onClick={verifyMfa} disabled={mfaBusy || code.length !== 6}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></div></div></div></div>}
+    </SectionCard>
+    <SectionCard title="Sessões" description="Controle onde sua conta permanece conectada"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><LogOut className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Encerrar outras sessões</p><p className="text-xs text-muted-foreground">Mantém somente este navegador conectado.</p></div></div><Button variant="outline" onClick={closeOtherSessions}>Encerrar outras</Button></div></SectionCard>
+    </div>
   );
 }
 

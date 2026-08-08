@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { fetchSession, SessionProvider, type AuthSession } from "@/core/auth";
 
 const PUBLIC_PATHS = ["/login", "/cadastro", "/recuperar-senha"];
+const MFA_PATH = "/verificar-2fa";
 
 function NotFoundComponent() {
   return (
@@ -94,6 +95,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const isPublic = PUBLIC_PATHS.includes(location.pathname);
     if (!session && !isPublic) {
       throw redirect({ to: "/login" });
+    }
+    if (session?.mfaRequired && location.pathname !== MFA_PATH) {
+      throw redirect({ to: MFA_PATH });
+    }
+    if (session && !session.mfaRequired && location.pathname === MFA_PATH) {
+      throw redirect({ to: "/" });
     }
     if (session && isPublic) {
       throw redirect({ to: "/" });

@@ -17,6 +17,7 @@ const session: AuthSession = {
   },
   permissions: [PERMISSIONS.CRM_READ, PERMISSIONS.CLIENTES_WRITE],
   enabledModules: ["*"],
+  mfaRequired: false,
 };
 
 describe("Core · RBAC · can()", () => {

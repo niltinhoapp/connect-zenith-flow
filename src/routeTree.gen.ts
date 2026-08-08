@@ -19,6 +19,7 @@ import { Route as IaRouteImport } from './routes/ia'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as Verificar2faRouteImport } from './routes/verificar-2fa'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as AutomacoesBuilderRouteImport } from './routes/automacoes_.builder'
 import { Route as ClientesIdRouteImport } from './routes/clientes.$id'
@@ -75,6 +76,11 @@ const RelatoriosRoute = RelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Verificar2faRoute = Verificar2faRouteImport.update({
+  id: '/verificar-2fa',
+  path: '/verificar-2fa',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/verificar-2fa': typeof Verificar2faRoute
   '/whatsapp': typeof WhatsappRoute
   '/automacoes/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/verificar-2fa': typeof Verificar2faRoute
   '/whatsapp': typeof WhatsappRoute
   '/automacoes/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/verificar-2fa': typeof Verificar2faRoute
   '/whatsapp': typeof WhatsappRoute
   '/automacoes_/builder': typeof AutomacoesBuilderRoute
   '/clientes/$id': typeof ClientesIdRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/relatorios'
+    | '/verificar-2fa'
     | '/whatsapp'
     | '/automacoes/builder'
     | '/clientes/$id'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/relatorios'
+    | '/verificar-2fa'
     | '/whatsapp'
     | '/automacoes/builder'
     | '/clientes/$id'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/relatorios'
+    | '/verificar-2fa'
     | '/whatsapp'
     | '/automacoes_/builder'
     | '/clientes/$id'
@@ -218,6 +230,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  Verificar2faRoute: typeof Verificar2faRoute
   WhatsappRoute: typeof WhatsappRoute
   AutomacoesBuilderRoute: typeof AutomacoesBuilderRoute
   WhatsappTemplatesRoute: typeof WhatsappTemplatesRoute
@@ -295,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verificar-2fa': {
+      id: '/verificar-2fa'
+      path: '/verificar-2fa'
+      fullPath: '/verificar-2fa'
+      preLoaderRoute: typeof Verificar2faRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/whatsapp': {
       id: '/whatsapp'
       path: '/whatsapp'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RelatoriosRoute: RelatoriosRoute,
+  Verificar2faRoute: Verificar2faRoute,
   WhatsappRoute: WhatsappRoute,
   AutomacoesBuilderRoute: AutomacoesBuilderRoute,
   WhatsappTemplatesRoute: WhatsappTemplatesRoute,
