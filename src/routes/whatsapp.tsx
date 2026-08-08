@@ -89,6 +89,7 @@ import {
   ConversationInsightFilters,
   EMPTY_INSIGHT_FILTER,
   insightMatchesFilter,
+  isAwaitingReply,
   isPriorityConversation,
   priorityScore,
   type ConversationInsight,
@@ -173,7 +174,8 @@ function WhatsAppPage() {
     const list = conversations.filter((c) => {
       const insight = insightsMap[c.id];
       if (!insightMatchesFilter(insight, insightFilter)) return false;
-      if (insightFilter.priorityOnly && !isPriorityConversation(insight, c.unreadCount > 0)) {
+      const awaitingReply = isAwaitingReply(c.lastInboundAt, c.lastOutboundAt);
+      if (insightFilter.priorityOnly && !isPriorityConversation(insight, awaitingReply)) {
         return false;
       }
       return true;
@@ -181,8 +183,8 @@ function WhatsAppPage() {
     if (!insightFilter.priorityOnly) return list;
     return [...list].sort(
       (a, b) =>
-        priorityScore(insightsMap[b.id], b.unreadCount > 0) -
-        priorityScore(insightsMap[a.id], a.unreadCount > 0),
+        priorityScore(insightsMap[b.id], isAwaitingReply(b.lastInboundAt, b.lastOutboundAt)) -
+        priorityScore(insightsMap[a.id], isAwaitingReply(a.lastInboundAt, a.lastOutboundAt)),
     );
   }, [conversations, insightsMap, insightFilter]);
 

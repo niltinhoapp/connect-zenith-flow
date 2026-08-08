@@ -25,6 +25,7 @@ export function rowToConversation(row: Row): Conversation {
     lastMessageAt: row.last_message_at,
     lastMessagePreview: row.last_message_preview,
     lastInboundAt: row.last_inbound_at,
+    lastOutboundAt: row.last_outbound_at,
     windowExpiresAt: row.window_expires_at,
     tags: row.tags ?? [],
     createdAt: row.created_at,

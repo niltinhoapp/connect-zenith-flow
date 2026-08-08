@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConversations, useConversationInsights } from "@/features/whatsapp/hooks/use-inbox";
 import { ConversationInsightBadges } from "./conversation-insight-badges";
-import { isPriorityConversation, priorityScore } from "./priority";
+import { isAwaitingReply, isPriorityConversation, priorityScore } from "./priority";
 
 function initials(name: string | null, fallback: string): string {
   const src = name?.trim() || fallback;
@@ -38,11 +38,13 @@ export function PriorityQueueCard({ limit = 5 }: { limit?: number }) {
   const loading = conversationsQuery.isLoading || insightsQuery.isLoading;
 
   const priority = conversations
-    .filter((c) => isPriorityConversation(insightsMap[c.id], c.unreadCount > 0))
+    .filter((c) =>
+      isPriorityConversation(insightsMap[c.id], isAwaitingReply(c.lastInboundAt, c.lastOutboundAt)),
+    )
     .sort(
       (a, b) =>
-        priorityScore(insightsMap[b.id], b.unreadCount > 0) -
-        priorityScore(insightsMap[a.id], a.unreadCount > 0),
+        priorityScore(insightsMap[b.id], isAwaitingReply(b.lastInboundAt, b.lastOutboundAt)) -
+        priorityScore(insightsMap[a.id], isAwaitingReply(a.lastInboundAt, a.lastOutboundAt)),
     )
     .slice(0, limit);
 
