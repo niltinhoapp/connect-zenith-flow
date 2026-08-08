@@ -20,6 +20,7 @@ import {
   Lightbulb,
   Lock,
   Info,
+  MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,7 @@ export function ConversationInsights({
   state,
   onRefresh,
   onUseSuggestion,
+  errorMessage,
   defaultOpen,
   className,
 }: ConversationInsightsProps) {
@@ -131,6 +133,7 @@ export function ConversationInsights({
           (() => {
             const meta = STATE_MESSAGE[state];
             const Icon = meta.icon;
+            const hint = state === "error" && errorMessage ? errorMessage : meta.hint;
             const canRetry = (state === "empty" || state === "error") && Boolean(onRefresh);
             return (
               <div className="space-y-2 py-1">
@@ -138,7 +141,7 @@ export function ConversationInsights({
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div>
                     <p className="text-sm font-medium">{meta.title}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{meta.hint}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
                   </div>
                 </div>
                 {canRetry && (
@@ -188,31 +191,44 @@ export function ConversationInsights({
             {/* Resumo curto */}
             <p className="text-sm text-foreground">{insight.summary}</p>
 
-            {/* Próxima ação recomendada — em destaque */}
+            {/* Próxima melhor ação — orientação ao atendente */}
             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
               <p className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                 <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
-                Recomendação
+                Próxima ação recomendada
               </p>
               <p className="mt-1 text-sm text-foreground">{insight.nextBestAction}</p>
-              {onUseSuggestion && (
-                <div className="mt-2">
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1.5 text-xs"
-                    onClick={() => onUseSuggestion(insight.nextBestAction)}
-                    aria-label="Usar sugestão: preencher o campo de resposta"
-                  >
-                    <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
-                    Usar sugestão
-                  </Button>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Preenche o campo de resposta. Você revisa antes de enviar — nada é enviado
-                    automaticamente.
-                  </p>
-                </div>
-              )}
             </div>
+
+            {/* Resposta sugerida — pronta para inserir no campo (nunca envia) */}
+            {insight.suggestedReply && insight.suggestedReply.trim().length > 0 && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <MessageSquareText className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                  Resposta sugerida
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+                  {insight.suggestedReply}
+                </p>
+                {onUseSuggestion && (
+                  <div className="mt-2">
+                    <Button
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => onUseSuggestion(insight.suggestedReply!)}
+                      aria-label="Usar resposta sugerida: preencher o campo de mensagem"
+                    >
+                      <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
+                      Usar resposta
+                    </Button>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Preenche o campo de mensagem. Você revisa antes de enviar — nada é enviado
+                      automaticamente.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Por que a IA sugeriu isso */}
             {insight.reasons.length > 0 && (

@@ -43,6 +43,9 @@ import {
   useSendTemplate,
   useAssignConversation,
   useMarkConversationRead,
+  useConversationInsight,
+  useConversationInsights,
+  useAnalyzeConversation,
 } from "@/features/whatsapp/hooks/use-inbox";
 import {
   useSetConversationStatus,
@@ -72,8 +75,14 @@ import {
 import {
   ConversationInsights,
   ConversationInsightBadges,
+  ConversationInsightFilters,
+  EMPTY_INSIGHT_FILTER,
+  insightMatchesFilter,
+  isPriorityConversation,
+  priorityScore,
   type ConversationInsight,
   type ConversationInsightsState,
+  type InsightFilter,
 } from "@/features/whatsapp/components/insights";
 import { can, PERMISSIONS } from "@/core/permissions";
 
@@ -117,12 +126,16 @@ function isWithinWindow(windowExpiresAt: string | null): boolean {
 // ── Página ───────────────────────────────────────────────────────────────────
 type StatusFilter = "open" | "pending" | "closed" | null;
 
+const EMPTY_INSIGHTS: Record<string, ConversationInsight> = {};
+
 function WhatsAppPage() {
   const { conversation: convParam } = Route.useSearch();
+  const session = useSession();
   const setCopilotFocus = useSetCopilotFocus();
   const [selectedId, setSelectedId] = useState<string | null>(convParam ?? null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  const [insightFilter, setInsightFilter] = useState<InsightFilter>(EMPTY_INSIGHT_FILTER);
 
   // Deep-link: abrir uma conversa via ?conversation=<id> (ex.: vindo do painel IA).
   useEffect(() => { if (convParam) setSelectedId(convParam); }, [convParam]);
@@ -137,6 +150,30 @@ function WhatsAppPage() {
     [conversationsQuery.data],
   );
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
+
+  // Insights por conversa (badges + filtros + fila priorizada). Só consulta com
+  // o módulo de IA ativo — caso contrário a lista fica inalterada.
+  const iaEnabled = (session?.enabledModules ?? []).includes("ia");
+  const conversationIds = useMemo(() => conversations.map((c) => c.id), [conversations]);
+  const insightsQuery = useConversationInsights(iaEnabled ? conversationIds : []);
+  const insightsMap = insightsQuery.data ?? EMPTY_INSIGHTS;
+
+  const visibleConversations = useMemo(() => {
+    const list = conversations.filter((c) => {
+      const insight = insightsMap[c.id];
+      if (!insightMatchesFilter(insight, insightFilter)) return false;
+      if (insightFilter.priorityOnly && !isPriorityConversation(insight, c.unreadCount > 0)) {
+        return false;
+      }
+      return true;
+    });
+    if (!insightFilter.priorityOnly) return list;
+    return [...list].sort(
+      (a, b) =>
+        priorityScore(insightsMap[b.id], b.unreadCount > 0) -
+        priorityScore(insightsMap[a.id], a.unreadCount > 0),
+    );
+  }, [conversations, insightsMap, insightFilter]);
 
   // Publica o foco (conversa selecionada) para o Copiloto global. Só o ID vai
   // adiante — o resto é resolvido server-side.
@@ -153,7 +190,7 @@ function WhatsAppPage() {
     <AppLayout>
       <div className="grid h-[calc(100vh-8rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-[320px_1fr_300px]">
         <ConversationList
-          conversations={conversations}
+          conversations={visibleConversations}
           selectedId={selectedId}
           onSelect={setSelectedId}
           loading={conversationsQuery.isLoading}
@@ -162,6 +199,10 @@ function WhatsAppPage() {
           onSearch={setSearch}
           statusFilter={statusFilter}
           onStatusFilter={setStatusFilter}
+          iaEnabled={iaEnabled}
+          insightsMap={insightsMap}
+          insightFilter={insightFilter}
+          onInsightFilter={setInsightFilter}
         />
         {selected ? (
           <ConversationView key={selected.id} conversation={selected} />
@@ -185,9 +226,17 @@ function ConversationList(props: {
   onSearch: (v: string) => void;
   statusFilter: StatusFilter;
   onStatusFilter: (v: StatusFilter) => void;
+  iaEnabled: boolean;
+  insightsMap: Record<string, ConversationInsight>;
+  insightFilter: InsightFilter;
+  onInsightFilter: (filter: InsightFilter) => void;
 }) {
   const { conversations, selectedId, onSelect, loading, openCount, search, onSearch } = props;
   const { statusFilter, onStatusFilter } = props;
+  const { iaEnabled, insightsMap, insightFilter, onInsightFilter } = props;
+  const insightFilterActive =
+    insightFilter.priorityOnly ||
+    Boolean(insightFilter.intent || insightFilter.temperature || insightFilter.urgency);
   const filters: { value: StatusFilter; label: string }[] = [
     { value: null, label: "Todas" },
     { value: "open", label: "Abertas" },
@@ -237,6 +286,9 @@ function ConversationList(props: {
             </button>
           ))}
         </div>
+        {iaEnabled && (
+          <ConversationInsightFilters value={insightFilter} onChange={onInsightFilter} />
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading && (
@@ -246,7 +298,9 @@ function ConversationList(props: {
         )}
         {!loading && conversations.length === 0 && (
           <p className="px-4 py-10 text-center text-xs text-muted-foreground">
-            Nenhuma conversa ainda. Elas aparecem aqui quando um contato envia uma mensagem.
+            {insightFilterActive
+              ? "Nenhuma conversa com esses filtros. Ajuste ou limpe os filtros da IA."
+              : "Nenhuma conversa ainda. Elas aparecem aqui quando um contato envia uma mensagem."}
           </p>
         )}
         {conversations.map((c) => (
@@ -266,8 +320,7 @@ function ConversationList(props: {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="min-w-0 flex-1 truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
-                {/* Etiquetas de IA por conversa: o Codex fornecerá o insight; null = sem etiqueta. */}
-                <ConversationInsightBadges insight={null} />
+                <ConversationInsightBadges insight={insightsMap[c.id] ?? null} />
                 <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                   {hhmm(c.lastMessageAt)}
                 </span>
@@ -312,13 +365,25 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     return () => registerDraftSink(null);
   }, [registerDraftSink]);
 
-  // Insight da IA: estado derivado da sessão, sem dados falsos. Quando o backend
-  // do Codex estiver pronto, troque `insight`/`insightState` pela query real
-  // (loading/ready/error) — os callbacks e a UI já estão prontos.
+  // Insight da IA da conversa aberta (dados reais do Codex via hooks).
   const iaEnabled = (session?.enabledModules ?? []).includes("ia");
   const iaAllowed = can(session, PERMISSIONS.IA_USE);
-  const insight: ConversationInsight | null = null;
-  const insightState: ConversationInsightsState = iaAllowed ? "empty" : "forbidden";
+  const insightQuery = useConversationInsight(iaEnabled ? conversation.id : null);
+  const analyze = useAnalyzeConversation();
+  const insight: ConversationInsight | null = insightQuery.data ?? null;
+  const analyzeError =
+    analyze.isError && analyze.error instanceof Error ? analyze.error.message : undefined;
+  const insightState: ConversationInsightsState = !iaEnabled
+    ? "unavailable"
+    : analyze.isPending || insightQuery.isLoading
+      ? "loading"
+      : analyze.isError || insightQuery.isError
+        ? "error"
+        : insight
+          ? "ready"
+          : iaAllowed
+            ? "empty"
+            : "forbidden";
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
@@ -517,6 +582,8 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
           <ConversationInsights
             insight={insight}
             state={insightState}
+            errorMessage={analyzeError}
+            onRefresh={iaAllowed ? () => analyze.mutate(conversation.id) : undefined}
             onUseSuggestion={(text) => setDraft(text)}
           />
         </div>
