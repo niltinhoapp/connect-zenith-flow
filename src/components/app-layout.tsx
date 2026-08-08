@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { CopilotLauncher } from "@/components/copilot/copilot-launcher";
 
 /**
  * AppLayout — the authenticated workspace shell.
@@ -50,6 +51,9 @@ export function AppLayout({
 
         <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
       </div>
+
+      {/* Copiloto global: botão flutuante "Ajuda + IA" (onboarding, ajuda e ações). */}
+      <CopilotLauncher />
     </div>
   );
 }
