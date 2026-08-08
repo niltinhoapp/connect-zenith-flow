@@ -7,6 +7,7 @@ export {
   activeDimensionCount,
   hasAnyFilter,
   insightMatchesFilter,
+  isAwaitingReply,
   isPriorityConversation,
   priorityScore,
   type InsightFilter,
