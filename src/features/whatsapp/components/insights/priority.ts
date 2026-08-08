@@ -43,23 +43,6 @@ export function insightMatchesFilter(
   return true;
 }
 
-/**
- * "Sem resposta" com sinal real: existe uma mensagem recebida do cliente que
- * ainda não teve resposta nossa depois dela. Substitui o proxy antigo de
- * não-lidas (`unreadCount > 0`). Usa os timestamps da conversa:
- *  - sem entrada do cliente → não está aguardando;
- *  - entrou e nunca saiu nada → aguardando;
- *  - a última entrada é mais recente que a última saída → aguardando.
- */
-export function isAwaitingReply(
-  lastInboundAt: string | null,
-  lastOutboundAt: string | null,
-): boolean {
-  if (!lastInboundAt) return false;
-  if (!lastOutboundAt) return true;
-  return new Date(lastInboundAt).getTime() > new Date(lastOutboundAt).getTime();
-}
-
 /** Uma conversa é prioritária quando está sem resposta e quente OU urgente. */
 export function isPriorityConversation(
   insight: ConversationInsight | undefined,
