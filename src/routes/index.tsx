@@ -31,6 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
+import { useSession } from "@/core/auth";
+import { PriorityQueueCard } from "@/features/whatsapp/components/insights";
 import { formatBRLCompact as fmtBRL, formatInt as fmtInt, relativeTime as relTime } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
@@ -61,6 +63,9 @@ function activityColor(eventType: string): string {
 function DashboardPage() {
   const { data: m, isLoading, isError, refetch } = useDashboard();
   const dash = (value: string) => (isLoading ? "—" : value);
+  const session = useSession();
+  const modules = session?.enabledModules ?? [];
+  const cockpitEnabled = modules.includes("whatsapp") && modules.includes("ia");
 
   const revenueData = (m?.revenueSeries ?? []).map((p) => ({
     d: weekdayPt(p.date),
@@ -105,6 +110,12 @@ function DashboardPage() {
         <KpiCard label="Leads (30d)" value={dash(fmtInt(m?.leadsPeriod ?? 0))} icon={<MessageCircle className="h-4 w-4" />} />
         <KpiCard label="Negócios em aberto" value={dash(fmtInt(m?.openDeals ?? 0))} icon={<Workflow className="h-4 w-4" />} />
       </div>
+
+      {cockpitEnabled && (
+        <div className="mt-6">
+          <PriorityQueueCard />
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <SectionCard
