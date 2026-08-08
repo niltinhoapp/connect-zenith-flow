@@ -30,11 +30,13 @@ const PLAN_POINTS = [
 ];
 
 export interface PlanShowcaseProps {
+  plan?: { name: string; priceCents: number };
+  packages?: IaPackage[];
   /** Ponto de integração do Codex: liga a compra real do pacote. */
   onPurchasePackage?: (pkg: IaPackage) => void;
 }
 
-export function PlanShowcase({ onPurchasePackage }: PlanShowcaseProps) {
+export function PlanShowcase({ plan = CONNECTWEB_PLAN, packages = IA_PACKAGES, onPurchasePackage }: PlanShowcaseProps) {
   const [pending, setPending] = useState<IaPackage | null>(null);
 
   const buy = (pkg: IaPackage) => {
@@ -48,10 +50,10 @@ export function PlanShowcase({ onPurchasePackage }: PlanShowcaseProps) {
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-0 bg-primary/15 text-primary">{CONNECTWEB_PLAN.name}</Badge>
+              <Badge className="border-0 bg-primary/15 text-primary">{plan.name}</Badge>
               <span className="text-sm text-muted-foreground">
                 <span className="text-base font-semibold text-foreground">
-                  {formatBRL(CONNECTWEB_PLAN.priceCents)}
+                  {formatBRL(plan.priceCents)}
                 </span>
                 /mês
               </span>
@@ -82,7 +84,7 @@ export function PlanShowcase({ onPurchasePackage }: PlanShowcaseProps) {
         description="A franquia mensal é renovada todo mês. Precisa de mais? Some créditos avulsos."
       >
         <div className="grid gap-3 sm:grid-cols-3">
-          {IA_PACKAGES.map((pkg) => (
+          {packages.map((pkg) => (
             <div
               key={pkg.id}
               className={cn(

@@ -9,10 +9,11 @@ export type AlertLevel = "ok" | "warn70" | "warn90" | "over100";
 /** Nível de alerta da franquia de IA a partir do percentual de uso. */
 export function aiAlertLevel(used: number, limit: number): { pct: number; level: AlertLevel } {
   if (limit <= 0) return { pct: 0, level: "ok" };
-  const pct = Math.round((used / limit) * 100);
-  if (pct >= 100) return { pct, level: "over100" };
-  if (pct >= 90) return { pct, level: "warn90" };
-  if (pct >= 70) return { pct, level: "warn70" };
+  const exactPct = (used / limit) * 100;
+  const pct = Math.round(exactPct);
+  if (exactPct >= 100) return { pct, level: "over100" };
+  if (exactPct >= 90) return { pct, level: "warn90" };
+  if (exactPct >= 70) return { pct, level: "warn70" };
   return { pct, level: "ok" };
 }
 

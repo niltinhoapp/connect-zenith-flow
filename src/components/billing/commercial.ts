@@ -1,12 +1,11 @@
 /**
  * Catálogo comercial aprovado (frente Claude — apresentação visual).
  *
- * Não substitui o contrato de cobrança do Codex (config/plans.ts / Stripe):
- * são apenas os valores aprovados para APRESENTAÇÃO. A compra real será ligada
- * pelo Codex através do seam tipado `onPurchasePackage`.
+ * Espelho visual do catálogo persistido. IDs coincidem com billing_products;
+ * o backend continua sendo a fonte de verdade para preço e créditos.
  */
 export interface IaPackage {
-  id: "advantage" | "turbo" | "ultra";
+  id: "ai_advantage" | "ai_turbo" | "ai_ultra";
   name: string;
   /** Créditos de IA adicionais (nunca falar em "tokens"). */
   credits: number;
@@ -21,9 +20,9 @@ export const CONNECTWEB_PLAN = {
 } as const;
 
 export const IA_PACKAGES: IaPackage[] = [
-  { id: "advantage", name: "IA Advantage", credits: 1_000_000, priceCents: 5_990 },
-  { id: "turbo", name: "IA Turbo", credits: 3_000_000, priceCents: 14_990, highlight: true },
-  { id: "ultra", name: "IA Ultra", credits: 10_000_000, priceCents: 39_990 },
+  { id: "ai_advantage", name: "IA Advantage", credits: 1_000_000, priceCents: 5_990 },
+  { id: "ai_turbo", name: "IA Turbo", credits: 3_000_000, priceCents: 14_990, highlight: true },
+  { id: "ai_ultra", name: "IA Ultra", credits: 10_000_000, priceCents: 39_990 },
 ];
 
 export function formatBRL(cents: number): string {

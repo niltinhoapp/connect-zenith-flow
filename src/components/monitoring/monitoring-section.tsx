@@ -102,7 +102,11 @@ export function MonitoringSection() {
   const wa = whatsappGuidance(health.whatsapp.status);
   const ai = health.ai;
   const alert = ai ? aiAlertLevel(ai.used, ai.limit) : null;
-  const alertMsg = alert ? aiAlertMessage(alert.level) : null;
+  const includedExhausted = alert?.level === "over100";
+  const hasExtraCredits = (ai?.extraCredits ?? 0) > 0;
+  const alertMsg = includedExhausted && hasExtraCredits
+    ? "A franquia mensal acabou. Os recursos de IA continuam usando seu saldo adicional."
+    : alert ? aiAlertMessage(alert.level) : null;
 
   return (
     <SectionCard
@@ -172,7 +176,7 @@ export function MonitoringSection() {
                 {ai.extraCredits === null ? "sem dados" : ai.extraCredits.toLocaleString("pt-BR")}
               </p>
               {alertMsg && (
-                <ResolveHint tone={alert?.level === "over100" ? "danger" : "warn"}>{alertMsg}</ResolveHint>
+                <ResolveHint tone={includedExhausted && !hasExtraCredits ? "danger" : "warn"}>{alertMsg}</ResolveHint>
               )}
             </>
           ) : (
