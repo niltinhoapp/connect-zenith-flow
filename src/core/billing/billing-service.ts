@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/types/database";
 import { InfrastructureError } from "@/core/errors";
-import type { BillingOverview } from "./types";
+import type { BillingCheckoutResult, BillingCustomerInput, BillingOverview } from "./types";
 
 const productSchema = z.object({
   id: z.string(),
@@ -36,6 +36,13 @@ const overviewSchema = z.object({
   meta_fees_included: z.literal(false),
 });
 
+const checkoutSchema = z.object({
+  purchaseId: z.string().uuid(),
+  paymentId: z.string().min(1),
+  url: z.string().url(),
+  environment: z.enum(["sandbox", "production"]),
+});
+
 export class BillingService {
   constructor(
     private readonly db: SupabaseClient<Database>,
@@ -51,14 +58,16 @@ export class BillingService {
     }
     const value = parsed.data;
     return {
-      subscription: value.subscription ? {
-        id: value.subscription.id,
-        productId: value.subscription.product_id,
-        status: value.subscription.status,
-        currentPeriodStart: value.subscription.current_period_start,
-        currentPeriodEnd: value.subscription.current_period_end,
-        cancelAtPeriodEnd: value.subscription.cancel_at_period_end,
-      } : null,
+      subscription: value.subscription
+        ? {
+            id: value.subscription.id,
+            productId: value.subscription.product_id,
+            status: value.subscription.status,
+            currentPeriodStart: value.subscription.current_period_start,
+            currentPeriodEnd: value.subscription.current_period_end,
+            cancelAtPeriodEnd: value.subscription.cancel_at_period_end,
+          }
+        : null,
       products: value.products.map((product) => ({
         id: product.id,
         kind: product.kind,
@@ -79,7 +88,10 @@ export class BillingService {
     };
   }
 
-  async requestAiAddon(productId: string, idempotencyKey: string = crypto.randomUUID()): Promise<string> {
+  async requestAiAddon(
+    productId: string,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<string> {
     const { data, error } = await this.db.rpc("request_ai_addon_purchase", {
       p_org: this.organizationId,
       p_product: productId,
@@ -87,5 +99,25 @@ export class BillingService {
     });
     if (error) throw new InfrastructureError(error.message, { cause: error });
     return data;
+  }
+
+  async createAiAddonCheckout(
+    productId: string,
+    customer: BillingCustomerInput,
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<BillingCheckoutResult> {
+    const { data, error } = await this.db.functions.invoke("asaas-checkout", {
+      body: { organizationId: this.organizationId, productId, idempotencyKey, customer },
+    });
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    const parsed = checkoutSchema.safeParse(data);
+    if (!parsed.success) {
+      const providerMessage =
+        data && typeof data === "object" && "error" in data
+          ? String(data.error)
+          : "Resposta do checkout inválida";
+      throw new InfrastructureError(providerMessage, { cause: parsed.error });
+    }
+    return parsed.data;
   }
 }

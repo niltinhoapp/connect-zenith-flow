@@ -39,3 +39,11 @@ verify_jwt = true
 # API Pública: autenticação própria por chave `cw_live_*` (hash no banco).
 [functions.public-api]
 verify_jwt = false
+
+# Checkout autentica o usuário e a permissão internamente; false permite o
+# preflight OPTIONS do navegador. O webhook usa o token próprio do Asaas.
+[functions.asaas-checkout]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false

@@ -3,6 +3,7 @@ import { useSession } from "@/core/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { mutationDefaults } from "@/lib/query";
 import { BillingService } from "./billing-service";
+import type { BillingCustomerInput } from "./types";
 
 export const billingKey = (organizationId: string) => ["billing", organizationId] as const;
 
@@ -23,7 +24,38 @@ export function useRequestAiAddon() {
   return useMutation({
     ...mutationDefaults,
     mutationFn: ({ productId, idempotencyKey }: { productId: string; idempotencyKey?: string }) =>
-      new BillingService(getSupabaseBrowserClient(), organizationId!).requestAiAddon(productId, idempotencyKey),
+      new BillingService(getSupabaseBrowserClient(), organizationId!).requestAiAddon(
+        productId,
+        idempotencyKey,
+      ),
+    onSuccess: () => {
+      if (organizationId) queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
+    },
+  });
+}
+
+export function useCreateAiAddonCheckout() {
+  const session = useSession();
+  const organizationId = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: ({
+      productId,
+      customer,
+      idempotencyKey,
+    }: {
+      productId: string;
+      customer: BillingCustomerInput;
+      idempotencyKey?: string;
+    }) => {
+      if (!organizationId) throw new Error("Selecione uma empresa antes de comprar créditos.");
+      return new BillingService(getSupabaseBrowserClient(), organizationId).createAiAddonCheckout(
+        productId,
+        customer,
+        idempotencyKey,
+      );
+    },
     onSuccess: () => {
       if (organizationId) queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
     },

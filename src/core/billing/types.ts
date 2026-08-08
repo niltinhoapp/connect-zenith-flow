@@ -1,7 +1,6 @@
 export type BillingProductKind = "subscription" | "ai_addon";
 export type SubscriptionStatus =
-  | "incomplete" | "trialing" | "active" | "past_due"
-  | "unpaid" | "paused" | "canceled";
+  "incomplete" | "trialing" | "active" | "past_due" | "unpaid" | "paused" | "canceled";
 
 export interface BillingProductView {
   id: string;
@@ -35,4 +34,18 @@ export interface BillingOverview {
   products: BillingProductView[];
   ai: AiCreditOverview;
   metaFeesIncluded: false;
+}
+
+export interface BillingCustomerInput {
+  legalName: string;
+  email: string;
+  taxId: string;
+  phone?: string;
+}
+
+export interface BillingCheckoutResult {
+  purchaseId: string;
+  paymentId: string;
+  url: string;
+  environment: "sandbox" | "production";
 }
