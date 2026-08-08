@@ -1,0 +1,91 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import type { Database } from "@/types/database";
+import { InfrastructureError } from "@/core/errors";
+import type { BillingOverview } from "./types";
+
+const productSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["subscription", "ai_addon"]),
+  name: z.string(),
+  description: z.string(),
+  price_cents: z.number().int().nonnegative(),
+  currency: z.literal("BRL"),
+  billing_interval: z.literal("month").nullable(),
+  ai_credits: z.number().int().nonnegative(),
+  position: z.number().int(),
+});
+
+const subscriptionSchema = z.object({
+  id: z.string(),
+  product_id: z.string(),
+  status: z.enum(["incomplete", "trialing", "active", "past_due", "unpaid", "paused", "canceled"]),
+  current_period_start: z.string().nullable(),
+  current_period_end: z.string().nullable(),
+  cancel_at_period_end: z.boolean(),
+});
+
+const overviewSchema = z.object({
+  subscription: subscriptionSchema.nullable(),
+  products: z.array(productSchema),
+  ai: z.object({
+    monthly_limit: z.number().int(),
+    monthly_used: z.number().int().nonnegative(),
+    additional_balance: z.number().int().nonnegative(),
+  }),
+  meta_fees_included: z.literal(false),
+});
+
+export class BillingService {
+  constructor(
+    private readonly db: SupabaseClient<Database>,
+    private readonly organizationId: string,
+  ) {}
+
+  async overview(): Promise<BillingOverview> {
+    const { data, error } = await this.db.rpc("billing_overview", { p_org: this.organizationId });
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    const parsed = overviewSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new InfrastructureError("Resposta de cobrança inválida", { cause: parsed.error });
+    }
+    const value = parsed.data;
+    return {
+      subscription: value.subscription ? {
+        id: value.subscription.id,
+        productId: value.subscription.product_id,
+        status: value.subscription.status,
+        currentPeriodStart: value.subscription.current_period_start,
+        currentPeriodEnd: value.subscription.current_period_end,
+        cancelAtPeriodEnd: value.subscription.cancel_at_period_end,
+      } : null,
+      products: value.products.map((product) => ({
+        id: product.id,
+        kind: product.kind,
+        name: product.name,
+        description: product.description,
+        priceCents: product.price_cents,
+        currency: product.currency,
+        billingInterval: product.billing_interval,
+        aiCredits: product.ai_credits,
+        position: product.position,
+      })),
+      ai: {
+        monthlyLimit: value.ai.monthly_limit,
+        monthlyUsed: value.ai.monthly_used,
+        additionalBalance: value.ai.additional_balance,
+      },
+      metaFeesIncluded: false,
+    };
+  }
+
+  async requestAiAddon(productId: string, idempotencyKey: string = crypto.randomUUID()): Promise<string> {
+    const { data, error } = await this.db.rpc("request_ai_addon_purchase", {
+      p_org: this.organizationId,
+      p_product: productId,
+      p_idempotency_key: idempotencyKey,
+    });
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    return data;
+  }
+}
