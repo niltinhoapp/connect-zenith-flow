@@ -20,6 +20,7 @@ import {
   HelpCircle,
   ShieldAlert,
   ExternalLink,
+  Activity,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +50,7 @@ import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
 import { plans, defaultPlanId, type PlanId } from "@/config/plans";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { MonitoringSection } from "@/components/monitoring/monitoring-section";
 import { ApiKeysSection } from "@/features/configuracoes/components/api-keys-section";
 import {
   updateProfileSchema,
@@ -80,11 +82,12 @@ export const Route = createFileRoute("/configuracoes")({
   component: ConfigPage,
 });
 
-type Section = "profile" | "workspace" | "billing" | "notifications" | "security" | "integrations" | "api";
+type Section = "profile" | "workspace" | "monitoring" | "billing" | "notifications" | "security" | "integrations" | "api";
 
 const menu: Array<{ id: Section; i: typeof User; l: string; d: string }> = [
   { id: "profile", i: User, l: "Perfil", d: "Dados pessoais e senha" },
   { id: "workspace", i: Building2, l: "Workspace", d: "Empresa e módulos" },
+  { id: "monitoring", i: Activity, l: "Monitoramento", d: "Saúde do sistema" },
   { id: "billing", i: CreditCard, l: "Cobrança", d: "Plano e limites" },
   { id: "notifications", i: Bell, l: "Notificações", d: "Preferências locais" },
   { id: "security", i: Shield, l: "Segurança", d: "Senha e acesso" },
@@ -175,6 +178,7 @@ function ConfigPage() {
           )}
           {settings.data && section === "profile" && <ProfileSection data={settings.data.profile} />}
           {settings.data && section === "workspace" && <WorkspaceSection data={settings.data.workspace} />}
+          {section === "monitoring" && <MonitoringSection />}
           {settings.data && section === "billing" && <BillingSection planId={settings.data.workspace.planId} usage={settings.data.usage} />}
           {settings.data && section === "notifications" && <NotificationsSection values={settings.data.preferences} />}
           {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
