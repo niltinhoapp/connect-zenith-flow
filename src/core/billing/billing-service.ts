@@ -28,6 +28,21 @@ const subscriptionSchema = z.object({
 const overviewSchema = z.object({
   subscription: subscriptionSchema.nullable(),
   products: z.array(productSchema),
+  purchases: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        product_id: z.string(),
+        product_name: z.string(),
+        status: z.enum(["pending", "paid", "failed", "canceled", "refunded"]),
+        amount_cents: z.number().int().nonnegative(),
+        credits: z.number().int().positive(),
+        invoice_url: z.string().url().nullable(),
+        paid_at: z.string().nullable(),
+        created_at: z.string(),
+      }),
+    )
+    .default([]),
   ai: z.object({
     monthly_limit: z.number().int(),
     monthly_used: z.number().int().nonnegative(),
@@ -78,6 +93,17 @@ export class BillingService {
         billingInterval: product.billing_interval,
         aiCredits: product.ai_credits,
         position: product.position,
+      })),
+      purchases: value.purchases.map((purchase) => ({
+        id: purchase.id,
+        productId: purchase.product_id,
+        productName: purchase.product_name,
+        status: purchase.status,
+        amountCents: purchase.amount_cents,
+        credits: purchase.credits,
+        invoiceUrl: purchase.invoice_url,
+        paidAt: purchase.paid_at,
+        createdAt: purchase.created_at,
       })),
       ai: {
         monthlyLimit: value.ai.monthly_limit,

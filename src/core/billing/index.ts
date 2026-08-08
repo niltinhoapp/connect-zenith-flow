@@ -10,6 +10,8 @@ export type {
   BillingOverview,
   BillingProductKind,
   BillingProductView,
+  BillingPurchaseStatus,
+  BillingPurchaseView,
   BillingSubscriptionView,
   BillingCheckoutResult,
   BillingCustomerInput,

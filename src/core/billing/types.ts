@@ -29,9 +29,24 @@ export interface AiCreditOverview {
   additionalBalance: number;
 }
 
+export type BillingPurchaseStatus = "pending" | "paid" | "failed" | "canceled" | "refunded";
+
+export interface BillingPurchaseView {
+  id: string;
+  productId: string;
+  productName: string;
+  status: BillingPurchaseStatus;
+  amountCents: number;
+  credits: number;
+  invoiceUrl: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
 export interface BillingOverview {
   subscription: BillingSubscriptionView | null;
   products: BillingProductView[];
+  purchases: BillingPurchaseView[];
   ai: AiCreditOverview;
   metaFeesIncluded: false;
 }

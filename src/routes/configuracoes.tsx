@@ -54,6 +54,7 @@ import { MonitoringSection } from "@/components/monitoring/monitoring-section";
 import { PlanShowcase } from "@/components/billing/plan-showcase";
 import { AddonCheckoutDialog } from "@/components/billing/addon-checkout-dialog";
 import type { IaPackage } from "@/components/billing/commercial";
+import { BillingAccountSummary } from "@/components/billing/billing-account-summary";
 import { ApiKeysSection } from "@/features/configuracoes/components/api-keys-section";
 import {
   updateProfileSchema,
@@ -350,7 +351,7 @@ function BillingSection({ usage }: { usage: Array<{ resource: string; used: numb
       highlight: product.id === "ai_turbo",
     }));
   return (
-    <div className="space-y-4"><PlanShowcase
+    <div className="space-y-4"><BillingAccountSummary overview={billing.data} loading={billing.isLoading} /><PlanShowcase
       plan={subscriptionProduct ? { name: subscriptionProduct.name, priceCents: subscriptionProduct.priceCents } : undefined}
       packages={packages?.length ? packages : undefined}
       onPurchasePackage={setCheckoutPackage}
