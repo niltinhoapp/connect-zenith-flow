@@ -1,4 +1,5 @@
 import { PermissionError } from "@/core/errors";
+import { moduleByKey } from "@/config/modules";
 
 /**
  * Core · Feature Flags — módulos habilitados por organização.
@@ -8,7 +9,9 @@ import { PermissionError } from "@/core/errors";
  * habilita tudo (Enterprise).
  */
 export function isModuleEnabled(enabledModules: readonly string[], moduleKey: string): boolean {
-  return enabledModules.includes("*") || enabledModules.includes(moduleKey);
+  return moduleByKey[moduleKey]?.core === true
+    || enabledModules.includes("*")
+    || enabledModules.includes(moduleKey);
 }
 
 /** Garante que o módulo esteja habilitado; senão lança PermissionError. */

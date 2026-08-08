@@ -7,3 +7,6 @@
  * src/routes and are migrated to consume this module without visual changes.
  */
 export const MODULE_KEY = "configuracoes" as const;
+export * from "@/features/configuracoes/schema";
+export * from "@/features/configuracoes/application/settings-service";
+export * from "@/features/configuracoes/hooks/use-settings";
