@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, HelpCircle, ArrowRight, CheckCircle2, Circle, Loader2, ShieldAlert } from "lucide-react";
+import { Sparkles, HelpCircle, ArrowRight, CheckCircle2, Circle, Loader2, ShieldAlert, MessageSquare } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet";
@@ -35,7 +35,7 @@ export function CopilotLauncher() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const help = helpForRoute(pathname);
-  const { org, tools, state, run, confirm, cancelConfirm, clear } = useCopilot();
+  const { org, tools, state, run, confirm, cancelConfirm, clear, focus } = useCopilot();
   const onboarding = useOnboarding(org);
 
   const go = (to: string) => { navigate({ to: to as never }); setOpen(false); };
@@ -132,6 +132,12 @@ export function CopilotLauncher() {
 
             {/* ── Ações da IA (via Core) ───────────────────────────────── */}
             <TabsContent value="ia" className="mt-0 space-y-3">
+              {focus?.type === "conversation" && (
+                <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Contexto: {focus.label ?? "conversa selecionada"}</span>
+                </div>
+              )}
               {state.result && (
                 <div className="rounded-lg border border-success/25 bg-success/10 p-3">
                   <p className="text-xs text-success">{state.result.summary}</p>

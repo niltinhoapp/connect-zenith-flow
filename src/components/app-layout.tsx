@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { CopilotLauncher } from "@/components/copilot/copilot-launcher";
+import { CopilotFocusProvider } from "@/components/copilot/copilot-focus";
 
 /**
  * AppLayout — the authenticated workspace shell.
@@ -25,6 +26,7 @@ export function AppLayout({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
+    <CopilotFocusProvider>
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar collapsed={collapsed} />
 
@@ -55,5 +57,6 @@ export function AppLayout({
       {/* Copiloto global: botão flutuante "Ajuda + IA" (onboarding, ajuda e ações). */}
       <CopilotLauncher />
     </div>
+    </CopilotFocusProvider>
   );
 }

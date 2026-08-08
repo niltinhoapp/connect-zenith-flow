@@ -15,6 +15,7 @@ import {
   type CopilotToolSummary,
 } from "@/core/copilot";
 import { useClientCopilotTools } from "@/copilot/use-client-copilot-tools";
+import { useCopilotFocus, focusToToolInput } from "./copilot-focus";
 
 export interface CopilotRunState {
   running: string | null; // nome da ferramenta em execução
@@ -32,6 +33,7 @@ export function useCopilot() {
   const session = useSession();
   const org = session?.activeOrganization?.organizationId ?? null;
   const catalogVersion = useClientCopilotTools(session);
+  const focus = useCopilotFocus();
 
   const context: CopilotExecutionContext | null = useMemo(() => {
     if (!session?.activeOrganization) return null;
@@ -60,7 +62,9 @@ export function useCopilot() {
       if (!context) return;
       setState((s) => ({ ...s, running: tool.name, error: null, pendingConfirm: null }));
       try {
-        const result = await executeCopilotTool({ tool: tool.name, input: {}, confirmed }, context);
+        // Só o foco (ex.: conversationId) vira input; o resto é server-side.
+        const input = focusToToolInput(focus);
+        const result = await executeCopilotTool({ tool: tool.name, input, confirmed }, context);
         setState({ running: null, pendingConfirm: null, result: { ...result, tool: tool.name }, error: null });
       } catch (e) {
         if (e instanceof CopilotToolError && e.code === "CONFIRMATION_REQUIRED") {
@@ -70,7 +74,7 @@ export function useCopilot() {
         setState((s) => ({ ...s, running: null, error: friendly(e) }));
       }
     },
-    [context],
+    [context, focus],
   );
 
   /** Dispara a ferramenta (pede confirmação se o Core exigir). */
@@ -82,5 +86,5 @@ export function useCopilot() {
   const cancelConfirm = useCallback(() => setState((s) => ({ ...s, pendingConfirm: null })), []);
   const clear = useCallback(() => setState((s) => ({ ...s, result: null, error: null })), []);
 
-  return { org, hasSession: !!context, tools, state, run, confirm, cancelConfirm, clear };
+  return { org, hasSession: !!context, tools, state, run, confirm, cancelConfirm, clear, focus };
 }
