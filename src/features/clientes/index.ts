@@ -6,3 +6,7 @@ export {
   CustomerSupabaseRepository,
   rowToCustomer,
 } from "./infrastructure/customer-supabase-repository";
+export {
+  createCustomersOverviewTool,
+  registerCustomersCopilotTools,
+} from "./copilot-tools";

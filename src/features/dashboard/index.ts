@@ -7,3 +7,7 @@
  * src/routes and are migrated to consume this module without visual changes.
  */
 export const MODULE_KEY = "dashboard" as const;
+export {
+  createDashboardMetricsTool,
+  registerDashboardCopilotTools,
+} from "@/features/dashboard/copilot-tools";

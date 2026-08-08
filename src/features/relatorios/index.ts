@@ -7,3 +7,7 @@
  * src/routes and are migrated to consume this module without visual changes.
  */
 export const MODULE_KEY = "relatorios" as const;
+export {
+  createReportsOverviewTool,
+  registerReportsCopilotTools,
+} from "@/features/relatorios/copilot-tools";

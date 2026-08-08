@@ -14,6 +14,7 @@ import {
   type CopilotToolResult,
   type CopilotToolSummary,
 } from "@/core/copilot";
+import { useClientCopilotTools } from "@/copilot/use-client-copilot-tools";
 
 export interface CopilotRunState {
   running: string | null; // nome da ferramenta em execução
@@ -30,6 +31,7 @@ const friendly = (e: unknown): string => {
 export function useCopilot() {
   const session = useSession();
   const org = session?.activeOrganization?.organizationId ?? null;
+  const catalogVersion = useClientCopilotTools(session);
 
   const context: CopilotExecutionContext | null = useMemo(() => {
     if (!session?.activeOrganization) return null;
@@ -43,7 +45,7 @@ export function useCopilot() {
 
   const tools: CopilotToolSummary[] = useMemo(
     () => (context ? listCopilotTools(context) : []),
-    [context],
+    [context, catalogVersion],
   );
 
   const [state, setState] = useState<CopilotRunState>({

@@ -20,6 +20,7 @@ export * from "@/core/observability";
 export * from "@/core/modules";
 export * from "@/core/templates";
 export * from "@/core/webhooks";
+export * from "@/core/copilot";
 export type { ServiceContext } from "@/core/application/context";
 export { guard } from "@/core/application/guard";
 export type { AuditAction, AuditLogEntry } from "@/core/audit";

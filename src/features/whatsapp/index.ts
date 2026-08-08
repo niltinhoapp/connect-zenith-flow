@@ -48,3 +48,8 @@ export {
 
 // Composition root
 export { registerWhatsAppProvider } from "./bootstrap";
+export {
+  createWhatsAppConversationSummaryTool,
+  createWhatsAppReplyDraftTool,
+  registerWhatsAppCopilotTools,
+} from "./copilot-tools";
