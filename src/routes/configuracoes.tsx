@@ -13,6 +13,8 @@ import {
   Loader2,
   MessageCircle,
   LockKeyhole,
+  Trash2,
+  Webhook,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,11 +34,20 @@ import { plans, defaultPlanId, type PlanId } from "@/config/plans";
 import {
   updateProfileSchema,
   updateWorkspaceSchema,
+  connectWhatsAppSchema,
+  createWebhookSchema,
   useSettings,
   useUpdateProfile,
   useUpdateWorkspace,
+  useConnectWhatsApp,
+  useWebhooks,
+  useCreateWebhook,
+  useToggleWebhook,
+  useRemoveWebhook,
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
+  type ConnectWhatsAppInput,
+  type CreateWebhookInput,
 } from "@/features/configuracoes";
 
 export const Route = createFileRoute("/configuracoes")({
@@ -116,7 +127,7 @@ function ConfigPage() {
           {settings.data && section === "notifications" && <NotificationsSection org={settings.data.workspace.id} />}
           {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
           {settings.data && section === "integrations" && <IntegrationsSection whatsapp={settings.data.whatsapp} />}
-          {settings.data && section === "api" && <UnavailableSection title="API Keys e webhooks" />}
+          {settings.data && section === "api" && <WebhooksSection />}
         </div>
       </div>
     </AppLayout>
@@ -296,16 +307,86 @@ function SecuritySection({ email }: { email: string }) {
 }
 
 function IntegrationsSection({ whatsapp }: { whatsapp: { connected: boolean; provider: string | null; name: string | null; status: string | null; connectedAt: string | null } }) {
+  const session = useSession();
+  const allowed = can(session, PERMISSIONS.WHATSAPP_CONNECT);
+  const connect = useConnectWhatsApp();
+  const [showForm, setShowForm] = useState(false);
+  const form = useForm<ConnectWhatsAppInput>({
+    resolver: zodResolver(connectWhatsAppSchema),
+    defaultValues: { accessToken: "", wabaId: "", phoneNumberId: "" },
+  });
+  const submit = form.handleSubmit(async (values) => {
+    try {
+      await connect.mutateAsync(values);
+      form.reset();
+      setShowForm(false);
+      toast.success("WhatsApp conectado com sucesso.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível conectar.");
+    }
+  });
   return (
+    <div className="space-y-4">
     <SectionCard title="Integrações" description="Conexões da empresa ativa">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-start gap-3"><MessageCircle className="mt-0.5 h-5 w-5 text-success" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">WhatsApp</p><Badge variant={whatsapp.connected ? "default" : "secondary"}>{whatsapp.connected ? "Conectado" : whatsapp.status ?? "Não conectado"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{whatsapp.name || (whatsapp.provider ? `Provedor: ${whatsapp.provider}` : "Nenhuma conta oficial conectada.")}</p></div></div>
-        <Button disabled={!whatsapp.connected} variant="outline">{whatsapp.connected ? "Gerenciar conexão" : "Conexão guiada em breve"}</Button>
+        <Button disabled={!allowed} variant="outline" onClick={() => setShowForm((current) => !current)}>{whatsapp.connected ? "Atualizar conexão" : "Conectar WhatsApp"}</Button>
       </div>
     </SectionCard>
+    {showForm && (
+      <SectionCard title="Conexão oficial Meta" description="Use os dados do WhatsApp Business Manager">
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+            O token é enviado diretamente à função segura e armazenado na área protegida do servidor. Ele não fica salvo neste navegador.
+          </div>
+          <div><Label>Token de acesso permanente</Label><Input type="password" autoComplete="off" className="mt-1.5" {...form.register("accessToken")} />{form.formState.errors.accessToken && <p className="mt-1 text-xs text-destructive">{form.formState.errors.accessToken.message}</p>}</div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><Label>ID da conta WhatsApp (WABA)</Label><Input className="mt-1.5" {...form.register("wabaId")} />{form.formState.errors.wabaId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.wabaId.message}</p>}</div>
+            <div><Label>ID do número de telefone</Label><Input className="mt-1.5" {...form.register("phoneNumberId")} />{form.formState.errors.phoneNumberId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.phoneNumberId.message}</p>}</div>
+          </div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button><Button type="submit" disabled={connect.isPending}>{connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Validar e conectar</Button></div>
+        </form>
+      </SectionCard>
+    )}
+    </div>
   );
 }
 
-function UnavailableSection({ title }: { title: string }) {
-  return <SectionCard title={title} description="Recurso preparado para uma próxima etapa"><p className="text-sm text-muted-foreground">Esta área ainda não está disponível. Nenhuma chave ou webhook fictício será exibido.</p></SectionCard>;
+const webhookEvents = ["customer.created", "customer.updated", "deal.created", "deal.updated", "message.received", "automation.completed"];
+
+function WebhooksSection() {
+  const session = useSession();
+  const allowed = can(session, PERMISSIONS.WEBHOOKS_MANAGE);
+  const webhooks = useWebhooks();
+  const create = useCreateWebhook();
+  const toggle = useToggleWebhook();
+  const remove = useRemoveWebhook();
+  const form = useForm<CreateWebhookInput>({ resolver: zodResolver(createWebhookSchema), defaultValues: { url: "", events: [], secret: "" } });
+  const selected = form.watch("events");
+  const changeEvent = (event: string) => form.setValue("events", selected.includes(event) ? selected.filter((item) => item !== event) : [...selected, event], { shouldValidate: true, shouldDirty: true });
+  const submit = form.handleSubmit(async (values) => {
+    try { await create.mutateAsync(values); form.reset(); toast.success("Webhook criado."); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível criar o webhook."); }
+  });
+  return (
+    <div className="space-y-4">
+      <SectionCard title="Webhooks" description="Envie eventos do ConnectWeb para outros sistemas">
+        {!allowed ? <p className="text-sm text-muted-foreground">Você não possui permissão para gerenciar webhooks.</p> : (
+          <form onSubmit={submit} className="space-y-4">
+            <div><Label>URL HTTPS de destino</Label><Input placeholder="https://seusistema.com/webhooks/connectweb" className="mt-1.5" {...form.register("url")} />{form.formState.errors.url && <p className="mt-1 text-xs text-destructive">{form.formState.errors.url.message}</p>}</div>
+            <div><Label>Segredo para assinatura</Label><Input type="password" autoComplete="new-password" className="mt-1.5" {...form.register("secret")} /><p className="mt-1 text-[11px] text-muted-foreground">Use este segredo para validar que os eventos vieram do ConnectWeb.</p>{form.formState.errors.secret && <p className="mt-1 text-xs text-destructive">{form.formState.errors.secret.message}</p>}</div>
+            <div><Label>Eventos</Label><div className="mt-2 grid gap-2 sm:grid-cols-2">{webhookEvents.map((event) => <label key={event} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2 text-sm"><input type="checkbox" checked={selected.includes(event)} onChange={() => changeEvent(event)} className="accent-primary" />{event}</label>)}</div>{form.formState.errors.events && <p className="mt-1 text-xs text-destructive">{form.formState.errors.events.message}</p>}</div>
+            <div className="flex justify-end"><Button type="submit" disabled={create.isPending}>{create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar webhook</Button></div>
+          </form>
+        )}
+      </SectionCard>
+      <SectionCard title="Endpoints cadastrados" description="Ative, pause ou remova integrações">
+        {webhooks.isLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+        {webhooks.isError && <p className="text-sm text-destructive">Não foi possível carregar os webhooks.</p>}
+        {webhooks.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhum webhook cadastrado.</p>}
+        <div className="space-y-3">{webhooks.data?.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><Webhook className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.url}</p><p className="text-xs text-muted-foreground">{item.events.join(" · ")}</p></div><Switch checked={item.enabled} disabled={!allowed || toggle.isPending} onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })} /><Button size="icon" variant="ghost" disabled={!allowed || remove.isPending} onClick={() => remove.mutate(item.id)} aria-label="Remover webhook"><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}</div>
+      </SectionCard>
+      <SectionCard title="API Keys" description="Acesso programático"><p className="text-sm text-muted-foreground">Chaves de API ainda não estão habilitadas. Webhooks já funcionam sem expor credenciais da sua conta.</p></SectionCard>
+    </div>
+  );
 }

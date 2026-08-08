@@ -46,12 +46,20 @@ export class WebhookService {
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<void> {
-    const { error } = await this.db.from("webhooks").update({ enabled }).eq("id", id);
+    const { error } = await this.db
+      .from("webhooks")
+      .update({ enabled })
+      .eq("id", id)
+      .eq("organization_id", this.ctx.organizationId);
     if (error) throw new InfrastructureError(error.message, { cause: error });
   }
 
   async remove(id: string): Promise<void> {
-    const { error } = await this.db.from("webhooks").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await this.db
+      .from("webhooks")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("organization_id", this.ctx.organizationId);
     if (error) throw new InfrastructureError(error.message, { cause: error });
   }
 }
