@@ -69,6 +69,13 @@ import {
   detectKind,
   validateMediaFile,
 } from "@/features/whatsapp/components/media/media-utils";
+import {
+  ConversationInsights,
+  ConversationInsightBadges,
+  type ConversationInsight,
+  type ConversationInsightsState,
+} from "@/features/whatsapp/components/insights";
+import { can, PERMISSIONS } from "@/core/permissions";
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
@@ -257,8 +264,10 @@ function ConversationList(props: {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
+                {/* Etiquetas de IA por conversa: o Codex fornecerá o insight; null = sem etiqueta. */}
+                <ConversationInsightBadges insight={null} />
                 <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                   {hhmm(c.lastMessageAt)}
                 </span>
@@ -302,6 +311,14 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     registerDraftSink((text) => setDraft(text));
     return () => registerDraftSink(null);
   }, [registerDraftSink]);
+
+  // Insight da IA: estado derivado da sessão, sem dados falsos. Quando o backend
+  // do Codex estiver pronto, troque `insight`/`insightState` pela query real
+  // (loading/ready/error) — os callbacks e a UI já estão prontos.
+  const iaEnabled = (session?.enabledModules ?? []).includes("ia");
+  const iaAllowed = can(session, PERMISSIONS.IA_USE);
+  const insight: ConversationInsight | null = null;
+  const insightState: ConversationInsightsState = iaAllowed ? "empty" : "forbidden";
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
@@ -494,6 +511,16 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      {iaEnabled && (
+        <div className="border-b border-border bg-background/40 px-4 py-2">
+          <ConversationInsights
+            insight={insight}
+            state={insightState}
+            onUseSuggestion={(text) => setDraft(text)}
+          />
+        </div>
+      )}
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-6 subtle-grid">
         {messagesQuery.isLoading && (
