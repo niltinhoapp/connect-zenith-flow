@@ -23,7 +23,15 @@ export const createWebhookSchema = z.object({
   secret: z.string().trim().min(16, "Use um segredo com pelo menos 16 caracteres").max(200),
 });
 
+export const notificationPreferencesSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  compact: z.boolean(),
+  analytics: z.boolean(),
+});
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
 export type ConnectWhatsAppInput = z.infer<typeof connectWhatsAppSchema>;
 export type CreateWebhookInput = z.infer<typeof createWebhookSchema>;
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;

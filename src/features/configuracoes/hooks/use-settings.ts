@@ -13,6 +13,7 @@ import type {
   UpdateWorkspaceInput,
   ConnectWhatsAppInput,
   CreateWebhookInput,
+  NotificationPreferences,
 } from "@/features/configuracoes/schema";
 
 const settingsKey = (org: string) => ["settings", org] as const;
@@ -64,6 +65,19 @@ export function useUpdateWorkspace() {
   return useMutation({
     ...mutationDefaults,
     mutationFn: (input: UpdateWorkspaceInput) => makeService(session!).updateWorkspace(input),
+    onSuccess: () => {
+      if (org) queryClient.invalidateQueries({ queryKey: settingsKey(org) });
+    },
+  });
+}
+
+export function useUpdatePreferences() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (input: NotificationPreferences) => makeService(session!).updatePreferences(input),
     onSuccess: () => {
       if (org) queryClient.invalidateQueries({ queryKey: settingsKey(org) });
     },

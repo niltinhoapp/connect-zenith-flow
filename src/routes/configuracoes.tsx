@@ -47,6 +47,7 @@ import {
   useCreateWebhook,
   useToggleWebhook,
   useRemoveWebhook,
+  useUpdatePreferences,
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
   type ConnectWhatsAppInput,
@@ -127,7 +128,7 @@ function ConfigPage() {
           {settings.data && section === "profile" && <ProfileSection data={settings.data.profile} />}
           {settings.data && section === "workspace" && <WorkspaceSection data={settings.data.workspace} />}
           {settings.data && section === "billing" && <BillingSection planId={settings.data.workspace.planId} />}
-          {settings.data && section === "notifications" && <NotificationsSection org={settings.data.workspace.id} />}
+          {settings.data && section === "notifications" && <NotificationsSection values={settings.data.preferences} />}
           {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
           {settings.data && section === "integrations" && <IntegrationsSection whatsapp={settings.data.whatsapp} />}
           {settings.data && section === "api" && <WebhooksSection />}
@@ -265,16 +266,13 @@ function BillingSection({ planId }: { planId: string }) {
   );
 }
 
-function NotificationsSection({ org }: { org: string }) {
-  const key = `cw.preferences.${org}`;
-  const [values, setValues] = useState({ email: true, push: true, compact: false, analytics: true });
-  useEffect(() => {
-    try { const raw = localStorage.getItem(key); if (raw) setValues(JSON.parse(raw)); } catch { /* preferências opcionais */ }
-  }, [key]);
+function NotificationsSection({ values }: { values: { email: boolean; push: boolean; compact: boolean; analytics: boolean } }) {
+  const session = useSession();
+  const allowed = can(session, PERMISSIONS.CONFIGURACOES_MANAGE);
+  const update = useUpdatePreferences();
   const toggle = (field: keyof typeof values) => {
     const next = { ...values, [field]: !values[field] };
-    setValues(next);
-    try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* armazenamento indisponível */ }
+    update.mutate(next, { onSuccess: () => toast.success("Preferências atualizadas."), onError: (error) => toast.error(error.message) });
   };
   const rows = [
     { key: "email" as const, title: "Notificações por e-mail", desc: "Resumos e alertas importantes" },
@@ -283,8 +281,9 @@ function NotificationsSection({ org }: { org: string }) {
     { key: "analytics" as const, title: "Analytics de uso", desc: "Ajuda a melhorar o produto" },
   ];
   return (
-    <SectionCard title="Preferências" description="Salvas neste navegador para esta empresa">
-      {rows.map((row, index) => <div key={row.key}><div className="flex items-center justify-between py-3"><div><p className="text-sm font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.desc}</p></div><Switch checked={values[row.key]} onCheckedChange={() => toggle(row.key)} /></div>{index < rows.length - 1 && <Separator />}</div>)}
+    <SectionCard title="Preferências" description="Aplicadas à empresa em todos os dispositivos">
+      {rows.map((row, index) => <div key={row.key}><div className="flex items-center justify-between py-3"><div><p className="text-sm font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.desc}</p></div><Switch checked={values[row.key]} disabled={!allowed || update.isPending} onCheckedChange={() => toggle(row.key)} /></div>{index < rows.length - 1 && <Separator />}</div>)}
+      {!allowed && <p className="mt-3 text-xs text-muted-foreground">Somente administradores podem alterar as preferências da empresa.</p>}
     </SectionCard>
   );
 }

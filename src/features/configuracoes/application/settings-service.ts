@@ -9,7 +9,16 @@ import {
   updateWorkspaceSchema,
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
+  notificationPreferencesSchema,
+  type NotificationPreferences,
 } from "@/features/configuracoes/schema";
+
+const defaultPreferences: NotificationPreferences = {
+  email: true,
+  push: true,
+  compact: false,
+  analytics: true,
+};
 
 export interface SettingsView {
   profile: {
@@ -31,6 +40,7 @@ export interface SettingsView {
     status: "connected" | "disconnected" | "error" | "pending" | null;
     connectedAt: string | null;
   };
+  preferences: NotificationPreferences;
 }
 
 export class SettingsApplicationService {
@@ -46,7 +56,7 @@ export class SettingsApplicationService {
   getSettings(): Promise<SettingsView> {
     return guard(async () => {
       this.ensureEnabled();
-      const [profileResult, workspaceResult, whatsappResult] = await Promise.all([
+      const [profileResult, workspaceResult, whatsappResult, preferences] = await Promise.all([
         this.db
           .from("profiles")
           .select("full_name, email, avatar_url")
@@ -65,6 +75,7 @@ export class SettingsApplicationService {
           .order("connected_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        this.loadPreferences(),
       ]);
       if (profileResult.error) {
         throw new InfrastructureError(profileResult.error.message, { cause: profileResult.error });
@@ -98,8 +109,58 @@ export class SettingsApplicationService {
           status: whatsapp?.status ?? null,
           connectedAt: whatsapp?.connected_at ?? null,
         },
+        preferences,
       };
     }, { service: "settings.get" });
+  }
+
+  private async configurationModuleId(): Promise<string> {
+    const { data, error } = await this.db.from("modules").select("id").eq("key", "configuracoes").single();
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    return data.id;
+  }
+
+  private async loadPreferences(): Promise<NotificationPreferences> {
+    const moduleId = await this.configurationModuleId();
+    const { data, error } = await this.db
+      .from("module_configs")
+      .select("config")
+      .eq("organization_id", this.ctx.organizationId)
+      .eq("module_id", moduleId)
+      .maybeSingle();
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    const candidate = data?.config && typeof data.config === "object" && !Array.isArray(data.config)
+      ? (data.config as Record<string, unknown>).notifications
+      : null;
+    const parsed = notificationPreferencesSchema.safeParse(candidate);
+    return parsed.success ? parsed.data : defaultPreferences;
+  }
+
+  updatePreferences(input: NotificationPreferences): Promise<void> {
+    return guard(async () => {
+      this.ensureEnabled();
+      const preferences = notificationPreferencesSchema.parse(input);
+      const moduleId = await this.configurationModuleId();
+      const { data: current, error: readError } = await this.db
+        .from("module_configs")
+        .select("config")
+        .eq("organization_id", this.ctx.organizationId)
+        .eq("module_id", moduleId)
+        .maybeSingle();
+      if (readError) throw new InfrastructureError(readError.message, { cause: readError });
+      const currentConfig = current?.config && typeof current.config === "object" && !Array.isArray(current.config)
+        ? current.config
+        : {};
+      const { error } = await this.db.from("module_configs").upsert({
+        organization_id: this.ctx.organizationId,
+        module_id: moduleId,
+        config: { ...currentConfig, notifications: preferences },
+        schema_version: 1,
+        updated_by: this.ctx.actorId,
+        validated_at: new Date().toISOString(),
+      }, { onConflict: "organization_id,module_id" });
+      if (error) throw new InfrastructureError(error.message, { cause: error });
+    }, { service: "settings.preferences.update" });
   }
 
   updateProfile(input: UpdateProfileInput): Promise<void> {
@@ -126,4 +187,3 @@ export class SettingsApplicationService {
     }, { service: "settings.workspace.update" });
   }
 }
-
