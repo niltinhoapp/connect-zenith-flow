@@ -30,6 +30,7 @@ export const PERMISSIONS = {
   CONFIGURACOES_MANAGE: "configuracoes.manage",
   WEBHOOKS_MANAGE: "webhooks.manage",
   WHATSAPP_CONNECT: "whatsapp.connect",
+  API_KEYS_MANAGE: "api.keys.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

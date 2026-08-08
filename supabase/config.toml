@@ -35,3 +35,7 @@ verify_jwt = true
 # Assistente de WhatsApp: lê a conversa sob RLS e nunca envia mensagens.
 [functions.ai-whatsapp-assist]
 verify_jwt = true
+
+# API Pública: autenticação própria por chave `cw_live_*` (hash no banco).
+[functions.public-api]
+verify_jwt = false

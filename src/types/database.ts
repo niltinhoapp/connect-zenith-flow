@@ -420,6 +420,53 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["webhooks"]["Row"]>;
         Relationships: [];
       };
+      api_scopes: {
+        Row: Timestamps & { key: string; description: string };
+        Insert: { key: string; description: string } & Partial<
+          Database["public"]["Tables"]["api_scopes"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["api_scopes"]["Row"]>;
+        Relationships: [];
+      };
+      api_keys: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          name: string;
+          key_prefix: string;
+          key_hash: string;
+          scopes: string[];
+          expires_at: string | null;
+          last_used_at: string | null;
+          created_by: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+        };
+        Insert: { organization_id: string; name: string; key_prefix: string; key_hash: string } & Partial<
+          Database["public"]["Tables"]["api_keys"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["api_keys"]["Row"]>;
+        Relationships: [];
+      };
+      api_request_logs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          api_key_id: string | null;
+          method: string | null;
+          path: string | null;
+          response_status: number | null;
+          duration_ms: number | null;
+          request_id: string | null;
+          ip_hash: string | null;
+          created_at: string;
+        };
+        Insert: { organization_id: string } & Partial<
+          Database["public"]["Tables"]["api_request_logs"]["Row"]
+        >;
+        Update: Partial<Database["public"]["Tables"]["api_request_logs"]["Row"]>;
+        Relationships: [];
+      };
       operation_traces: {
         Row: {
           id: string;
@@ -961,6 +1008,15 @@ export interface Database {
       dispatch_webhooks: {
         Args: { p_org: string; p_event: string; p_payload?: Json };
         Returns: number;
+      };
+      api_key_create: {
+        Args: { p_org: string; p_name: string; p_scopes: string[]; p_expires_at?: string | null };
+        Returns: Json;
+      };
+      api_key_revoke: { Args: { p_org: string; p_id: string }; Returns: undefined };
+      verify_api_key: {
+        Args: { p_key: string; p_method?: string | null; p_path?: string | null; p_request_id?: string | null };
+        Returns: Json;
       };
       apply_market_template: { Args: { p_org: string; p_key: string }; Returns: undefined };
       wa_send_message: {

@@ -30,8 +30,15 @@ export const notificationPreferencesSchema = z.object({
   analytics: z.boolean(),
 });
 
+export const createApiKeySchema = z.object({
+  name: z.string().trim().min(2, "Informe um nome para identificar a chave").max(100),
+  scopes: z.array(z.string()).min(1, "Selecione pelo menos uma permissão"),
+  expiresAt: z.string().datetime().nullable(),
+});
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
 export type ConnectWhatsAppInput = z.infer<typeof connectWhatsAppSchema>;
 export type CreateWebhookInput = z.infer<typeof createWebhookSchema>;
 export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;

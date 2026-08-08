@@ -4,6 +4,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { mutationDefaults } from "@/lib/query";
 import { WebhookService } from "@/core/webhooks";
 import { InfrastructureError } from "@/core/errors";
+import { ApiKeyApplicationService } from "@/features/configuracoes/application/api-key-service";
 import {
   SettingsApplicationService,
   type SettingsView,
@@ -14,10 +15,13 @@ import type {
   ConnectWhatsAppInput,
   CreateWebhookInput,
   NotificationPreferences,
+  CreateApiKeyInput,
 } from "@/features/configuracoes/schema";
 
 const settingsKey = (org: string) => ["settings", org] as const;
 const webhooksKey = (org: string) => ["settings", org, "webhooks"] as const;
+const apiKeysKey = (org: string) => ["settings", org, "api-keys"] as const;
+const apiScopesKey = ["settings", "api-scopes"] as const;
 
 function makeService(session: AuthSession) {
   return new SettingsApplicationService(getSupabaseBrowserClient(), {
@@ -29,6 +33,14 @@ function makeService(session: AuthSession) {
 
 function makeWebhookService(session: AuthSession) {
   return new WebhookService(getSupabaseBrowserClient(), {
+    organizationId: session.activeOrganization!.organizationId,
+    actorId: session.user.id,
+    enabledModules: session.enabledModules,
+  });
+}
+
+function makeApiKeyService(session: AuthSession) {
+  return new ApiKeyApplicationService(getSupabaseBrowserClient(), {
     organizationId: session.activeOrganization!.organizationId,
     actorId: session.user.id,
     enabledModules: session.enabledModules,
@@ -156,6 +168,52 @@ export function useRemoveWebhook() {
     mutationFn: (id: string) => makeWebhookService(session!).remove(id),
     onSuccess: () => {
       if (org) queryClient.invalidateQueries({ queryKey: webhooksKey(org) });
+    },
+  });
+}
+
+export function useApiKeys() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  return useQuery({
+    queryKey: apiKeysKey(org ?? "none"),
+    enabled: Boolean(org),
+    queryFn: () => makeApiKeyService(session!).list(),
+  });
+}
+
+export function useApiScopes() {
+  const session = useSession();
+  return useQuery({
+    queryKey: apiScopesKey,
+    enabled: Boolean(session),
+    staleTime: 60 * 60 * 1000,
+    queryFn: () => makeApiKeyService(session!).listScopes(),
+  });
+}
+
+export function useCreateApiKey() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (input: CreateApiKeyInput) => makeApiKeyService(session!).create(input),
+    onSuccess: () => {
+      if (org) queryClient.invalidateQueries({ queryKey: apiKeysKey(org) });
+    },
+  });
+}
+
+export function useRevokeApiKey() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (id: string) => makeApiKeyService(session!).revoke(id),
+    onSuccess: () => {
+      if (org) queryClient.invalidateQueries({ queryKey: apiKeysKey(org) });
     },
   });
 }

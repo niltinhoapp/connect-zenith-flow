@@ -49,6 +49,7 @@ import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
 import { plans, defaultPlanId, type PlanId } from "@/config/plans";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ApiKeysSection } from "@/features/configuracoes/components/api-keys-section";
 import {
   updateProfileSchema,
   updateWorkspaceSchema,
@@ -645,7 +646,7 @@ function WebhooksSection() {
         {webhooks.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhum webhook cadastrado.</p>}
         <div className="space-y-3">{webhooks.data?.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><Webhook className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-sm font-medium">{item.url}</p><Badge variant={item.enabled ? "default" : "secondary"} className="shrink-0">{item.enabled ? "Ativo" : "Pausado"}</Badge></div><p className="truncate text-xs text-muted-foreground">{item.events.join(" · ")}</p></div><Switch checked={item.enabled} disabled={!allowed || toggle.isPending} onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })} aria-label={item.enabled ? `Pausar webhook ${item.url}` : `Ativar webhook ${item.url}`} /><AlertDialog><AlertDialogTrigger asChild><Button size="icon" variant="ghost" disabled={!allowed || remove.isPending} aria-label={`Remover webhook ${item.url}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-destructive" /> Remover webhook?</AlertDialogTitle><AlertDialogDescription>Os eventos deixarão de ser enviados para <span className="break-all font-medium text-foreground">{item.url}</span>. Esta ação não pode ser desfeita — para voltar a receber, você precisará cadastrar o endpoint de novo.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remover webhook</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>)}</div>
       </SectionCard>
-      <SectionCard title="API Keys" description="Acesso programático"><p className="text-sm text-muted-foreground">Chaves de API ainda não estão habilitadas. Webhooks já funcionam sem expor credenciais da sua conta.</p></SectionCard>
+      <ApiKeysSection />
     </div>
   );
 }

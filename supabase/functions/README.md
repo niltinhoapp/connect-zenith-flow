@@ -11,6 +11,7 @@ tiver as credenciais, é só configurar os secrets e validar o fluxo.
 | `whatsapp-connect` | sim | Conecta uma WABA à organização (Embedded Signup `code` **ou** token manual). Assina o webhook e grava conta/número/credencial. |
 | `ai-generate-flow` | sim | AI Automation Copilot: descrição em linguagem natural → grafo de automação (Claude Opus 5). Valida RBAC (`automacoes.manage`). Secret: `ANTHROPIC_API_KEY`. Deploy: `supabase functions deploy ai-generate-flow`. |
 | `ai-whatsapp-assist` | sim | Resume conversas e prepara respostas sem enviar. Resolve organização pela conversa, valida `whatsapp.read` + `ia.use` e mede créditos de IA. |
+| `public-api` | chave própria | Gateway da API Pública. Valida `cw_live_*`, escopos e cota. GET/POST `/customers`. |
 
 ## 1. Secrets (uma vez)
 
@@ -31,6 +32,25 @@ supabase secrets set \
 ```bash
 supabase functions deploy whatsapp-webhook --no-verify-jwt
 supabase functions deploy whatsapp-connect
+supabase functions deploy public-api --no-verify-jwt
+```
+
+## API Pública
+
+Crie a chave em **Configurações → API Keys** e guarde o segredo exibido uma única vez.
+
+```bash
+curl https://<REF>.functions.supabase.co/public-api/customers \
+  -H "Authorization: Bearer cw_live_<SEGREDO>"
+```
+
+Para cadastrar um cliente, a chave precisa de `customers:write`:
+
+```bash
+curl -X POST https://<REF>.functions.supabase.co/public-api/customers \
+  -H "Authorization: Bearer cw_live_<SEGREDO>" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"person","first_name":"Ana","email":"ana@empresa.com"}'
 ```
 
 URL do webhook (registrar no painel da Meta > WhatsApp > Configuration):
