@@ -52,6 +52,19 @@ export function isPriorityConversation(
   return insight?.temperature === "hot" || insight?.urgency === "high";
 }
 
+/**
+ * O cliente aguarda resposta quando a última mensagem recebida veio depois da
+ * última mensagem enviada. Abrir/ler a conversa não altera este sinal.
+ */
+export function isAwaitingReply(
+  lastInboundAt: string | null,
+  lastOutboundAt: string | null,
+): boolean {
+  if (!lastInboundAt) return false;
+  if (!lastOutboundAt) return true;
+  return new Date(lastInboundAt).getTime() > new Date(lastOutboundAt).getTime();
+}
+
 /** Score para ordenar a fila: quente/urgente/sem resposta primeiro. */
 export function priorityScore(
   insight: ConversationInsight | undefined,
