@@ -1,6 +1,6 @@
 // Edge Function: ai-generate-flow  (AI Automation Copilot)
 // Recebe uma descrição em linguagem natural e devolve um GRAFO de automação
-// gerado pela IA (Claude Opus 5), para revisão humana no builder.
+// gerado pela IA, para revisão humana no builder.
 //
 // Segurança:
 //   - Exige JWT do usuário; valida RBAC (automacoes.manage) na org informada.
@@ -20,6 +20,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+// Geração de fluxos exige mais raciocínio que resumo de atendimento, mas não
+// precisa do custo de um Opus. O secret permite trocar o modelo por ambiente.
+const ANTHROPIC_MODEL = Deno.env.get("ANTHROPIC_AUTOMATION_MODEL") ?? "claude-sonnet-5";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -99,7 +102,7 @@ CADA nó de ação DEVE ter o campo chamado exatamente "action" (nunca "action_t
 
 Use APENAS gatilhos/ações/operadores permitidos. Seja conciso e prático.`;
 
-async function generateFlow(description: string): Promise<unknown> {
+async function generateFlow(description: string): Promise<{ flow: unknown; tokens: number }> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -108,8 +111,8 @@ async function generateFlow(description: string): Promise<unknown> {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-opus-5",
-      max_tokens: 16000,
+      model: ANTHROPIC_MODEL,
+      max_tokens: 4000,
       // Extração estruturada: força a ferramenta e desliga thinking (permitido em
       // effort ≤ high) para uma resposta determinística em tool_use.
       thinking: { type: "disabled" },
@@ -130,7 +133,10 @@ async function generateFlow(description: string): Promise<unknown> {
   if (!r.ok) throw new Error(data?.error?.message ?? `anthropic ${r.status}`);
   const block = (data.content ?? []).find((b: { type?: string }) => b.type === "tool_use");
   if (!block) throw new Error("IA não retornou um grafo");
-  return block.input;
+  return {
+    flow: block.input,
+    tokens: Math.max(1, Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0)),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -152,13 +158,23 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: "unauthorized" }, 401);
-  const { data: allowed, error: permErr } = await supabase.rpc("has_permission", { org, perm: "automacoes.manage" });
-  if (permErr) return json({ error: permErr.message }, 500);
-  if (!allowed) return json({ error: "forbidden" }, 403);
+  const [{ data: canManage, error: permErr }, { data: canUseAI, error: aiPermErr }] = await Promise.all([
+    supabase.rpc("has_permission", { org, perm: "automacoes.manage" }),
+    supabase.rpc("has_permission", { org, perm: "ia.use" }),
+  ]);
+  if (permErr || aiPermErr) return json({ error: (permErr ?? aiPermErr)?.message }, 500);
+  if (!canManage || !canUseAI) return json({ error: "forbidden" }, 403);
 
   try {
-    const flow = await generateFlow(description);
-    return json({ flow });
+    const result = await generateFlow(description);
+    const { data: consumed, error: quotaError } = await supabase.rpc("try_consume_quota", {
+      p_org: org,
+      p_resource: "ai_credits",
+      p_amount: result.tokens,
+    });
+    if (quotaError) return json({ error: quotaError.message }, 500);
+    if (!consumed) return json({ error: "quota de IA excedida" }, 429);
+    return json({ flow: result.flow });
   } catch (e) {
     console.error("[ai-generate-flow]", e);
     return json({ error: String((e as Error)?.message ?? e) }, 502);

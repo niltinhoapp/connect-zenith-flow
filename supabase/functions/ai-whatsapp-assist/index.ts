@@ -6,7 +6,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-const ANTHROPIC_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-opus-5";
+// Atendimento diário usa o modelo econômico. Pode ser substituído por secret
+// sem alterar ou republicar o código.
+const ANTHROPIC_MODEL =
+  Deno.env.get("ANTHROPIC_WHATSAPP_MODEL") ??
+  Deno.env.get("ANTHROPIC_MODEL") ??
+  "claude-haiku-4-5";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
