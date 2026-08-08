@@ -41,6 +41,7 @@ export interface SettingsView {
     connectedAt: string | null;
   };
   preferences: NotificationPreferences;
+  usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }>;
 }
 
 export class SettingsApplicationService {
@@ -89,6 +90,7 @@ export class SettingsApplicationService {
       const profile = profileResult.data;
       const workspace = workspaceResult.data;
       const whatsapp = whatsappResult.data;
+      const usage = await this.loadUsage(workspace.plan_id);
       return {
         profile: {
           fullName: profile.full_name,
@@ -110,8 +112,25 @@ export class SettingsApplicationService {
           connectedAt: whatsapp?.connected_at ?? null,
         },
         preferences,
+        usage,
       };
     }, { service: "settings.get" });
+  }
+
+  private async loadUsage(planId: string): Promise<SettingsView["usage"]> {
+    const month = new Date().toISOString().slice(0, 7);
+    const [limitsResult, usageResult] = await Promise.all([
+      this.db.from("plan_limits").select("resource, limit_value, period").eq("plan_id", planId),
+      this.db.from("quota_usage").select("resource, period_key, used").eq("organization_id", this.ctx.organizationId),
+    ]);
+    if (limitsResult.error) throw new InfrastructureError(limitsResult.error.message, { cause: limitsResult.error });
+    if (usageResult.error) throw new InfrastructureError(usageResult.error.message, { cause: usageResult.error });
+    return (limitsResult.data ?? []).map((limit) => {
+      const record = (usageResult.data ?? []).find((item) =>
+        item.resource === limit.resource && (limit.period === "total" || item.period_key === month),
+      );
+      return { resource: limit.resource, used: record?.used ?? 0, limit: limit.limit_value, period: limit.period };
+    });
   }
 
   private async configurationModuleId(): Promise<string> {

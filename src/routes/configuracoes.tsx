@@ -30,6 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
 import { plans, defaultPlanId, type PlanId } from "@/config/plans";
@@ -127,7 +128,7 @@ function ConfigPage() {
           )}
           {settings.data && section === "profile" && <ProfileSection data={settings.data.profile} />}
           {settings.data && section === "workspace" && <WorkspaceSection data={settings.data.workspace} />}
-          {settings.data && section === "billing" && <BillingSection planId={settings.data.workspace.planId} />}
+          {settings.data && section === "billing" && <BillingSection planId={settings.data.workspace.planId} usage={settings.data.usage} />}
           {settings.data && section === "notifications" && <NotificationsSection values={settings.data.preferences} />}
           {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
           {settings.data && section === "integrations" && <IntegrationsSection whatsapp={settings.data.whatsapp} />}
@@ -248,11 +249,18 @@ function WorkspaceSection({ data }: { data: { id: string; name: string; slug: st
   );
 }
 
-function BillingSection({ planId }: { planId: string }) {
+const resourceLabels: Record<string, string> = { customers: "Clientes", messages: "Mensagens", ai_credits: "Créditos de IA", storage_bytes: "Armazenamento", api_calls: "Chamadas de API" };
+
+function formatUsage(resource: string, value: number) {
+  if (resource === "storage_bytes") return `${(value / 1_073_741_824).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`;
+  return value.toLocaleString("pt-BR");
+}
+
+function BillingSection({ planId, usage }: { planId: string; usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
   const plan = plans[(planId in plans ? planId : defaultPlanId) as PlanId];
   const price = plan.priceMonthly === null ? "Fale conosco" : plan.priceMonthly === 0 ? "Grátis" : (plan.priceMonthly / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) + "/mês";
   return (
-    <SectionCard title="Plano atual" description="Informações reais da sua empresa">
+    <div className="space-y-4"><SectionCard title="Plano atual" description="Informações reais da sua empresa">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2"><Badge className="border-0 bg-primary/15 text-primary">{plan.name}</Badge><span className="text-sm text-muted-foreground">{price}</span></div>
@@ -262,7 +270,10 @@ function BillingSection({ planId }: { planId: string }) {
         </div>
         <Button disabled variant="outline">Gestão de assinatura em breve</Button>
       </div>
-    </SectionCard>
+    </SectionCard><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
+      <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatUsage(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
+      {usage.length === 0 && <p className="text-sm text-muted-foreground">Nenhum limite foi configurado para este plano.</p>}
+    </SectionCard></div>
   );
 }
 
