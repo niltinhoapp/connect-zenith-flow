@@ -12,6 +12,8 @@ import {
   type Conversation,
   type Message,
   type ConversationFilter,
+  ConversationInsightService,
+  type ConversationInsight,
 } from "@/features/whatsapp";
 
 function ctxOf(session: AuthSession) {
@@ -35,6 +37,10 @@ function makeInbox(session: AuthSession): InboxApplicationService {
 function makeMessaging(session: AuthSession): MessagingApplicationService {
   const db = getSupabaseBrowserClient();
   return new MessagingApplicationService(db, new MessageSupabaseRepository(db), ctxOf(session));
+}
+
+function makeInsights(session: AuthSession): ConversationInsightService {
+  return new ConversationInsightService(getSupabaseBrowserClient(), ctxOf(session));
 }
 
 export function useConversations(filter?: ConversationFilter) {
@@ -79,6 +85,39 @@ export function useInboxCounters() {
     enabled: Boolean(org),
     refetchInterval: 15_000,
     queryFn: () => makeInbox(session!).counters(),
+  });
+}
+
+export function useConversationInsight(conversationId: string | null) {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  return useQuery<ConversationInsight | null>({
+    queryKey: queryKeys.whatsapp.insight(org ?? "none", conversationId ?? "none"),
+    enabled: Boolean(org && conversationId),
+    queryFn: () => makeInsights(session!).get(conversationId!),
+  });
+}
+
+export function useConversationInsights(conversationIds: string[]) {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  return useQuery<Record<string, ConversationInsight>>({
+    queryKey: queryKeys.whatsapp.insights(org ?? "none", conversationIds),
+    enabled: Boolean(org && conversationIds.length),
+    queryFn: () => makeInsights(session!).list(conversationIds),
+  });
+}
+
+export function useAnalyzeConversation() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  const qc = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: (conversationId: string) => makeInsights(session!).analyze(conversationId),
+    onSuccess: (_data, conversationId) => {
+      if (org) qc.invalidateQueries({ queryKey: queryKeys.whatsapp.insight(org, conversationId) });
+    },
   });
 }
 
