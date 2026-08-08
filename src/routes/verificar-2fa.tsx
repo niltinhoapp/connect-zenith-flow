@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth-shell";
@@ -17,13 +17,27 @@ function VerifyMfaPage() {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSupabaseBrowserClient().auth.mfa.listFactors().then(({ data, error }) => {
-      if (error) toast.error(error.message);
-      const factor = data?.totp?.find((item) => item.status === "verified");
-      setFactorId(factor?.id ?? null);
-    });
+    let active = true;
+    getSupabaseBrowserClient()
+      .auth.mfa.listFactors()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) toast.error(error.message);
+        const factor = data?.totp?.find((item) => item.status === "verified");
+        setFactorId(factor?.id ?? null);
+      })
+      .catch(() => {
+        if (active) setFactorId(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const verify = async () => {
@@ -37,6 +51,25 @@ function VerifyMfaPage() {
     }
     window.location.assign("/");
   };
+
+  if (!loading && !factorId) {
+    return (
+      <AuthShell title="Confirme que é você" subtitle="Não encontramos um aplicativo autenticador ativo nesta conta.">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Talvez a verificação em duas etapas não esteja concluída. Entre novamente para tentar de novo
+            ou revise a configuração em Segurança.
+          </p>
+          <Link
+            to="/login"
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Voltar para o login
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell title="Confirme que é você" subtitle="Digite o código do seu aplicativo autenticador.">

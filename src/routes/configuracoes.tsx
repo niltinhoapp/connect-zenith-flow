@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import {
   User,
@@ -17,6 +17,9 @@ import {
   Webhook,
   ShieldCheck,
   LogOut,
+  HelpCircle,
+  ShieldAlert,
+  ExternalLink,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +34,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
 import { plans, defaultPlanId, type PlanId } from "@/config/plans";
@@ -77,6 +91,37 @@ const menu: Array<{ id: Section; i: typeof User; l: string; d: string }> = [
   { id: "api", i: Key, l: "API Keys", d: "Chaves e webhooks" },
 ];
 
+/**
+ * Ajuda contextual colapsável para lojistas. Usa <details> nativo: acessível
+ * por teclado e leitores de tela sem JS extra. Fechado por padrão para não
+ * poluir a interface aprovada.
+ */
+function HelpDisclosure({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group mt-4 rounded-lg border border-border bg-muted/30 [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+        <HelpCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="flex-1">{title}</span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+      </summary>
+      <div className="space-y-2 px-3 pb-3 pt-1 text-xs leading-relaxed text-muted-foreground">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 function ConfigPage() {
   const [section, setSection] = useState<Section>("profile");
   const settings = useSettings();
@@ -92,8 +137,9 @@ function ConfigPage() {
                 <li key={item.id}>
                   <button
                     onClick={() => setSection(item.id)}
+                    aria-current={active ? "page" : undefined}
                     className={
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors " +
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 " +
                       (active
                         ? "bg-primary/10 text-foreground ring-1 ring-inset ring-primary/25"
                         : "text-muted-foreground hover:bg-accent/40 hover:text-foreground")
@@ -190,6 +236,13 @@ function ProfileSection({ data }: { data: { fullName: string; email: string; ava
           </Button>
         </div>
       </form>
+      <HelpDisclosure title="Por que não consigo mudar o e-mail por aqui?">
+        <p>
+          O e-mail é a chave de acesso da sua conta, por isso ele é gerenciado pelo login para sua
+          segurança. Para trocar a senha, use a seção <span className="font-medium text-foreground">Segurança</span>.
+          A foto de perfil será liberada quando o armazenamento de imagens estiver ativo.
+        </p>
+      </HelpDisclosure>
     </SectionCard>
   );
 }
@@ -237,13 +290,28 @@ function WorkspaceSection({ data }: { data: { id: string; name: string; slug: st
         </form>
       </SectionCard>
       <SectionCard title="Módulos ativos" description="Recursos disponíveis para esta empresa">
-        <div className="flex flex-wrap gap-2">
-          {data.enabledModules.map((module) => <Badge key={module} variant="secondary">{module}</Badge>)}
-        </div>
+        {data.enabledModules.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {data.enabledModules.map((module) => <Badge key={module} variant="secondary">{module}</Badge>)}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhum módulo ativo nesta empresa ainda.</p>
+        )}
         <Separator className="my-4" />
         <Link to="/configuracoes/papeis" className="text-sm font-medium text-primary hover:underline">
           Gerenciar papéis e permissões
         </Link>
+        <HelpDisclosure title="O que são módulos e o identificador?">
+          <p>
+            <span className="font-medium text-foreground">Módulos</span> são as áreas liberadas para a
+            sua empresa (CRM, WhatsApp, Automações e assim por diante). Eles definem o que aparece no
+            menu e o que cada pessoa pode usar.
+          </p>
+          <p>
+            O <span className="font-medium text-foreground">identificador</span> é o apelido único da
+            empresa dentro do ConnectWeb; ele é fixo e usado internamente pelo sistema.
+          </p>
+        </HelpDisclosure>
       </SectionCard>
     </div>
   );
@@ -273,6 +341,14 @@ function BillingSection({ planId, usage }: { planId: string; usage: Array<{ reso
     </SectionCard><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
       <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatUsage(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
       {usage.length === 0 && <p className="text-sm text-muted-foreground">Nenhum limite foi configurado para este plano.</p>}
+      <HelpDisclosure title="Como leio o consumo do meu plano?">
+        <p>
+          Cada barra mostra quanto você já usou em relação ao limite do plano — por exemplo,
+          mensagens e créditos de IA no mês, ou armazenamento total. Quando a barra se aproxima de
+          100%, vale a pena revisar o uso ou considerar um plano maior.
+        </p>
+        <p>Os números são medidos pela própria plataforma e refletem o uso real da sua empresa.</p>
+      </HelpDisclosure>
     </SectionCard></div>
   );
 }
@@ -286,15 +362,22 @@ function NotificationsSection({ values }: { values: { email: boolean; push: bool
     update.mutate(next, { onSuccess: () => toast.success("Preferências atualizadas."), onError: (error) => toast.error(error.message) });
   };
   const rows = [
-    { key: "email" as const, title: "Notificações por e-mail", desc: "Resumos e alertas importantes" },
-    { key: "push" as const, title: "Notificações no navegador", desc: "Alertas durante o uso do painel" },
-    { key: "compact" as const, title: "Modo compacto", desc: "Preferência preparada para a interface" },
-    { key: "analytics" as const, title: "Analytics de uso", desc: "Ajuda a melhorar o produto" },
+    { key: "email" as const, title: "Notificações por e-mail", desc: "Enviamos resumos e alertas importantes para o e-mail da conta." },
+    { key: "push" as const, title: "Notificações no navegador", desc: "Mostra avisos enquanto você usa o painel (o navegador pode pedir permissão)." },
+    { key: "compact" as const, title: "Modo compacto", desc: "Reduz espaçamentos para caber mais informação na tela." },
+    { key: "analytics" as const, title: "Ajudar a melhorar o produto", desc: "Compartilha estatísticas de uso anônimas com a nossa equipe." },
   ];
   return (
-    <SectionCard title="Preferências" description="Aplicadas à empresa em todos os dispositivos">
-      {rows.map((row, index) => <div key={row.key}><div className="flex items-center justify-between py-3"><div><p className="text-sm font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.desc}</p></div><Switch checked={values[row.key]} disabled={!allowed || update.isPending} onCheckedChange={() => toggle(row.key)} /></div>{index < rows.length - 1 && <Separator />}</div>)}
+    <SectionCard title="Preferências" description="Valem para a empresa em todos os dispositivos">
+      {rows.map((row, index) => <div key={row.key}><div className="flex items-center justify-between gap-4 py-3"><div><p className="text-sm font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.desc}</p></div><Switch checked={values[row.key]} disabled={!allowed || update.isPending} onCheckedChange={() => toggle(row.key)} aria-label={row.title} /></div>{index < rows.length - 1 && <Separator />}</div>)}
       {!allowed && <p className="mt-3 text-xs text-muted-foreground">Somente administradores podem alterar as preferências da empresa.</p>}
+      <HelpDisclosure title="Essas preferências valem para quem?">
+        <p>
+          As opções aqui são da <span className="font-medium text-foreground">empresa</span>: quando um
+          administrador altera, o novo padrão passa a valer para todos os usuários e aparelhos ligados a
+          esta empresa. Elas são salvas automaticamente ao ligar ou desligar cada opção.
+        </p>
+      </HelpDisclosure>
     </SectionCard>
   );
 }
@@ -305,11 +388,26 @@ function SecuritySection({ email }: { email: string }) {
   const [enrollment, setEnrollment] = useState<{ id: string; qr: string; secret: string } | null>(null);
   const [code, setCode] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
+  const [loadingFactor, setLoadingFactor] = useState(true);
+  const [closingSessions, setClosingSessions] = useState(false);
   useEffect(() => {
-    getSupabaseBrowserClient().auth.mfa.listFactors().then(({ data }) => {
-      const current = data?.totp?.find((item) => item.status === "verified") ?? data?.totp?.[0];
-      setFactor(current ? { id: current.id, status: current.status } : null);
-    });
+    let active = true;
+    getSupabaseBrowserClient()
+      .auth.mfa.listFactors()
+      .then(({ data }) => {
+        if (!active) return;
+        const current = data?.totp?.find((item) => item.status === "verified") ?? data?.totp?.[0];
+        setFactor(current ? { id: current.id, status: current.status } : null);
+      })
+      .catch(() => {
+        if (active) setFactor(null);
+      })
+      .finally(() => {
+        if (active) setLoadingFactor(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   const reset = async () => {
     setSending(true);
@@ -351,8 +449,14 @@ function SecuritySection({ email }: { email: string }) {
     finally { setMfaBusy(false); }
   };
   const closeOtherSessions = async () => {
-    const { error } = await getSupabaseBrowserClient().auth.signOut({ scope: "others" });
-    if (error) toast.error(error.message); else toast.success("Outras sessões foram encerradas.");
+    setClosingSessions(true);
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.signOut({ scope: "others" });
+      if (error) toast.error(error.message);
+      else toast.success("Outras sessões foram encerradas.");
+    } finally {
+      setClosingSessions(false);
+    }
   };
   return (
     <div className="space-y-4">
@@ -363,10 +467,45 @@ function SecuritySection({ email }: { email: string }) {
       </div>
     </SectionCard>
     <SectionCard title="Autenticação em dois fatores" description="Proteja a conta com um aplicativo autenticador">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">Aplicativo autenticador</p><Badge variant={factor?.status === "verified" ? "default" : "secondary"}>{factor?.status === "verified" ? "Ativo" : "Desativado"}</Badge></div><p className="text-xs text-muted-foreground">Use Google Authenticator, Microsoft Authenticator ou similar.</p></div></div>{factor?.status === "verified" ? <Button variant="outline" disabled={mfaBusy} onClick={disableMfa}>Desativar</Button> : <Button variant="outline" disabled={mfaBusy || Boolean(enrollment)} onClick={startMfa}>Ativar 2FA</Button>}</div>
-      {enrollment && <div className="mt-5 rounded-xl border border-border p-4"><div className="grid gap-4 sm:grid-cols-[180px_1fr]"><img src={enrollment.qr} alt="QR code para configurar autenticação em dois fatores" className="h-44 w-44 rounded-lg bg-white p-2" /><div><p className="text-sm font-medium">1. Escaneie o QR code</p><p className="mt-1 text-xs text-muted-foreground">Se preferir, use a chave: <span className="break-all font-mono text-foreground">{enrollment.secret}</span></p><Label className="mt-4 block">2. Digite o código de 6 números</Label><div className="mt-1.5 flex gap-2"><Input inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className="max-w-44" /><Button onClick={verifyMfa} disabled={mfaBusy || code.length !== 6}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></div></div></div></div>}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">Aplicativo autenticador</p><Badge variant={factor?.status === "verified" ? "default" : "secondary"}>{loadingFactor ? "Verificando…" : factor?.status === "verified" ? "Ativo" : "Desativado"}</Badge></div><p className="text-xs text-muted-foreground">Use Google Authenticator, Microsoft Authenticator ou similar.</p></div></div>
+        {loadingFactor ? (
+          <Button variant="outline" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando</Button>
+        ) : factor?.status === "verified" ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={mfaBusy}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Desativar</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-warning" /> Desativar a verificação em duas etapas?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Sua conta passará a ser protegida somente pela senha. Sem o segundo fator, fica mais fácil para outra pessoa entrar caso descubra sua senha. Você pode reativar quando quiser.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Manter ativo</AlertDialogCancel>
+                <AlertDialogAction onClick={disableMfa} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Desativar mesmo assim</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Button variant="outline" disabled={mfaBusy || Boolean(enrollment)} onClick={startMfa}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Ativar 2FA</Button>
+        )}
+      </div>
+      {enrollment && <div className="mt-5 rounded-xl border border-border p-4"><div className="grid gap-4 sm:grid-cols-[180px_1fr]"><img src={enrollment.qr} alt="QR code para configurar autenticação em dois fatores" className="h-44 w-44 rounded-lg bg-white p-2" /><div><p className="text-sm font-medium">1. Escaneie o QR code</p><p className="mt-1 text-xs text-muted-foreground">Abra seu app autenticador e aponte a câmera. Se preferir, digite a chave manualmente: <span className="break-all font-mono text-foreground">{enrollment.secret}</span></p><Label htmlFor="mfa-enroll-code" className="mt-4 block">2. Digite o código de 6 números</Label><div className="mt-1.5 flex gap-2"><Input id="mfa-enroll-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} onKeyDown={(event) => { if (event.key === "Enter") void verifyMfa(); }} className="max-w-44" /><Button onClick={verifyMfa} disabled={mfaBusy || code.length !== 6}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></div></div></div></div>}
+      <HelpDisclosure title="Como funciona a verificação em duas etapas?">
+        <p>
+          Além da senha, o login passa a pedir um código que muda a cada 30 segundos, gerado por um
+          aplicativo no seu celular (Google Authenticator, Microsoft Authenticator, entre outros).
+        </p>
+        <p>
+          Assim, mesmo que alguém descubra sua senha, não consegue entrar sem o seu celular. Ao ativar,
+          nas próximas vezes você digitará esse código na tela de verificação.
+        </p>
+      </HelpDisclosure>
     </SectionCard>
-    <SectionCard title="Sessões" description="Controle onde sua conta permanece conectada"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><LogOut className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Encerrar outras sessões</p><p className="text-xs text-muted-foreground">Mantém somente este navegador conectado.</p></div></div><Button variant="outline" onClick={closeOtherSessions}>Encerrar outras</Button></div></SectionCard>
+    <SectionCard title="Sessões" description="Controle onde sua conta permanece conectada"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><LogOut className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Encerrar outras sessões</p><p className="text-xs text-muted-foreground">Desconecta sua conta em todos os outros aparelhos e navegadores, mantendo só este.</p></div></div><Button variant="outline" onClick={closeOtherSessions} disabled={closingSessions}>{closingSessions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Encerrar outras</Button></div></SectionCard>
     </div>
   );
 }
@@ -404,11 +543,55 @@ function IntegrationsSection({ whatsapp }: { whatsapp: { connected: boolean; pro
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
             O token é enviado diretamente à função segura e armazenado na área protegida do servidor. Ele não fica salvo neste navegador.
           </div>
-          <div><Label>Token de acesso permanente</Label><Input type="password" autoComplete="off" className="mt-1.5" {...form.register("accessToken")} />{form.formState.errors.accessToken && <p className="mt-1 text-xs text-destructive">{form.formState.errors.accessToken.message}</p>}</div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><Label>ID da conta WhatsApp (WABA)</Label><Input className="mt-1.5" {...form.register("wabaId")} />{form.formState.errors.wabaId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.wabaId.message}</p>}</div>
-            <div><Label>ID do número de telefone</Label><Input className="mt-1.5" {...form.register("phoneNumberId")} />{form.formState.errors.phoneNumberId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.phoneNumberId.message}</p>}</div>
+          <div>
+            <Label htmlFor="wa-token">Token de acesso permanente</Label>
+            <Input id="wa-token" type="password" autoComplete="off" className="mt-1.5" {...form.register("accessToken")} />
+            <p className="mt-1 text-[11px] text-muted-foreground">Token permanente do usuário do sistema (não o token temporário de teste).</p>
+            {form.formState.errors.accessToken && <p className="mt-1 text-xs text-destructive">{form.formState.errors.accessToken.message}</p>}
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="wa-waba">ID da conta WhatsApp (WABA)</Label>
+              <Input id="wa-waba" inputMode="numeric" className="mt-1.5" {...form.register("wabaId")} />
+              <p className="mt-1 text-[11px] text-muted-foreground">Sequência de números da sua conta comercial.</p>
+              {form.formState.errors.wabaId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.wabaId.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="wa-phone">ID do número de telefone</Label>
+              <Input id="wa-phone" inputMode="numeric" className="mt-1.5" {...form.register("phoneNumberId")} />
+              <p className="mt-1 text-[11px] text-muted-foreground">Identifica o número que envia as mensagens (não é o número em si).</p>
+              {form.formState.errors.phoneNumberId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.phoneNumberId.message}</p>}
+            </div>
+          </div>
+
+          <HelpDisclosure title="Onde encontrar esses dados na Meta?">
+            <p>
+              Acesse o <span className="font-medium text-foreground">Meta Business Manager</span> com a conta dona do WhatsApp Business:
+            </p>
+            <ol className="ml-4 list-decimal space-y-1.5">
+              <li>
+                <span className="font-medium text-foreground">WABA ID</span> e{" "}
+                <span className="font-medium text-foreground">Phone Number ID</span>: abra{" "}
+                <span className="font-medium text-foreground">Configurações da conta → WhatsApp → Contas do WhatsApp</span>{" "}
+                (ou o app em <span className="font-medium text-foreground">developers.facebook.com → seu app → WhatsApp → Configuração da API</span>). Os dois IDs aparecem no topo do painel do número.
+              </li>
+              <li>
+                <span className="font-medium text-foreground">Token permanente</span>: em{" "}
+                <span className="font-medium text-foreground">Configurações do negócio → Usuários → Usuários do sistema</span>, crie (ou selecione) um usuário do sistema, clique em{" "}
+                <span className="font-medium text-foreground">Gerar token</span>, escolha o app e marque as permissões{" "}
+                <span className="font-mono text-foreground">whatsapp_business_messaging</span> e{" "}
+                <span className="font-mono text-foreground">whatsapp_business_management</span>. Copie o token gerado — ele só aparece uma vez.
+              </li>
+            </ol>
+            <p className="flex items-center gap-1.5 pt-1">
+              <ExternalLink className="h-3 w-3 shrink-0" />
+              <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                Abrir o Meta Business Manager
+              </a>
+            </p>
+            <p className="text-[11px]">Precisa que o número já esteja verificado e com a conta comercial aprovada na Meta.</p>
+          </HelpDisclosure>
+
           <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button><Button type="submit" disabled={connect.isPending}>{connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Validar e conectar</Button></div>
         </form>
       </SectionCard>
@@ -444,12 +627,23 @@ function WebhooksSection() {
             <div className="flex justify-end"><Button type="submit" disabled={create.isPending}>{create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar webhook</Button></div>
           </form>
         )}
+        <HelpDisclosure title="O que é um webhook?">
+          <p>
+            É um aviso automático: sempre que algo acontece no ConnectWeb (um cliente novo, uma
+            mensagem recebida, uma automação concluída), enviamos uma notificação para a URL que você
+            cadastrar. Assim outro sistema seu — um ERP, uma planilha, um site — fica sabendo na hora.
+          </p>
+          <p>
+            O <span className="font-medium text-foreground">segredo</span> serve para o seu sistema
+            conferir que o aviso veio mesmo do ConnectWeb, e não de um impostor.
+          </p>
+        </HelpDisclosure>
       </SectionCard>
       <SectionCard title="Endpoints cadastrados" description="Ative, pause ou remova integrações">
         {webhooks.isLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
         {webhooks.isError && <p className="text-sm text-destructive">Não foi possível carregar os webhooks.</p>}
         {webhooks.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhum webhook cadastrado.</p>}
-        <div className="space-y-3">{webhooks.data?.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><Webhook className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.url}</p><p className="text-xs text-muted-foreground">{item.events.join(" · ")}</p></div><Switch checked={item.enabled} disabled={!allowed || toggle.isPending} onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })} /><Button size="icon" variant="ghost" disabled={!allowed || remove.isPending} onClick={() => remove.mutate(item.id)} aria-label="Remover webhook"><Trash2 className="h-4 w-4 text-destructive" /></Button></div>)}</div>
+        <div className="space-y-3">{webhooks.data?.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><Webhook className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-sm font-medium">{item.url}</p><Badge variant={item.enabled ? "default" : "secondary"} className="shrink-0">{item.enabled ? "Ativo" : "Pausado"}</Badge></div><p className="truncate text-xs text-muted-foreground">{item.events.join(" · ")}</p></div><Switch checked={item.enabled} disabled={!allowed || toggle.isPending} onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })} aria-label={item.enabled ? `Pausar webhook ${item.url}` : `Ativar webhook ${item.url}`} /><AlertDialog><AlertDialogTrigger asChild><Button size="icon" variant="ghost" disabled={!allowed || remove.isPending} aria-label={`Remover webhook ${item.url}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-destructive" /> Remover webhook?</AlertDialogTitle><AlertDialogDescription>Os eventos deixarão de ser enviados para <span className="break-all font-medium text-foreground">{item.url}</span>. Esta ação não pode ser desfeita — para voltar a receber, você precisará cadastrar o endpoint de novo.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remover webhook</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>)}</div>
       </SectionCard>
       <SectionCard title="API Keys" description="Acesso programático"><p className="text-sm text-muted-foreground">Chaves de API ainda não estão habilitadas. Webhooks já funcionam sem expor credenciais da sua conta.</p></SectionCard>
     </div>
