@@ -67,6 +67,17 @@ import {
   type AttachmentStatus,
   type DraftAttachment,
 } from "@/features/whatsapp/components/media/attachment-preview";
+
+function sendFailureHelp(error: Record<string, unknown> | null): string {
+  const message = typeof error?.message === "string" ? error.message : "";
+  if (message.includes("131005") || /access denied/i.test(message)) {
+    return "A Meta negou a permissão de envio. Reconecte usando um token com whatsapp_business_messaging e confirme que o número foi atribuído ao usuário do sistema.";
+  }
+  if (/authentication|token|oauth/i.test(message)) {
+    return "A Meta recusou a autenticação. Um administrador precisa reconectar o WhatsApp com um token permanente válido.";
+  }
+  return "A mensagem não foi enviada. Confira a conexão, a janela de atendimento e, fora de 24 horas, use um template aprovado.";
+}
 import {
   ACCEPTED_MEDIA,
   detectKind,
@@ -471,6 +482,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   // falha histórica; não expõe credenciais).
   const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
   const lastSendFailed = lastOutbound?.status === "failed";
+  const lastSendFailureHelp = sendFailureHelp(lastOutbound?.error ?? null);
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
 
@@ -624,10 +636,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
         {lastSendFailed && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
             <KeyRound className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              A última mensagem não foi enviada. Verifique a conexão, a janela de atendimento
-              e o template utilizado antes de tentar novamente.
-            </span>
+            <span>{lastSendFailureHelp}</span>
           </div>
         )}
         {!withinWindow && (

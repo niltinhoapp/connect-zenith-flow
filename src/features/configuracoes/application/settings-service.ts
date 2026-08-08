@@ -73,7 +73,9 @@ export class SettingsApplicationService {
           .select("provider, name, status, connected_at")
           .eq("organization_id", this.ctx.organizationId)
           .is("deleted_at", null)
-          .order("connected_at", { ascending: false })
+          // Contas antigas/rascunhos têm connected_at nulo. Sem NULLS LAST o
+          // Postgres pode devolver um rascunho "pending" antes da conexão real.
+          .order("connected_at", { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle(),
         this.loadPreferences(),
