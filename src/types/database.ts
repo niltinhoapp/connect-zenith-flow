@@ -652,6 +652,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["conversations"]["Row"]>;
         Relationships: [];
       };
+      conversation_insights: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          conversation_id: string;
+          intent: "sale" | "support" | "billing" | "post_sale" | "other";
+          temperature: "hot" | "warm" | "cold";
+          urgency: "high" | "medium" | "low";
+          sentiment: "positive" | "neutral" | "negative";
+          summary: string;
+          next_best_action: string;
+          suggested_reply: string | null;
+          reasons: string[];
+          source_last_message_at: string | null;
+          model: string | null;
+          tokens_in: number;
+          tokens_out: number;
+          generated_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          conversation_id: string;
+          intent: "sale" | "support" | "billing" | "post_sale" | "other";
+          temperature: "hot" | "warm" | "cold";
+          urgency: "high" | "medium" | "low";
+          sentiment: "positive" | "neutral" | "negative";
+          summary: string;
+          next_best_action: string;
+        } & Partial<Database["public"]["Tables"]["conversation_insights"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["conversation_insights"]["Row"]>;
+        Relationships: [];
+      };
       messages: {
         Row: Timestamps & {
           id: string;
@@ -1027,6 +1059,24 @@ export interface Database {
           p_body?: string | null;
           p_template_id?: string | null;
           p_payload?: Json;
+        };
+        Returns: string;
+      };
+      wa_upsert_conversation_insight: {
+        Args: {
+          p_conversation: string;
+          p_intent: string;
+          p_temperature: string;
+          p_urgency: string;
+          p_sentiment: string;
+          p_summary: string;
+          p_next_best_action: string;
+          p_suggested_reply: string | null;
+          p_reasons: string[];
+          p_source_last_message_at: string | null;
+          p_model: string;
+          p_tokens_in: number;
+          p_tokens_out: number;
         };
         Returns: string;
       };

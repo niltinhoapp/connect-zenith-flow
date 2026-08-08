@@ -21,3 +21,4 @@ export { WaContact } from "./value-objects/wa-contact";
 export type { ConversationRepository, ConversationFilter } from "./repositories/conversation-repository";
 export type { MessageRepository, MessageFilter } from "./repositories/message-repository";
 export type { TemplateRepository, TemplateFilter } from "./repositories/template-repository";
+export * from "./conversation-insight";

@@ -23,6 +23,7 @@ export {
   type InboxCounters,
 } from "./application/inbox-application-service";
 export { TemplateApplicationService } from "./application/template-application-service";
+export { ConversationInsightService } from "./application/conversation-insight-service";
 
 // Infrastructure
 export {
