@@ -65,6 +65,10 @@ export interface BillingCustomerInput {
   email: string;
   taxId: string;
   phone?: string;
+  postalCode?: string;
+  address?: string;
+  addressNumber?: string;
+  province?: string;
 }
 
 export interface BillingCheckoutResult {

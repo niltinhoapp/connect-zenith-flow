@@ -16,7 +16,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatBRL } from "./commercial";
-import { billingCustomerSchema, type BillingCustomerForm } from "./checkout-validation";
+import {
+  subscriptionBillingCustomerSchema,
+  type SubscriptionBillingCustomerForm,
+} from "./checkout-validation";
 
 export function SubscriptionCheckoutDialog({
   open,
@@ -27,11 +30,15 @@ export function SubscriptionCheckoutDialog({
 }) {
   const session = useSession();
   const checkout = useCreateSubscriptionCheckout();
-  const [form, setForm] = useState<BillingCustomerForm>({
+  const [form, setForm] = useState<SubscriptionBillingCustomerForm>({
     legalName: "",
     email: "",
     taxId: "",
     phone: "",
+    postalCode: "",
+    address: "",
+    addressNumber: "",
+    province: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ url: string; sandbox: boolean } | null>(null);
@@ -43,18 +50,22 @@ export function SubscriptionCheckoutDialog({
       email: session?.profile.email ?? "",
       taxId: "",
       phone: "",
+      postalCode: "",
+      address: "",
+      addressNumber: "",
+      province: "",
     });
     setErrors({});
     setResult(null);
     checkout.reset();
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const update = (field: keyof BillingCustomerForm, value: string) => {
+  const update = (field: keyof SubscriptionBillingCustomerForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
   };
   const submit = async () => {
-    const parsed = billingCustomerSchema.safeParse(form);
+    const parsed = subscriptionBillingCustomerSchema.safeParse(form);
     if (!parsed.success) {
       const next: Record<string, string> = {};
       for (const issue of parsed.error.issues) next[String(issue.path[0])] = issue.message;
@@ -79,7 +90,7 @@ export function SubscriptionCheckoutDialog({
         if (!value && !checkout.isPending) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Assinar ConnectWeb Completo</DialogTitle>
           <DialogDescription>
@@ -138,6 +149,34 @@ export function SubscriptionCheckoutDialog({
               value={form.phone}
               error={errors.phone}
               onChange={(v) => update("phone", v)}
+            />
+            <Field
+              id="subscription-postal-code"
+              label="CEP"
+              value={form.postalCode}
+              error={errors.postalCode}
+              onChange={(v) => update("postalCode", v)}
+            />
+            <Field
+              id="subscription-province"
+              label="Bairro"
+              value={form.province}
+              error={errors.province}
+              onChange={(v) => update("province", v)}
+            />
+            <Field
+              id="subscription-address"
+              label="Endereço"
+              value={form.address}
+              error={errors.address}
+              onChange={(v) => update("address", v)}
+            />
+            <Field
+              id="subscription-address-number"
+              label="Número"
+              value={form.addressNumber}
+              error={errors.addressNumber}
+              onChange={(v) => update("addressNumber", v)}
             />
             <p className="flex items-start gap-2 text-xs text-muted-foreground sm:col-span-2">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />

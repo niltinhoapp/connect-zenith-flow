@@ -113,6 +113,13 @@ Deno.serve(async (req) => {
     const organizationId = String(input?.organizationId ?? "");
     const customer = input?.customer ?? {};
     if (!UUID.test(organizationId)) return json({ error: "organizationId inválido" }, 400);
+    const address = String(customer.address ?? "").trim();
+    const addressNumber = String(customer.addressNumber ?? "").trim();
+    const postalCode = String(customer.postalCode ?? "").replace(/\D/g, "");
+    const province = String(customer.province ?? "").trim();
+    if (!address || !addressNumber || postalCode.length !== 8 || !province) {
+      return json({ error: "Informe CEP, endereço, número e bairro para continuar" }, 400);
+    }
 
     const asUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authorization } },
@@ -180,6 +187,10 @@ Deno.serve(async (req) => {
         email: profile.email,
         cpfCnpj: profile.tax_id,
         phone: profile.phone || undefined,
+        postalCode,
+        address,
+        addressNumber,
+        province,
       },
       subscription: { cycle: "MONTHLY", nextDueDate },
     });

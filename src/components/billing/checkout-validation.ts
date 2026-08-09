@@ -19,4 +19,15 @@ export const billingCustomerSchema = z.object({
     ),
 });
 
+export const subscriptionBillingCustomerSchema = billingCustomerSchema.extend({
+  postalCode: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ""))
+    .refine((value) => value.length === 8, "Informe um CEP válido."),
+  address: z.string().trim().min(2, "Informe o endereço."),
+  addressNumber: z.string().trim().min(1, "Informe o número."),
+  province: z.string().trim().min(2, "Informe o bairro."),
+});
+
 export type BillingCustomerForm = z.input<typeof billingCustomerSchema>;
+export type SubscriptionBillingCustomerForm = z.input<typeof subscriptionBillingCustomerSchema>;
