@@ -78,21 +78,9 @@ function asaasDateTime(date: Date) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-async function cityCodeFromPostalCode(postalCode: string) {
-  const response = await fetch(`https://viacep.com.br/ws/${encodeURIComponent(postalCode)}/json/`, {
-    headers: { "User-Agent": "ConnectWeb-Automations/1.0" },
-  });
-  const data = await response.json().catch(() => ({}));
-  const cityCode = Number(data?.ibge);
-  if (!response.ok || data?.erro || !Number.isInteger(cityCode) || cityCode <= 0) {
-    throw new Error("CEP não encontrado. Confira o número informado.");
-  }
-  return cityCode;
-}
-
-async function createCheckout(body: unknown) {
-  const response = await fetch(`${ASAAS_BASE}/checkouts`, {
-    method: "POST",
+async function asaasRequest(path: string, method: "POST" | "PUT", body: unknown) {
+  const response = await fetch(`${ASAAS_BASE}${path}`, {
+    method,
     headers: {
       access_token: ASAAS_API_KEY,
       "Content-Type": "application/json",
@@ -111,6 +99,8 @@ async function createCheckout(body: unknown) {
   }
   return data;
 }
+
+const createCheckout = (body: unknown) => asaasRequest("/checkouts", "POST", body);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -162,7 +152,7 @@ Deno.serve(async (req) => {
         .single(),
       admin
         .from("billing_customer_profiles")
-        .select("legal_name,email,tax_id,phone")
+        .select("legal_name,email,tax_id,phone,provider,provider_customer_id")
         .eq("organization_id", organizationId)
         .single(),
       admin
@@ -176,7 +166,35 @@ Deno.serve(async (req) => {
     if (subscription.status === "active") return json({ error: "A assinatura já está ativa" }, 409);
 
     const callback = callbackUrls(req);
-    const city = await cityCodeFromPostalCode(postalCode);
+    const formattedPostalCode = `${postalCode.slice(0, 5)}-${postalCode.slice(5)}`;
+    const customerPayload = {
+      name: profile.legal_name,
+      email: profile.email,
+      cpfCnpj: profile.tax_id,
+      mobilePhone: profile.phone || undefined,
+      postalCode: formattedPostalCode,
+      address,
+      addressNumber,
+      province,
+      externalReference: organizationId,
+      notificationDisabled: false,
+    };
+    const existingCustomerId =
+      profile.provider === "asaas" ? profile.provider_customer_id : null;
+    const asaasCustomer = existingCustomerId
+      ? await asaasRequest(
+          `/customers/${encodeURIComponent(existingCustomerId)}`,
+          "PUT",
+          customerPayload,
+        )
+      : await asaasRequest("/customers", "POST", customerPayload);
+    const customerId = String(asaasCustomer?.id ?? existingCustomerId ?? "");
+    if (!customerId) throw new Error("Asaas não devolveu o identificador do cliente");
+    const { error: saveCustomerError } = await admin
+      .from("billing_customer_profiles")
+      .update({ provider: "asaas", provider_customer_id: customerId, updated_at: new Date().toISOString() })
+      .eq("organization_id", organizationId);
+    if (saveCustomerError) throw saveCustomerError;
     // O Checkout recorrente usa data e hora (diferente do endpoint comum de
     // assinaturas, que aceita apenas YYYY-MM-DD). A primeira cobrança vence
     // hoje e o cartão é coletado exclusivamente na página segura do Asaas.
@@ -195,17 +213,7 @@ Deno.serve(async (req) => {
           value: product.price_cents / 100,
         },
       ],
-      customerData: {
-        name: profile.legal_name,
-        email: profile.email,
-        cpfCnpj: profile.tax_id,
-        phone: profile.phone || undefined,
-        postalCode,
-        address,
-        addressNumber,
-        province,
-        city,
-      },
+      customer: customerId,
       subscription: { cycle: "MONTHLY", nextDueDate },
     });
     if (!checkout?.id) throw new Error("Asaas não devolveu o identificador do checkout");
@@ -214,7 +222,7 @@ Deno.serve(async (req) => {
       `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(checkout.id)}`;
     const { error: attachError } = await admin.rpc("attach_asaas_subscription_checkout", {
       p_org: organizationId,
-      p_customer_id: "",
+      p_customer_id: customerId,
       p_checkout_id: checkout.id,
       p_checkout_url: url,
     });
