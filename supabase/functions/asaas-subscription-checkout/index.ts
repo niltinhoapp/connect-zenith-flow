@@ -78,6 +78,18 @@ function asaasDateTime(date: Date) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
+async function cityCodeFromPostalCode(postalCode: string) {
+  const response = await fetch(`https://viacep.com.br/ws/${encodeURIComponent(postalCode)}/json/`, {
+    headers: { "User-Agent": "ConnectWeb-Automations/1.0" },
+  });
+  const data = await response.json().catch(() => ({}));
+  const cityCode = Number(data?.ibge);
+  if (!response.ok || data?.erro || !Number.isInteger(cityCode) || cityCode <= 0) {
+    throw new Error("CEP não encontrado. Confira o número informado.");
+  }
+  return cityCode;
+}
+
 async function createCheckout(body: unknown) {
   const response = await fetch(`${ASAAS_BASE}/checkouts`, {
     method: "POST",
@@ -164,6 +176,7 @@ Deno.serve(async (req) => {
     if (subscription.status === "active") return json({ error: "A assinatura já está ativa" }, 409);
 
     const callback = callbackUrls(req);
+    const city = await cityCodeFromPostalCode(postalCode);
     // O Checkout recorrente usa data e hora (diferente do endpoint comum de
     // assinaturas, que aceita apenas YYYY-MM-DD). A primeira cobrança vence
     // hoje e o cartão é coletado exclusivamente na página segura do Asaas.
@@ -191,6 +204,7 @@ Deno.serve(async (req) => {
         address,
         addressNumber,
         province,
+        city,
       },
       subscription: { cycle: "MONTHLY", nextDueDate },
     });
