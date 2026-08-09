@@ -1042,6 +1042,10 @@ export interface Database {
         Args: { p_name: string };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
+      ensure_user_workspace: {
+        Args: { p_company_name?: string | null };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
       set_active_organization: {
         Args: { p_org: string };
         Returns: undefined;

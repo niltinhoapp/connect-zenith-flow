@@ -12,6 +12,10 @@ export async function signIn(input: { email: string; password: string }) {
   const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.auth.signInWithPassword(input);
   if (error) throw error;
+  const { error: workspaceError } = await supabase.rpc("ensure_user_workspace", {
+    p_company_name: null,
+  });
+  if (workspaceError) throw workspaceError;
 }
 
 /**
@@ -26,7 +30,7 @@ export async function signUpWithOrganization(input: SignupInput) {
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
-    options: { data: { full_name: fullName } },
+    options: { data: { full_name: fullName, company_name: input.companyName } },
   });
   if (error) throw error;
 
@@ -35,8 +39,8 @@ export async function signUpWithOrganization(input: SignupInput) {
     throw new Error("Confirme seu e-mail para concluir o cadastro.");
   }
 
-  const { data: org, error: rpcError } = await supabase.rpc("provision_organization", {
-    p_name: input.companyName,
+  const { data: org, error: rpcError } = await supabase.rpc("ensure_user_workspace", {
+    p_company_name: input.companyName,
   });
   if (rpcError) throw rpcError;
 
