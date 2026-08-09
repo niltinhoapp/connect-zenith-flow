@@ -62,6 +62,7 @@ export function PlanShowcase({
 
   return (
     <div className="space-y-4">
+      {!subscriptionActive && (
       <SectionCard title="Seu plano" description="Plano único, tudo incluído">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
@@ -99,6 +100,7 @@ export function PlanShowcase({
           </span>
         </div>
       </SectionCard>
+      )}
 
       <SectionCard
         title="Pacotes adicionais de IA"

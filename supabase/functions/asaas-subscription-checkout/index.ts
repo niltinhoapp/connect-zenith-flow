@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
         .single(),
       admin
         .from("billing_subscriptions")
-        .select("id,status")
+        .select("id,status,trial_ends_at")
         .eq("organization_id", organizationId)
         .single(),
     ]);
@@ -252,10 +252,14 @@ Deno.serve(async (req) => {
       .update({ provider: "asaas", provider_customer_id: customerId, updated_at: new Date().toISOString() })
       .eq("organization_id", organizationId);
     if (saveCustomerError) throw saveCustomerError;
-    // O Checkout recorrente usa data e hora (diferente do endpoint comum de
-    // assinaturas, que aceita apenas YYYY-MM-DD). A primeira cobrança vence
-    // hoje e o cartão é coletado exclusivamente na página segura do Asaas.
-    const nextDueDate = asaasDateTime(new Date());
+    // O cartão é autorizado agora, mas a primeira cobrança respeita integralmente
+    // o período gratuito ainda disponível para a empresa.
+    const trialEnd = subscription.trial_ends_at ? new Date(subscription.trial_ends_at) : null;
+    const firstChargeAt =
+      trialEnd && Number.isFinite(trialEnd.getTime()) && trialEnd.getTime() > Date.now()
+        ? trialEnd
+        : new Date();
+    const nextDueDate = asaasDateTime(firstChargeAt);
     const checkout = await createCheckout({
       billingTypes: ["CREDIT_CARD"],
       chargeTypes: ["RECURRENT"],
