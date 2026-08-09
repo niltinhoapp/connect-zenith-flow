@@ -101,6 +101,22 @@ const accessSchema = z.object({
   needs_subscription: z.boolean(),
 });
 
+async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error && typeof error === "object" && "context" in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      const payload = await context
+        .clone()
+        .json()
+        .catch(() => null);
+      if (payload && typeof payload === "object" && "error" in payload) {
+        return String(payload.error);
+      }
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export class BillingService {
   constructor(
     private readonly db: SupabaseClient<Database>,
@@ -195,7 +211,12 @@ export class BillingService {
     const { data, error } = await this.db.functions.invoke("asaas-checkout", {
       body: { organizationId: this.organizationId, productId, idempotencyKey, customer },
     });
-    if (error) throw new InfrastructureError(error.message, { cause: error });
+    if (error) {
+      throw new InfrastructureError(
+        await edgeFunctionErrorMessage(error, "Não foi possível abrir o checkout do Asaas"),
+        { cause: error },
+      );
+    }
     const parsed = checkoutSchema.safeParse(data);
     if (!parsed.success) {
       const providerMessage =
@@ -213,7 +234,12 @@ export class BillingService {
     const { data, error } = await this.db.functions.invoke("asaas-subscription-checkout", {
       body: { organizationId: this.organizationId, customer },
     });
-    if (error) throw new InfrastructureError(error.message, { cause: error });
+    if (error) {
+      throw new InfrastructureError(
+        await edgeFunctionErrorMessage(error, "Não foi possível abrir a assinatura no Asaas"),
+        { cause: error },
+      );
+    }
     const parsed = subscriptionCheckoutSchema.safeParse(data);
     if (!parsed.success) {
       const providerMessage =

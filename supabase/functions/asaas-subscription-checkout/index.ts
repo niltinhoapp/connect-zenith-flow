@@ -37,6 +37,10 @@ function callbackBase(req: Request) {
   return url.origin;
 }
 
+function asaasDateTime(date: Date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 async function createCheckout(body: unknown) {
   const response = await fetch(`${ASAAS_BASE}/checkouts`, {
     method: "POST",
@@ -116,8 +120,10 @@ Deno.serve(async (req) => {
 
     const base = callbackBase(req);
     const returnUrl = `${base}/configuracoes`;
-    const now = new Date();
-    const nextDueDate = now.toISOString().slice(0, 10);
+    // O Checkout recorrente usa data e hora (diferente do endpoint comum de
+    // assinaturas, que aceita apenas YYYY-MM-DD). A primeira cobrança vence
+    // hoje e o cartão é coletado exclusivamente na página segura do Asaas.
+    const nextDueDate = asaasDateTime(new Date());
     const checkout = await createCheckout({
       billingTypes: ["CREDIT_CARD"],
       chargeTypes: ["RECURRENT"],
