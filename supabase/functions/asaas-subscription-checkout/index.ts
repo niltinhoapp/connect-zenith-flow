@@ -78,7 +78,7 @@ function asaasDateTime(date: Date) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-async function asaasRequest(path: string, method: "POST" | "PUT", body: unknown) {
+async function asaasRequest(path: string, method: "GET" | "POST" | "PUT", body?: unknown) {
   const response = await fetch(`${ASAAS_BASE}${path}`, {
     method,
     headers: {
@@ -86,7 +86,7 @@ async function asaasRequest(path: string, method: "POST" | "PUT", body: unknown)
       "Content-Type": "application/json",
       "User-Agent": "ConnectWeb-Automations/1.0",
     },
-    body: JSON.stringify(body),
+    body: method === "GET" ? undefined : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -101,6 +101,35 @@ async function asaasRequest(path: string, method: "POST" | "PUT", body: unknown)
 }
 
 const createCheckout = (body: unknown) => asaasRequest("/checkouts", "POST", body);
+
+async function asaasCityFromPostalCode(postalCode: string) {
+  const postalResponse = await fetch(
+    `https://viacep.com.br/ws/${encodeURIComponent(postalCode)}/json/`,
+    { headers: { "User-Agent": "ConnectWeb-Automations/1.0" } },
+  );
+  const postal = await postalResponse.json().catch(() => ({}));
+  if (!postalResponse.ok || postal?.erro || !postal?.localidade) {
+    throw new Error("CEP não encontrado. Confira o número informado.");
+  }
+  const result = await asaasRequest(
+    `/cities?name=${encodeURIComponent(String(postal.localidade))}`,
+    "GET",
+  );
+  const cities = Array.isArray(result?.data) ? result.data : [];
+  const normalizedState = String(postal.uf ?? "").toUpperCase();
+  const city =
+    cities.find(
+      (item: { name?: string; state?: string }) =>
+        String(item.name ?? "").toLocaleLowerCase("pt-BR") ===
+          String(postal.localidade).toLocaleLowerCase("pt-BR") &&
+        (!item.state || String(item.state).toUpperCase() === normalizedState),
+    ) ?? cities[0];
+  const cityId = Number(city?.id);
+  if (!Number.isInteger(cityId) || cityId <= 0) {
+    throw new Error("Cidade do CEP não encontrada na base do Asaas.");
+  }
+  return cityId;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -167,6 +196,7 @@ Deno.serve(async (req) => {
 
     const callback = callbackUrls(req);
     const formattedPostalCode = `${postalCode.slice(0, 5)}-${postalCode.slice(5)}`;
+    const city = await asaasCityFromPostalCode(postalCode);
     const customerPayload = {
       name: profile.legal_name,
       email: profile.email,
@@ -176,6 +206,7 @@ Deno.serve(async (req) => {
       address,
       addressNumber,
       province,
+      city,
       externalReference: organizationId,
       notificationDisabled: false,
     };
