@@ -48,7 +48,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
-import { useBillingAccess, useBillingOverview } from "@/core/billing";
+import {
+  useBillingAccess,
+  useBillingOverview,
+  useSyncSubscriptionCheckout,
+} from "@/core/billing";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MonitoringSection } from "@/components/monitoring/monitoring-section";
 import { PlanShowcase } from "@/components/billing/plan-showcase";
@@ -341,8 +345,15 @@ function formatLimit(resource: string, value: number) {
 function BillingSection({ usage }: { usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
   const billing = useBillingOverview();
   const access = useBillingAccess();
+  const syncSubscription = useSyncSubscriptionCheckout();
   const [checkoutPackage, setCheckoutPackage] = useState<IaPackage | null>(null);
   const [subscriptionCheckout, setSubscriptionCheckout] = useState(false);
+  useEffect(() => {
+    if (access.data && access.data.status !== "active" && !syncSubscription.isPending) {
+      syncSubscription.mutate();
+    }
+    // Sincroniza uma vez quando o estado carregado da assinatura muda.
+  }, [access.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const subscriptionProduct = billing.data?.products.find((product) => product.kind === "subscription");
   const packages = billing.data?.products
     .filter((product) => product.kind === "ai_addon")

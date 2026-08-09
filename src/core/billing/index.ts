@@ -7,6 +7,7 @@ export {
   useCreateAiAddonCheckout,
   useRequestAiAddon,
   useCreateSubscriptionCheckout,
+  useSyncSubscriptionCheckout,
 } from "./use-billing";
 export type {
   AiCreditOverview,

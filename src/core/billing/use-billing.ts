@@ -95,3 +95,25 @@ export function useCreateSubscriptionCheckout() {
     },
   });
 }
+
+export function useSyncSubscriptionCheckout() {
+  const session = useSession();
+  const organizationId = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: () => {
+      if (!organizationId) throw new Error("Selecione uma empresa antes de confirmar a assinatura.");
+      return new BillingService(
+        getSupabaseBrowserClient(),
+        organizationId,
+      ).syncSubscriptionCheckout();
+    },
+    onSuccess: () => {
+      if (organizationId) {
+        queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
+        queryClient.invalidateQueries({ queryKey: billingAccessKey(organizationId) });
+      }
+    },
+  });
+}

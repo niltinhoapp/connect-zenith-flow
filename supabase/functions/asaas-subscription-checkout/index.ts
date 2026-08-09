@@ -144,13 +144,6 @@ Deno.serve(async (req) => {
     const organizationId = String(input?.organizationId ?? "");
     const customer = input?.customer ?? {};
     if (!UUID.test(organizationId)) return json({ error: "organizationId inválido" }, 400);
-    const address = String(customer.address ?? "").trim();
-    const addressNumber = String(customer.addressNumber ?? "").trim();
-    const postalCode = String(customer.postalCode ?? "").replace(/\D/g, "");
-    const province = String(customer.province ?? "").trim();
-    if (!address || !addressNumber || postalCode.length !== 8 || !province) {
-      return json({ error: "Informe CEP, endereço, número e bairro para continuar" }, 400);
-    }
 
     const asUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authorization } },
@@ -163,6 +156,40 @@ Deno.serve(async (req) => {
     if (permissionError) throw permissionError;
     if (!allowed) return json({ error: "forbidden" }, 403);
 
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+    if (input?.action === "sync") {
+      const { data: current, error: currentError } = await admin
+        .from("billing_subscriptions")
+        .select("id,status,provider_checkout_id")
+        .eq("organization_id", organizationId)
+        .single();
+      if (currentError || !current) throw currentError ?? new Error("Assinatura não encontrada");
+      if (current.status === "active") return json({ synced: true, status: "active" });
+      if (!current.provider_checkout_id) return json({ synced: false, status: current.status });
+      const checkout = await asaasRequest(
+        `/checkouts/${encodeURIComponent(current.provider_checkout_id)}`,
+        "GET",
+      );
+      if (String(checkout?.status) !== "PAID") {
+        return json({ synced: false, status: current.status });
+      }
+      const providerSubscriptionId = String(checkout?.subscription?.id ?? "");
+      const { error: activateError } = await admin.rpc("activate_asaas_subscription", {
+        p_checkout_id: current.provider_checkout_id,
+        p_provider_subscription_id: providerSubscriptionId || null,
+      });
+      if (activateError) throw activateError;
+      return json({ synced: true, status: "active" });
+    }
+
+    const address = String(customer.address ?? "").trim();
+    const addressNumber = String(customer.addressNumber ?? "").trim();
+    const postalCode = String(customer.postalCode ?? "").replace(/\D/g, "");
+    const province = String(customer.province ?? "").trim();
+    if (!address || !addressNumber || postalCode.length !== 8 || !province) {
+      return json({ error: "Informe CEP, endereço, número e bairro para continuar" }, 400);
+    }
+
     const { error: profileError } = await asUser.rpc("store_billing_customer_profile", {
       p_org: organizationId,
       p_legal_name: String(customer.legalName ?? ""),
@@ -172,7 +199,6 @@ Deno.serve(async (req) => {
     });
     if (profileError) return json({ error: profileError.message }, 400);
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
     const [{ data: product }, { data: profile }, { data: subscription }] = await Promise.all([
       admin
         .from("billing_products")

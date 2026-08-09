@@ -250,4 +250,17 @@ export class BillingService {
     }
     return parsed.data;
   }
+
+  async syncSubscriptionCheckout(): Promise<boolean> {
+    const { data, error } = await this.db.functions.invoke("asaas-subscription-checkout", {
+      body: { organizationId: this.organizationId, action: "sync" },
+    });
+    if (error) {
+      throw new InfrastructureError(
+        await edgeFunctionErrorMessage(error, "Não foi possível confirmar a assinatura no Asaas"),
+        { cause: error },
+      );
+    }
+    return Boolean(data && typeof data === "object" && data.synced === true);
+  }
 }
