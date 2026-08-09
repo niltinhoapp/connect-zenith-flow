@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.asaas-webhook]
 verify_jwt = false
+
+[functions.asaas-subscription-checkout]
+verify_jwt = false

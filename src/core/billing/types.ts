@@ -1,6 +1,13 @@
 export type BillingProductKind = "subscription" | "ai_addon";
 export type SubscriptionStatus =
-  "incomplete" | "trialing" | "active" | "past_due" | "unpaid" | "paused" | "canceled";
+  | "incomplete"
+  | "trialing"
+  | "trial_expired"
+  | "active"
+  | "past_due"
+  | "unpaid"
+  | "paused"
+  | "canceled";
 
 export interface BillingProductView {
   id: string;
@@ -21,6 +28,8 @@ export interface BillingSubscriptionView {
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
 }
 
 export interface AiCreditOverview {
@@ -63,4 +72,21 @@ export interface BillingCheckoutResult {
   paymentId: string;
   url: string;
   environment: "sandbox" | "production";
+}
+
+export interface SubscriptionCheckoutResult {
+  subscriptionId: string;
+  checkoutId: string;
+  url: string;
+  environment: "sandbox" | "production";
+}
+
+export interface BillingAccess {
+  status: SubscriptionStatus;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number;
+  canUsePaidFeatures: boolean;
+  canBuyAddons: boolean;
+  needsSubscription: boolean;
 }

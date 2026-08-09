@@ -15,6 +15,7 @@ import { formatBRL, formatCredits } from "./commercial";
 const subscriptionLabels: Record<SubscriptionStatus, string> = {
   incomplete: "Aguardando ativação",
   trialing: "Período de teste",
+  trial_expired: "Período gratuito encerrado",
   active: "Ativa",
   past_due: "Pagamento atrasado",
   unpaid: "Pagamento pendente",

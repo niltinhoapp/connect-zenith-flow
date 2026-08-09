@@ -1090,6 +1090,7 @@ export interface Database {
         Returns: boolean;
       };
       billing_overview: { Args: { p_org: string }; Returns: Json };
+      billing_access: { Args: { p_org: string }; Returns: Json };
       request_ai_addon_purchase: {
         Args: { p_org: string; p_product: string; p_idempotency_key: string };
         Returns: string;

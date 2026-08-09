@@ -6,6 +6,8 @@ import { BillingService } from "./billing-service";
 import type { BillingCustomerInput } from "./types";
 
 export const billingKey = (organizationId: string) => ["billing", organizationId] as const;
+export const billingAccessKey = (organizationId: string) =>
+  ["billing-access", organizationId] as const;
 
 export function useBillingOverview() {
   const session = useSession();
@@ -14,6 +16,16 @@ export function useBillingOverview() {
     queryKey: billingKey(organizationId ?? "none"),
     enabled: Boolean(organizationId),
     queryFn: () => new BillingService(getSupabaseBrowserClient(), organizationId!).overview(),
+  });
+}
+
+export function useBillingAccess() {
+  const session = useSession();
+  const organizationId = session?.activeOrganization?.organizationId ?? null;
+  return useQuery({
+    queryKey: billingAccessKey(organizationId ?? "none"),
+    enabled: Boolean(organizationId),
+    queryFn: () => new BillingService(getSupabaseBrowserClient(), organizationId!).access(),
   });
 }
 
@@ -58,6 +70,28 @@ export function useCreateAiAddonCheckout() {
     },
     onSuccess: () => {
       if (organizationId) queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
+    },
+  });
+}
+
+export function useCreateSubscriptionCheckout() {
+  const session = useSession();
+  const organizationId = session?.activeOrganization?.organizationId ?? null;
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationDefaults,
+    mutationFn: ({ customer }: { customer: BillingCustomerInput }) => {
+      if (!organizationId) throw new Error("Selecione uma empresa antes de assinar.");
+      return new BillingService(
+        getSupabaseBrowserClient(),
+        organizationId,
+      ).createSubscriptionCheckout(customer);
+    },
+    onSuccess: () => {
+      if (organizationId) {
+        queryClient.invalidateQueries({ queryKey: billingKey(organizationId) });
+        queryClient.invalidateQueries({ queryKey: billingAccessKey(organizationId) });
+      }
     },
   });
 }

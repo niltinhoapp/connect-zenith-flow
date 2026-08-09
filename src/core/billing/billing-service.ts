@@ -2,7 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/types/database";
 import { InfrastructureError } from "@/core/errors";
-import type { BillingCheckoutResult, BillingCustomerInput, BillingOverview } from "./types";
+import type {
+  BillingAccess,
+  BillingCheckoutResult,
+  BillingCustomerInput,
+  BillingOverview,
+  SubscriptionCheckoutResult,
+} from "./types";
 
 const productSchema = z.object({
   id: z.string(),
@@ -19,10 +25,21 @@ const productSchema = z.object({
 const subscriptionSchema = z.object({
   id: z.string(),
   product_id: z.string(),
-  status: z.enum(["incomplete", "trialing", "active", "past_due", "unpaid", "paused", "canceled"]),
+  status: z.enum([
+    "incomplete",
+    "trialing",
+    "trial_expired",
+    "active",
+    "past_due",
+    "unpaid",
+    "paused",
+    "canceled",
+  ]),
   current_period_start: z.string().nullable(),
   current_period_end: z.string().nullable(),
   cancel_at_period_end: z.boolean(),
+  trial_started_at: z.string().nullable().default(null),
+  trial_ends_at: z.string().nullable().default(null),
 });
 
 const overviewSchema = z.object({
@@ -58,6 +75,32 @@ const checkoutSchema = z.object({
   environment: z.enum(["sandbox", "production"]),
 });
 
+const subscriptionCheckoutSchema = z.object({
+  subscriptionId: z.string().uuid(),
+  checkoutId: z.string().min(1),
+  url: z.string().url(),
+  environment: z.enum(["sandbox", "production"]),
+});
+
+const accessSchema = z.object({
+  status: z.enum([
+    "incomplete",
+    "trialing",
+    "trial_expired",
+    "active",
+    "past_due",
+    "unpaid",
+    "paused",
+    "canceled",
+  ]),
+  trial_started_at: z.string().nullable(),
+  trial_ends_at: z.string().nullable(),
+  trial_days_remaining: z.number().int().nonnegative(),
+  can_use_paid_features: z.boolean(),
+  can_buy_addons: z.boolean(),
+  needs_subscription: z.boolean(),
+});
+
 export class BillingService {
   constructor(
     private readonly db: SupabaseClient<Database>,
@@ -81,6 +124,8 @@ export class BillingService {
             currentPeriodStart: value.subscription.current_period_start,
             currentPeriodEnd: value.subscription.current_period_end,
             cancelAtPeriodEnd: value.subscription.cancel_at_period_end,
+            trialStartedAt: value.subscription.trial_started_at,
+            trialEndsAt: value.subscription.trial_ends_at,
           }
         : null,
       products: value.products.map((product) => ({
@@ -114,6 +159,21 @@ export class BillingService {
     };
   }
 
+  async access(): Promise<BillingAccess> {
+    const { data, error } = await this.db.rpc("billing_access", { p_org: this.organizationId });
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    const value = accessSchema.parse(data);
+    return {
+      status: value.status,
+      trialStartedAt: value.trial_started_at,
+      trialEndsAt: value.trial_ends_at,
+      trialDaysRemaining: value.trial_days_remaining,
+      canUsePaidFeatures: value.can_use_paid_features,
+      canBuyAddons: value.can_buy_addons,
+      needsSubscription: value.needs_subscription,
+    };
+  }
+
   async requestAiAddon(
     productId: string,
     idempotencyKey: string = crypto.randomUUID(),
@@ -142,6 +202,24 @@ export class BillingService {
         data && typeof data === "object" && "error" in data
           ? String(data.error)
           : "Resposta do checkout inválida";
+      throw new InfrastructureError(providerMessage, { cause: parsed.error });
+    }
+    return parsed.data;
+  }
+
+  async createSubscriptionCheckout(
+    customer: BillingCustomerInput,
+  ): Promise<SubscriptionCheckoutResult> {
+    const { data, error } = await this.db.functions.invoke("asaas-subscription-checkout", {
+      body: { organizationId: this.organizationId, customer },
+    });
+    if (error) throw new InfrastructureError(error.message, { cause: error });
+    const parsed = subscriptionCheckoutSchema.safeParse(data);
+    if (!parsed.success) {
+      const providerMessage =
+        data && typeof data === "object" && "error" in data
+          ? String(data.error)
+          : "Resposta da assinatura inválida";
       throw new InfrastructureError(providerMessage, { cause: parsed.error });
     }
     return parsed.data;
