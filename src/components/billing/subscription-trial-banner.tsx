@@ -29,12 +29,14 @@ export function SubscriptionTrialBanner() {
               : "Seu período gratuito terminou. Seus dados continuam seguros; assine para retomar as operações."}
           </p>
         </div>
-        <Button size="sm" asChild className="shrink-0 self-start sm:self-auto">
-          <Link to="/configuracoes">
-            <CreditCard className="mr-1.5 h-4 w-4" />
-            Assinar por R$ 549,79/mês
-          </Link>
-        </Button>
+        {!trial && (
+          <Button size="sm" asChild className="shrink-0 self-start sm:self-auto">
+            <Link to="/configuracoes">
+              <CreditCard className="mr-1.5 h-4 w-4" />
+              Assinar por R$ 549,79/mês
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

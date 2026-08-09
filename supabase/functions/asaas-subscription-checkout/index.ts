@@ -219,6 +219,12 @@ Deno.serve(async (req) => {
     if (!product || !profile || !subscription)
       throw new Error("Dados da assinatura não encontrados");
     if (subscription.status === "active") return json({ error: "A assinatura já está ativa" }, 409);
+    if (subscription.status === "trialing") {
+      return json(
+        { error: "A assinatura estará disponível quando o período gratuito terminar" },
+        409,
+      );
+    }
 
     const callback = callbackUrls(req);
     const formattedPostalCode = `${postalCode.slice(0, 5)}-${postalCode.slice(5)}`;

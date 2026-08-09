@@ -43,6 +43,7 @@ export interface PlanShowcaseProps {
   onSubscribe?: () => void;
   canPurchaseAddons?: boolean;
   subscriptionActive?: boolean;
+  subscriptionOfferAvailable?: boolean;
 }
 
 export function PlanShowcase({
@@ -52,6 +53,7 @@ export function PlanShowcase({
   onSubscribe,
   canPurchaseAddons = false,
   subscriptionActive = false,
+  subscriptionOfferAvailable = true,
 }: PlanShowcaseProps) {
   const [pending, setPending] = useState<IaPackage | null>(null);
 
@@ -62,7 +64,7 @@ export function PlanShowcase({
 
   return (
     <div className="space-y-4">
-      {!subscriptionActive && (
+      {!subscriptionActive && subscriptionOfferAvailable && (
       <SectionCard title="Seu plano" description="Plano único, tudo incluído">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
