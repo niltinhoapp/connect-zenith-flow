@@ -14,7 +14,7 @@ const ASAAS_BASE =
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -35,6 +35,43 @@ function callbackBase(req: Request) {
   if (url.protocol !== "https:" && url.hostname !== "localhost")
     throw new Error("APP_PUBLIC_URL inválida");
   return url.origin;
+}
+
+function callbackUrls(req: Request) {
+  const base = callbackBase(req);
+  const returnUrl = `${base}/configuracoes`;
+  if (!base.startsWith("http://localhost")) {
+    return { successUrl: returnUrl, cancelUrl: returnUrl, expiredUrl: returnUrl };
+  }
+
+  const bridge = (status: "success" | "cancel" | "expired") => {
+    const url = new URL(`${SUPABASE_URL}/functions/v1/asaas-subscription-checkout`);
+    url.searchParams.set("returnTo", returnUrl);
+    url.searchParams.set("checkout", status);
+    return url.toString();
+  };
+  return {
+    successUrl: bridge("success"),
+    cancelUrl: bridge("cancel"),
+    expiredUrl: bridge("expired"),
+  };
+}
+
+function redirectFromCheckout(req: Request) {
+  const requestUrl = new URL(req.url);
+  const targetValue = requestUrl.searchParams.get("returnTo") ?? "";
+  const status = requestUrl.searchParams.get("checkout") ?? "unknown";
+  try {
+    const target = new URL(targetValue);
+    const configuredOrigin = APP_PUBLIC_URL ? new URL(APP_PUBLIC_URL).origin : null;
+    const isLocal = target.protocol === "http:" && target.hostname === "localhost";
+    const isConfigured = configuredOrigin !== null && target.origin === configuredOrigin;
+    if (!isLocal && !isConfigured) return json({ error: "Destino de retorno inválido" }, 400);
+    target.searchParams.set("checkout", status);
+    return new Response(null, { status: 302, headers: { Location: target.toString(), ...CORS } });
+  } catch {
+    return json({ error: "Destino de retorno inválido" }, 400);
+  }
 }
 
 function asaasDateTime(date: Date) {
@@ -65,6 +102,7 @@ async function createCheckout(body: unknown) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "GET") return redirectFromCheckout(req);
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   const authorization = req.headers.get("Authorization") ?? "";
   if (!authorization) return json({ error: "missing authorization" }, 401);
@@ -118,8 +156,7 @@ Deno.serve(async (req) => {
       throw new Error("Dados da assinatura não encontrados");
     if (subscription.status === "active") return json({ error: "A assinatura já está ativa" }, 409);
 
-    const base = callbackBase(req);
-    const returnUrl = `${base}/configuracoes`;
+    const callback = callbackUrls(req);
     // O Checkout recorrente usa data e hora (diferente do endpoint comum de
     // assinaturas, que aceita apenas YYYY-MM-DD). A primeira cobrança vence
     // hoje e o cartão é coletado exclusivamente na página segura do Asaas.
@@ -129,7 +166,7 @@ Deno.serve(async (req) => {
       chargeTypes: ["RECURRENT"],
       minutesToExpire: 120,
       externalReference: `cw:subscription:${subscription.id}`,
-      callback: { successUrl: returnUrl, cancelUrl: returnUrl, expiredUrl: returnUrl },
+      callback,
       items: [
         {
           name: product.name,
