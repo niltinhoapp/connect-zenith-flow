@@ -8,5 +8,9 @@ export {
 } from "./infrastructure/customer-supabase-repository";
 export {
   createCustomersOverviewTool,
+  createCustomersBatchTool,
   registerCustomersCopilotTools,
+  type CopilotCustomerInput,
+  type CreateCustomersBatchInput,
+  type CreateCustomersBatchResult,
 } from "./copilot-tools";

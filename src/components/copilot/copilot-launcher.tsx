@@ -12,6 +12,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { helpForRoute } from "./route-help";
 import { OnboardingChecklist } from "./onboarding-checklist";
 import { useCopilot } from "./use-copilot";
+import { useCopilotPrompt } from "./use-copilot-prompt";
 import { useInsertDraft } from "./copilot-focus";
 
 const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "IA" };
@@ -41,9 +43,12 @@ export function CopilotLauncher() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const help = helpForRoute(pathname);
-  const { tools, state, run, confirm, cancelConfirm, clear, focus } = useCopilot();
+  const { org, tools, state, run, runWithInput, confirm, cancelConfirm, clear, focus } = useCopilot();
+  const { interpret, interpreting, error: promptError, clearError } = useCopilotPrompt(org);
   const insertDraft = useInsertDraft();
   const [copied, setCopied] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [promptAnswer, setPromptAnswer] = useState<string | null>(null);
 
   const onWhatsApp = pathname.startsWith("/whatsapp");
   const hasConversation = focus?.type === "conversation";
@@ -53,6 +58,26 @@ export function CopilotLauncher() {
   );
 
   const go = (to: string) => { navigate({ to: to as never }); setOpen(false); };
+
+  const submitPrompt = async () => {
+    if (!prompt.trim() || interpreting) return;
+    clear();
+    clearError();
+    setPromptAnswer(null);
+    const prepared = await interpret(prompt);
+    if (!prepared) return;
+    if (prepared.action === "none") {
+      setPromptAnswer(prepared.message);
+      return;
+    }
+    const tool = tools.find((item) => item.name === prepared.action);
+    if (!tool) {
+      setPromptAnswer("Esta ação ainda não está disponível para seu perfil ou para esta empresa.");
+      return;
+    }
+    setPromptAnswer(prepared.message);
+    await runWithInput(tool, prepared.input, prepared.preview);
+  };
 
   const copy = async (text: string) => {
     try {
@@ -124,6 +149,49 @@ export function CopilotLauncher() {
 
             {/* ── Ações da IA (via Core) ───────────────────────────────── */}
             <TabsContent value="ia" className="mt-0 space-y-3">
+              <div className="space-y-2 rounded-xl border border-primary/25 bg-primary/5 p-3">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> O que você quer fazer?
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Ex.: “Crie 5 clientes fictícios para testar o CRM”.
+                  </p>
+                </div>
+                <Textarea
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  placeholder="Escreva seu pedido em português…"
+                  rows={3}
+                  maxLength={4000}
+                  className="resize-none bg-background text-xs"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                      event.preventDefault();
+                      void submitPrompt();
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="h-8 w-full gap-1.5 text-xs"
+                  disabled={!prompt.trim() || interpreting || Boolean(state.running)}
+                  onClick={() => void submitPrompt()}
+                >
+                  {interpreting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {interpreting ? "Entendendo seu pedido…" : "Preparar com IA"}
+                </Button>
+                <p className="text-[10px] text-muted-foreground">Ctrl + Enter para preparar. Você revisa e confirma antes de qualquer alteração.</p>
+              </div>
+
+              {(promptError || promptAnswer) && (
+                <div className={cn(
+                  "rounded-lg p-3 text-xs",
+                  promptError ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
+                )}>
+                  {promptError ?? promptAnswer}
+                </div>
+              )}
               {focus?.type === "conversation" && (
                 <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
                   <MessageSquare className="h-3.5 w-3.5" />
@@ -229,21 +297,26 @@ export function CopilotLauncher() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              {state.pendingConfirm?.risk === "external"
+              {state.pendingConfirm?.tool.risk === "external"
                 ? <><Sparkles className="h-4 w-4 text-primary" /> Processar com IA</>
                 : <><ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação</>}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {state.pendingConfirm?.risk === "external" ? (
+              {state.pendingConfirm?.tool.risk === "external" ? (
                 <>
                   O conteúdo desta conversa será enviado à IA para gerar{" "}
-                  <span className="font-medium text-foreground">{state.pendingConfirm?.title}</span>.
+                  <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span>.
                   Nada é alterado e nenhuma mensagem é enviada ao cliente — o resultado fica só para você revisar.
                 </>
               ) : (
                 <>
-                  A ação <span className="font-medium text-foreground">{state.pendingConfirm?.title}</span> faz alterações.
-                  Deseja executar agora?
+                  A ação <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span> fará alterações.
+                  {state.pendingConfirm?.preview && (
+                    <span className="mt-3 block whitespace-pre-wrap rounded-lg bg-muted p-3 text-foreground">
+                      {state.pendingConfirm.preview}
+                    </span>
+                  )}
+                  <span className="mt-3 block">Revise a prévia e confirme para executar.</span>
                 </>
               )}
             </AlertDialogDescription>
@@ -251,7 +324,7 @@ export function CopilotLauncher() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={cancelConfirm}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirm}>
-              {state.pendingConfirm?.risk === "external" ? "Processar com IA" : "Confirmar e executar"}
+              {state.pendingConfirm?.tool.risk === "external" ? "Processar com IA" : "Confirmar e executar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

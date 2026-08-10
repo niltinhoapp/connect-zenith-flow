@@ -36,6 +36,11 @@ verify_jwt = true
 [functions.ai-whatsapp-assist]
 verify_jwt = true
 
+# Copiloto global: valida o JWT e o RBAC dentro da função. `false` deixa o
+# preflight OPTIONS chegar ao código, como nas demais funções chamadas pelo browser.
+[functions.ai-copilot-intent]
+verify_jwt = false
+
 # API Pública: autenticação própria por chave `cw_live_*` (hash no banco).
 [functions.public-api]
 verify_jwt = false

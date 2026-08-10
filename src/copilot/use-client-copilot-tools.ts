@@ -18,6 +18,7 @@ import { CrmBoardService, createCrmPipelineTool } from "@/features/crm";
 import {
   CustomerApplicationService,
   CustomerSupabaseRepository,
+  createCustomersBatchTool,
   createCustomersOverviewTool,
 } from "@/features/clientes";
 import {
@@ -62,6 +63,7 @@ export function useClientCopilotTools(session: AuthSession | null): number {
       createReportsOverviewTool(reports),
       createCrmPipelineTool(crm),
       createCustomersOverviewTool(customers),
+      createCustomersBatchTool(customers),
       createWhatsAppConversationSummaryTool(whatsappAssistant),
       createWhatsAppReplyDraftTool(whatsappAssistant),
     ]);
