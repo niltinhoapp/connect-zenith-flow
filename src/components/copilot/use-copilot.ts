@@ -33,6 +33,7 @@ const friendly = (e: unknown): string => {
 const CONTEXTUAL_TOOLS = new Set<string>([
   "whatsapp.conversation.summarize",
   "whatsapp.reply.draft",
+  "whatsapp.commerce.analyze",
 ]);
 
 export function useCopilot() {

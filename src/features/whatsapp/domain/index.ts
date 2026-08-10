@@ -22,3 +22,4 @@ export type { ConversationRepository, ConversationFilter } from "./repositories/
 export type { MessageRepository, MessageFilter } from "./repositories/message-repository";
 export type { TemplateRepository, TemplateFilter } from "./repositories/template-repository";
 export * from "./conversation-insight";
+export * from "./commerce-assistant";

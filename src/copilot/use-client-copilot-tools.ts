@@ -25,6 +25,7 @@ import {
   SupabaseWhatsAppAssistant,
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
+  createWhatsAppCommerceAssistantTool,
 } from "@/features/whatsapp";
 
 function serviceContext(session: AuthSession): ServiceContext {
@@ -66,6 +67,7 @@ export function useClientCopilotTools(session: AuthSession | null): number {
       createCustomersBatchTool(customers),
       createWhatsAppConversationSummaryTool(whatsappAssistant),
       createWhatsAppReplyDraftTool(whatsappAssistant),
+      createWhatsAppCommerceAssistantTool(whatsappAssistant),
     ]);
     setCatalogVersion((version) => version + 1);
   }, [organizationId, session]);

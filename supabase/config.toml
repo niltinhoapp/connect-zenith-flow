@@ -34,7 +34,7 @@ verify_jwt = true
 
 # Assistente de WhatsApp: lê a conversa sob RLS e nunca envia mensagens.
 [functions.ai-whatsapp-assist]
-verify_jwt = true
+verify_jwt = false
 
 # Copiloto global: valida o JWT e o RBAC dentro da função. `false` deixa o
 # preflight OPTIONS chegar ao código, como nas demais funções chamadas pelo browser.

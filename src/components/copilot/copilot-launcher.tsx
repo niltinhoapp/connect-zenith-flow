@@ -36,6 +36,7 @@ const RISK_CLS: Record<string, string> = {
 const WHATSAPP_ASSIST = new Set<string>([
   "whatsapp.conversation.summarize",
   "whatsapp.reply.draft",
+  "whatsapp.commerce.analyze",
 ]);
 
 export function CopilotLauncher() {
@@ -202,11 +203,14 @@ export function CopilotLauncher() {
                 const r = state.result;
                 const isDraft = r.tool === "whatsapp.reply.draft";
                 const isSummary = r.tool === "whatsapp.conversation.summarize";
-                const isAssist = isDraft || isSummary;
+                const isCommerce = r.tool === "whatsapp.commerce.analyze";
+                const isAssist = isDraft || isSummary || isCommerce;
                 const heading = isDraft
                   ? "Rascunho de resposta"
                   : isSummary
                     ? "Resumo da conversa"
+                    : isCommerce
+                      ? "Atendimento comercial"
                     : "Resultado";
                 return (
                   <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
