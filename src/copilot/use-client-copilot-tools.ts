@@ -18,12 +18,14 @@ import { CrmBoardService, createCrmPipelineTool } from "@/features/crm";
 import {
   CustomerApplicationService,
   CustomerSupabaseRepository,
+  createCustomersBatchTool,
   createCustomersOverviewTool,
 } from "@/features/clientes";
 import {
   SupabaseWhatsAppAssistant,
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
+  createWhatsAppCommerceAssistantTool,
 } from "@/features/whatsapp";
 
 function serviceContext(session: AuthSession): ServiceContext {
@@ -62,8 +64,10 @@ export function useClientCopilotTools(session: AuthSession | null): number {
       createReportsOverviewTool(reports),
       createCrmPipelineTool(crm),
       createCustomersOverviewTool(customers),
+      createCustomersBatchTool(customers),
       createWhatsAppConversationSummaryTool(whatsappAssistant),
       createWhatsAppReplyDraftTool(whatsappAssistant),
+      createWhatsAppCommerceAssistantTool(whatsappAssistant),
     ]);
     setCatalogVersion((version) => version + 1);
   }, [organizationId, session]);

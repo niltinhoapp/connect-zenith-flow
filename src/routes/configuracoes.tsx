@@ -20,6 +20,7 @@ import {
   HelpCircle,
   ShieldAlert,
   ExternalLink,
+  Activity,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,8 +48,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
-import { plans, defaultPlanId, type PlanId } from "@/config/plans";
+import {
+  useBillingAccess,
+  useBillingOverview,
+  useSyncSubscriptionCheckout,
+} from "@/core/billing";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { MonitoringSection } from "@/components/monitoring/monitoring-section";
+import { PlanShowcase } from "@/components/billing/plan-showcase";
+import { AddonCheckoutDialog } from "@/components/billing/addon-checkout-dialog";
+import type { IaPackage } from "@/components/billing/commercial";
+import { BillingAccountSummary } from "@/components/billing/billing-account-summary";
+import { SubscriptionCheckoutDialog } from "@/components/billing/subscription-checkout-dialog";
 import { ApiKeysSection } from "@/features/configuracoes/components/api-keys-section";
 import {
   updateProfileSchema,
@@ -80,11 +91,12 @@ export const Route = createFileRoute("/configuracoes")({
   component: ConfigPage,
 });
 
-type Section = "profile" | "workspace" | "billing" | "notifications" | "security" | "integrations" | "api";
+type Section = "profile" | "workspace" | "monitoring" | "billing" | "notifications" | "security" | "integrations" | "api";
 
 const menu: Array<{ id: Section; i: typeof User; l: string; d: string }> = [
   { id: "profile", i: User, l: "Perfil", d: "Dados pessoais e senha" },
   { id: "workspace", i: Building2, l: "Workspace", d: "Empresa e módulos" },
+  { id: "monitoring", i: Activity, l: "Monitoramento", d: "Saúde do sistema" },
   { id: "billing", i: CreditCard, l: "Cobrança", d: "Plano e limites" },
   { id: "notifications", i: Bell, l: "Notificações", d: "Preferências locais" },
   { id: "security", i: Shield, l: "Segurança", d: "Senha e acesso" },
@@ -175,7 +187,8 @@ function ConfigPage() {
           )}
           {settings.data && section === "profile" && <ProfileSection data={settings.data.profile} />}
           {settings.data && section === "workspace" && <WorkspaceSection data={settings.data.workspace} />}
-          {settings.data && section === "billing" && <BillingSection planId={settings.data.workspace.planId} usage={settings.data.usage} />}
+          {section === "monitoring" && <MonitoringSection />}
+          {settings.data && section === "billing" && <BillingSection usage={settings.data.usage} />}
           {settings.data && section === "notifications" && <NotificationsSection values={settings.data.preferences} />}
           {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
           {settings.data && section === "integrations" && <IntegrationsSection whatsapp={settings.data.whatsapp} />}
@@ -325,22 +338,43 @@ function formatUsage(resource: string, value: number) {
   return value.toLocaleString("pt-BR");
 }
 
-function BillingSection({ planId, usage }: { planId: string; usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
-  const plan = plans[(planId in plans ? planId : defaultPlanId) as PlanId];
-  const price = plan.priceMonthly === null ? "Fale conosco" : plan.priceMonthly === 0 ? "Grátis" : (plan.priceMonthly / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) + "/mês";
+function formatLimit(resource: string, value: number) {
+  return value < 0 ? "Ilimitado" : formatUsage(resource, value);
+}
+
+function BillingSection({ usage }: { usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
+  const billing = useBillingOverview();
+  const access = useBillingAccess();
+  const syncSubscription = useSyncSubscriptionCheckout();
+  const [checkoutPackage, setCheckoutPackage] = useState<IaPackage | null>(null);
+  const [subscriptionCheckout, setSubscriptionCheckout] = useState(false);
+  useEffect(() => {
+    if (access.data && access.data.status !== "active" && !syncSubscription.isPending) {
+      syncSubscription.mutate();
+    }
+    // Sincroniza uma vez quando o estado carregado da assinatura muda.
+  }, [access.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const subscriptionProduct = billing.data?.products.find((product) => product.kind === "subscription");
+  const packages = billing.data?.products
+    .filter((product) => product.kind === "ai_addon")
+    .map((product) => ({
+      id: product.id as "ai_advantage" | "ai_turbo" | "ai_ultra",
+      name: product.name,
+      credits: product.aiCredits,
+      priceCents: product.priceCents,
+      highlight: product.id === "ai_turbo",
+    }));
   return (
-    <div className="space-y-4"><SectionCard title="Plano atual" description="Informações reais da sua empresa">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <div className="flex items-center gap-2"><Badge className="border-0 bg-primary/15 text-primary">{plan.name}</Badge><span className="text-sm text-muted-foreground">{price}</span></div>
-          <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-            {plan.highlights.map((item) => <li key={item} className="flex items-center gap-2"><Check className="h-4 w-4 text-success" />{item}</li>)}
-          </ul>
-        </div>
-        <Button disabled variant="outline">Gestão de assinatura em breve</Button>
-      </div>
-    </SectionCard><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
-      <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatUsage(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
+    <div className="space-y-4"><BillingAccountSummary overview={billing.data} loading={billing.isLoading} /><PlanShowcase
+      plan={subscriptionProduct ? { name: subscriptionProduct.name, priceCents: subscriptionProduct.priceCents } : undefined}
+      packages={packages?.length ? packages : undefined}
+      onPurchasePackage={setCheckoutPackage}
+      onSubscribe={access.data?.needsSubscription ? () => setSubscriptionCheckout(true) : undefined}
+      canPurchaseAddons={access.data?.canBuyAddons ?? false}
+      subscriptionActive={access.data?.status === "active"}
+      subscriptionOfferAvailable={access.data?.needsSubscription ?? false}
+    /><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
+      <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatLimit(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
       {usage.length === 0 && <p className="text-sm text-muted-foreground">Nenhum limite foi configurado para este plano.</p>}
       <HelpDisclosure title="Como leio o consumo do meu plano?">
         <p>
@@ -350,7 +384,7 @@ function BillingSection({ planId, usage }: { planId: string; usage: Array<{ reso
         </p>
         <p>Os números são medidos pela própria plataforma e refletem o uso real da sua empresa.</p>
       </HelpDisclosure>
-    </SectionCard></div>
+    </SectionCard><AddonCheckoutDialog package={checkoutPackage} onClose={() => setCheckoutPackage(null)} /><SubscriptionCheckoutDialog open={subscriptionCheckout} onClose={() => setSubscriptionCheckout(false)} /></div>
   );
 }
 

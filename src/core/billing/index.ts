@@ -1,6 +1,26 @@
-/**
- * Core · Billing — scaffold.
- * Planos, assinatura (Stripe), limites e medição de uso.
- * Implementação em F4.
- */
+export { BillingService } from "./billing-service";
+export {
+  billingKey,
+  billingAccessKey,
+  useBillingAccess,
+  useBillingOverview,
+  useCreateAiAddonCheckout,
+  useRequestAiAddon,
+  useCreateSubscriptionCheckout,
+  useSyncSubscriptionCheckout,
+} from "./use-billing";
+export type {
+  AiCreditOverview,
+  BillingOverview,
+  BillingAccess,
+  BillingProductKind,
+  BillingProductView,
+  BillingPurchaseStatus,
+  BillingPurchaseView,
+  BillingSubscriptionView,
+  BillingCheckoutResult,
+  BillingCustomerInput,
+  SubscriptionCheckoutResult,
+  SubscriptionStatus,
+} from "./types";
 export const CORE_MODULE = "billing" as const;

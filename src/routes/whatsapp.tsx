@@ -43,6 +43,9 @@ import {
   useSendTemplate,
   useAssignConversation,
   useMarkConversationRead,
+  useConversationInsight,
+  useConversationInsights,
+  useAnalyzeConversation,
 } from "@/features/whatsapp/hooks/use-inbox";
 import {
   useSetConversationStatus,
@@ -64,11 +67,36 @@ import {
   type AttachmentStatus,
   type DraftAttachment,
 } from "@/features/whatsapp/components/media/attachment-preview";
+
+function sendFailureHelp(error: Record<string, unknown> | null): string {
+  const message = typeof error?.message === "string" ? error.message : "";
+  if (message.includes("131005") || /access denied/i.test(message)) {
+    return "A Meta negou a permissão de envio. Reconecte usando um token com whatsapp_business_messaging e confirme que o número foi atribuído ao usuário do sistema.";
+  }
+  if (/authentication|token|oauth/i.test(message)) {
+    return "A Meta recusou a autenticação. Um administrador precisa reconectar o WhatsApp com um token permanente válido.";
+  }
+  return "A mensagem não foi enviada. Confira a conexão, a janela de atendimento e, fora de 24 horas, use um template aprovado.";
+}
 import {
   ACCEPTED_MEDIA,
   detectKind,
   validateMediaFile,
 } from "@/features/whatsapp/components/media/media-utils";
+import {
+  ConversationInsights,
+  ConversationInsightBadges,
+  ConversationInsightFilters,
+  EMPTY_INSIGHT_FILTER,
+  insightMatchesFilter,
+  isAwaitingReply,
+  isPriorityConversation,
+  priorityScore,
+  type ConversationInsight,
+  type ConversationInsightsState,
+  type InsightFilter,
+} from "@/features/whatsapp/components/insights";
+import { can, PERMISSIONS } from "@/core/permissions";
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
@@ -110,12 +138,16 @@ function isWithinWindow(windowExpiresAt: string | null): boolean {
 // ── Página ───────────────────────────────────────────────────────────────────
 type StatusFilter = "open" | "pending" | "closed" | null;
 
+const EMPTY_INSIGHTS: Record<string, ConversationInsight> = {};
+
 function WhatsAppPage() {
   const { conversation: convParam } = Route.useSearch();
+  const session = useSession();
   const setCopilotFocus = useSetCopilotFocus();
   const [selectedId, setSelectedId] = useState<string | null>(convParam ?? null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  const [insightFilter, setInsightFilter] = useState<InsightFilter>(EMPTY_INSIGHT_FILTER);
 
   // Deep-link: abrir uma conversa via ?conversation=<id> (ex.: vindo do painel IA).
   useEffect(() => { if (convParam) setSelectedId(convParam); }, [convParam]);
@@ -130,6 +162,31 @@ function WhatsAppPage() {
     [conversationsQuery.data],
   );
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
+
+  // Insights por conversa (badges + filtros + fila priorizada). Só consulta com
+  // o módulo de IA ativo — caso contrário a lista fica inalterada.
+  const iaEnabled = (session?.enabledModules ?? []).includes("ia");
+  const conversationIds = useMemo(() => conversations.map((c) => c.id), [conversations]);
+  const insightsQuery = useConversationInsights(iaEnabled ? conversationIds : []);
+  const insightsMap = insightsQuery.data ?? EMPTY_INSIGHTS;
+
+  const visibleConversations = useMemo(() => {
+    const list = conversations.filter((c) => {
+      const insight = insightsMap[c.id];
+      if (!insightMatchesFilter(insight, insightFilter)) return false;
+      const awaitingReply = isAwaitingReply(c.lastInboundAt, c.lastOutboundAt);
+      if (insightFilter.priorityOnly && !isPriorityConversation(insight, awaitingReply)) {
+        return false;
+      }
+      return true;
+    });
+    if (!insightFilter.priorityOnly) return list;
+    return [...list].sort(
+      (a, b) =>
+        priorityScore(insightsMap[b.id], isAwaitingReply(b.lastInboundAt, b.lastOutboundAt)) -
+        priorityScore(insightsMap[a.id], isAwaitingReply(a.lastInboundAt, a.lastOutboundAt)),
+    );
+  }, [conversations, insightsMap, insightFilter]);
 
   // Publica o foco (conversa selecionada) para o Copiloto global. Só o ID vai
   // adiante — o resto é resolvido server-side.
@@ -146,7 +203,7 @@ function WhatsAppPage() {
     <AppLayout>
       <div className="grid h-[calc(100vh-8rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-[320px_1fr_300px]">
         <ConversationList
-          conversations={conversations}
+          conversations={visibleConversations}
           selectedId={selectedId}
           onSelect={setSelectedId}
           loading={conversationsQuery.isLoading}
@@ -155,6 +212,10 @@ function WhatsAppPage() {
           onSearch={setSearch}
           statusFilter={statusFilter}
           onStatusFilter={setStatusFilter}
+          iaEnabled={iaEnabled}
+          insightsMap={insightsMap}
+          insightFilter={insightFilter}
+          onInsightFilter={setInsightFilter}
         />
         {selected ? (
           <ConversationView key={selected.id} conversation={selected} />
@@ -178,9 +239,17 @@ function ConversationList(props: {
   onSearch: (v: string) => void;
   statusFilter: StatusFilter;
   onStatusFilter: (v: StatusFilter) => void;
+  iaEnabled: boolean;
+  insightsMap: Record<string, ConversationInsight>;
+  insightFilter: InsightFilter;
+  onInsightFilter: (filter: InsightFilter) => void;
 }) {
   const { conversations, selectedId, onSelect, loading, openCount, search, onSearch } = props;
   const { statusFilter, onStatusFilter } = props;
+  const { iaEnabled, insightsMap, insightFilter, onInsightFilter } = props;
+  const insightFilterActive =
+    insightFilter.priorityOnly ||
+    Boolean(insightFilter.intent || insightFilter.temperature || insightFilter.urgency);
   const filters: { value: StatusFilter; label: string }[] = [
     { value: null, label: "Todas" },
     { value: "open", label: "Abertas" },
@@ -230,6 +299,9 @@ function ConversationList(props: {
             </button>
           ))}
         </div>
+        {iaEnabled && (
+          <ConversationInsightFilters value={insightFilter} onChange={onInsightFilter} />
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading && (
@@ -239,7 +311,9 @@ function ConversationList(props: {
         )}
         {!loading && conversations.length === 0 && (
           <p className="px-4 py-10 text-center text-xs text-muted-foreground">
-            Nenhuma conversa ainda. Elas aparecem aqui quando um contato envia uma mensagem.
+            {insightFilterActive
+              ? "Nenhuma conversa com esses filtros. Ajuste ou limpe os filtros da IA."
+              : "Nenhuma conversa ainda. Elas aparecem aqui quando um contato envia uma mensagem."}
           </p>
         )}
         {conversations.map((c) => (
@@ -257,8 +331,9 @@ function ConversationList(props: {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
+                <ConversationInsightBadges insight={insightsMap[c.id] ?? null} />
                 <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                   {hhmm(c.lastMessageAt)}
                 </span>
@@ -302,6 +377,26 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
     registerDraftSink((text) => setDraft(text));
     return () => registerDraftSink(null);
   }, [registerDraftSink]);
+
+  // Insight da IA da conversa aberta (dados reais do Codex via hooks).
+  const iaEnabled = (session?.enabledModules ?? []).includes("ia");
+  const iaAllowed = can(session, PERMISSIONS.IA_USE);
+  const insightQuery = useConversationInsight(iaEnabled ? conversation.id : null);
+  const analyze = useAnalyzeConversation();
+  const insight: ConversationInsight | null = insightQuery.data ?? null;
+  const analyzeError =
+    analyze.isError && analyze.error instanceof Error ? analyze.error.message : undefined;
+  const insightState: ConversationInsightsState = !iaEnabled
+    ? "unavailable"
+    : analyze.isPending || insightQuery.isLoading
+      ? "loading"
+      : analyze.isError || insightQuery.isError
+        ? "error"
+        : insight
+          ? "ready"
+          : iaAllowed
+            ? "empty"
+            : "forbidden";
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
@@ -388,7 +483,8 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   // Aviso administrativo só quando o ENVIO MAIS RECENTE falhou (evita alarme por
   // falha histórica; não expõe credenciais).
   const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
-  const tokenFailed = lastOutbound?.status === "failed";
+  const lastSendFailed = lastOutbound?.status === "failed";
+  const lastSendFailureHelp = sendFailureHelp(lastOutbound?.error ?? null);
   const approvedTemplates = templatesQuery.data?.items ?? [];
   const replies = quickReplies.data ?? [];
 
@@ -495,6 +591,18 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
         </DropdownMenu>
       </header>
 
+      {iaEnabled && (
+        <div className="border-b border-border bg-background/40 px-4 py-2">
+          <ConversationInsights
+            insight={insight}
+            state={insightState}
+            errorMessage={analyzeError}
+            onRefresh={iaAllowed ? () => analyze.mutate(conversation.id) : undefined}
+            onUseSuggestion={(text) => setDraft(text)}
+          />
+        </div>
+      )}
+
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-6 subtle-grid">
         {messagesQuery.isLoading && (
           <div className="flex justify-center py-6 text-muted-foreground">
@@ -527,13 +635,10 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
       </div>
 
       <div className="border-t border-border bg-background/60 p-3">
-        {tokenFailed && (
+        {lastSendFailed && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
             <KeyRound className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              Falha de autenticação com a Meta — o token do WhatsApp pode ter expirado. Um
-              administrador precisa reconectar a conta.
-            </span>
+            <span>{lastSendFailureHelp}</span>
           </div>
         )}
         {!withinWindow && (

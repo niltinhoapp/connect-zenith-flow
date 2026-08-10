@@ -376,6 +376,94 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["jobs"]["Row"]>;
         Relationships: [];
       };
+      billing_products: {
+        Row: Timestamps & {
+          id: string;
+          kind: "subscription" | "ai_addon";
+          name: string;
+          description: string;
+          price_cents: number;
+          currency: "BRL";
+          billing_interval: "month" | null;
+          ai_credits: number;
+          position: number;
+          is_active: boolean;
+          metadata: Json;
+        };
+        Insert: { id: string; kind: "subscription" | "ai_addon"; name: string; price_cents: number } & Partial<Database["public"]["Tables"]["billing_products"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["billing_products"]["Row"]>;
+        Relationships: [];
+      };
+      billing_subscriptions: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          product_id: string;
+          status: "incomplete" | "trialing" | "active" | "past_due" | "unpaid" | "paused" | "canceled";
+          provider: string | null;
+          provider_customer_id: string | null;
+          provider_subscription_id: string | null;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          canceled_at: string | null;
+          metadata: Json;
+        };
+        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["billing_subscriptions"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["billing_subscriptions"]["Row"]>;
+        Relationships: [];
+      };
+      billing_purchases: {
+        Row: Timestamps & {
+          id: string;
+          organization_id: string;
+          product_id: string;
+          status: "pending" | "paid" | "failed" | "canceled" | "refunded";
+          amount_cents: number;
+          currency: "BRL";
+          credits: number;
+          idempotency_key: string;
+          provider: string | null;
+          provider_checkout_id: string | null;
+          provider_payment_id: string | null;
+          paid_at: string | null;
+          failed_at: string | null;
+          refunded_at: string | null;
+          metadata: Json;
+          created_by: string | null;
+        };
+        Insert: { organization_id: string; product_id: string; amount_cents: number; credits: number; idempotency_key: string } & Partial<Database["public"]["Tables"]["billing_purchases"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["billing_purchases"]["Row"]>;
+        Relationships: [];
+      };
+      ai_credit_wallets: {
+        Row: Timestamps & {
+          organization_id: string;
+          balance: number;
+          total_purchased: number;
+          total_consumed: number;
+        };
+        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["ai_credit_wallets"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["ai_credit_wallets"]["Row"]>;
+        Relationships: [];
+      };
+      ai_credit_ledger: {
+        Row: {
+          id: string;
+          organization_id: string;
+          purchase_id: string | null;
+          kind: "purchase" | "consume" | "refund" | "adjustment";
+          amount: number;
+          balance_after: number;
+          idempotency_key: string;
+          description: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: { organization_id: string; kind: "purchase" | "consume" | "refund" | "adjustment"; amount: number; balance_after: number; idempotency_key: string } & Partial<Database["public"]["Tables"]["ai_credit_ledger"]["Row"]>;
+        Update: never;
+        Relationships: [];
+      };
       plan_limits: {
         Row: Timestamps & {
           id: string;
@@ -642,6 +730,7 @@ export interface Database {
           last_message_at: string | null;
           last_message_preview: string | null;
           last_inbound_at: string | null;
+          last_outbound_at: string | null;
           window_expires_at: string | null;
           tags: string[];
           deleted_at: string | null;
@@ -799,6 +888,7 @@ export interface Database {
           status: "draft" | "active" | "paused";
           trigger_type: string;
           trigger_config: Json;
+          next_run_at: string | null;
           current_version: number;
           created_by: string | null;
           deleted_at: string | null;
@@ -949,8 +1039,25 @@ export interface Database {
         };
         Returns: string;
       };
+      automation_due_scheduled: {
+        Args: { p_limit?: number };
+        Returns: Array<{
+          id: string;
+          organization_id: string;
+          trigger_config: Json;
+          next_run_at: string | null;
+        }>;
+      };
+      automation_set_next_run: {
+        Args: { p_id: string; p_next: string };
+        Returns: undefined;
+      };
       provision_organization: {
         Args: { p_name: string };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
+      ensure_user_workspace: {
+        Args: { p_company_name?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       set_active_organization: {
@@ -995,6 +1102,16 @@ export interface Database {
       try_consume_quota: {
         Args: { p_org: string; p_resource: string; p_amount?: number };
         Returns: boolean;
+      };
+      billing_overview: { Args: { p_org: string }; Returns: Json };
+      billing_access: { Args: { p_org: string }; Returns: Json };
+      request_ai_addon_purchase: {
+        Args: { p_org: string; p_product: string; p_idempotency_key: string };
+        Returns: string;
+      };
+      settle_ai_addon_purchase: {
+        Args: { p_purchase: string; p_provider: string; p_payment_id: string };
+        Returns: number;
       };
       claim_idempotency: { Args: { p_org: string; p_key: string }; Returns: boolean };
       publish_event: {

@@ -1,9 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Sparkles, Send, Paperclip, Plus, MessageSquare, Wand2, FileText, BarChart3, Users } from "lucide-react";
+import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Sparkles, Send, Plus, Wand2, BarChart3, Users, BriefcaseBusiness,
+  Loader2, ShieldAlert, ArrowRight,
+} from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useCopilot } from "@/components/copilot/use-copilot";
+import { useCopilotPrompt } from "@/components/copilot/use-copilot-prompt";
 
 export const Route = createFileRoute("/ia")({
   head: () => ({
@@ -15,56 +25,86 @@ export const Route = createFileRoute("/ia")({
   component: IAPage,
 });
 
-const threads = [
-  { t: "Resumo semanal de vendas", ago: "há 2h" },
-  { t: "Redigir proposta para Nexus", ago: "há 5h" },
-  { t: "Segmentar clientes inativos", ago: "Ontem" },
-  { t: "Analisar churn Q4", ago: "3 dias" },
-  { t: "Sugestão de fluxo de cobrança", ago: "5 dias" },
-];
-
-const prompts = [
-  { i: Users, t: "Quais clientes têm maior risco de churn?" },
-  { i: BarChart3, t: "Gere um resumo de performance da semana" },
-  { i: FileText, t: "Escreva uma mensagem de follow-up para leads frios" },
-  { i: Wand2, t: "Crie uma automação para pós-venda" },
+const suggestions = [
+  { icon: Users, text: "Analise a situação da minha base de clientes" },
+  { icon: BarChart3, text: "Mostre um resumo das métricas do painel" },
+  { icon: BriefcaseBusiness, text: "Analise meu funil de vendas" },
+  { icon: Wand2, text: "Crie 5 clientes fictícios para testar o CRM" },
 ];
 
 function IAPage() {
+  const navigate = useNavigate();
+  const { org, tools, state, runWithInput, confirm, cancelConfirm, clear } = useCopilot();
+  const { interpret, interpreting, error: promptError, clearError } = useCopilotPrompt(org);
+  const [prompt, setPrompt] = useState("");
+  const [lastPrompt, setLastPrompt] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
+
+  const reset = () => {
+    setPrompt("");
+    setLastPrompt(null);
+    setAnswer(null);
+    clearError();
+    clear();
+  };
+
+  const submit = async (text = prompt) => {
+    const request = text.trim();
+    if (!request || interpreting || state.running) return;
+    setPrompt(request);
+    setLastPrompt(request);
+    setAnswer(null);
+    clearError();
+    clear();
+
+    const prepared = await interpret(request);
+    if (!prepared) return;
+    if (prepared.action === "none") {
+      setAnswer(prepared.message);
+      return;
+    }
+    const tool = tools.find((item) => item.name === prepared.action);
+    if (!tool) {
+      setAnswer("Essa ação não está disponível para seu perfil ou para os módulos ativos da empresa.");
+      return;
+    }
+    setAnswer(prepared.message);
+    await runWithInput(tool, prepared.input, prepared.preview);
+  };
+
+  const busy = interpreting || Boolean(state.running);
+  const response = state.result?.summary ?? state.error ?? promptError ?? answer;
+
   return (
     <AppLayout>
       <div className="grid h-[calc(100vh-8rem)] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-card lg:grid-cols-[280px_1fr]">
         <aside className="flex min-h-0 flex-col border-r border-border">
           <div className="border-b border-border p-4">
-            <Button className="h-9 w-full rounded-lg bg-primary hover:bg-primary/90">
+            <Button className="h-9 w-full rounded-lg" onClick={reset}>
               <Plus className="mr-1.5 h-4 w-4" /> Nova conversa
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Recentes
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              O que já posso fazer
             </p>
-            <ul className="space-y-0.5">
-              {threads.map((th, i) => (
-                <li key={th.t}>
-                  <button
-                    className={
-                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors " +
-                      (i === 0 ? "bg-primary/10 text-foreground ring-1 ring-inset ring-primary/25" : "text-muted-foreground hover:bg-accent/40 hover:text-foreground")
-                    }
-                  >
-                    <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">{th.t}</span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">{th.ago}</span>
-                  </button>
-                </li>
-              ))}
+            <ul className="space-y-2">
+              {tools
+                .filter((tool) => !tool.name.startsWith("whatsapp."))
+                .map((tool) => (
+                  <li key={tool.name} className="rounded-lg border border-border bg-background p-3">
+                    <p className="text-xs font-medium">{tool.title}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{tool.description}</p>
+                  </li>
+                ))}
             </ul>
           </div>
           <div className="border-t border-border p-3">
             <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
-              <p className="text-xs font-semibold">Plano Pro</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">142.320 créditos restantes</p>
+              <p className="text-xs font-semibold">Uso seguro</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Consultas usam dados reais da empresa. Alterações sempre pedem confirmação.
+              </p>
             </div>
           </div>
         </aside>
@@ -77,87 +117,125 @@ function IAPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold">ConnectWeb Copilot</p>
-                <p className="text-[11px] text-muted-foreground">Conectado ao seu workspace</p>
+                <p className="text-[11px] text-muted-foreground">Conectado aos dados da empresa ativa</p>
               </div>
             </div>
-            <Badge className="rounded-md border-0 bg-muted text-[11px] text-muted-foreground">gpt-4o</Badge>
+            <Badge className="rounded-md border-0 bg-success/15 text-[11px] text-success">Ativo</Badge>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8">
             <div className="mx-auto max-w-3xl space-y-6">
-              <div className="text-center">
-                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <h2 className="mt-4 text-2xl font-semibold tracking-tight">Como posso ajudar hoje?</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Peça análises, escreva mensagens, crie automações ou segmente sua base.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {prompts.map((p) => (
-                  <button
-                    key={p.t}
-                    className="group flex items-start gap-3 rounded-xl border border-border bg-background p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
-                  >
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
-                      <p.i className="h-4 w-4" />
+              {!lastPrompt ? (
+                <>
+                  <div className="text-center">
+                    <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
+                      <Sparkles className="h-6 w-6" />
                     </div>
-                    <p className="text-sm text-foreground">{p.t}</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* Example exchange */}
-              <div className="mt-8 space-y-6">
-                <div className="flex gap-3">
-                  <Avatar className="h-8 w-8 border border-border">
-                    <AvatarFallback className="bg-muted text-[10px] font-semibold">RA</AvatarFallback>
-                  </Avatar>
-                  <div className="max-w-[80%] rounded-2xl rounded-tl-md bg-muted/60 px-4 py-2.5 text-sm">
-                    Me dá um resumo da performance da semana.
+                    <h2 className="mt-4 text-2xl font-semibold tracking-tight">Como posso ajudar hoje?</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Consulte seu painel, clientes, relatórios e CRM ou prepare novos contatos.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.text}
+                        className="group flex items-start gap-3 rounded-xl border border-border bg-background p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40"
+                        onClick={() => { setPrompt(suggestion.text); void submit(suggestion.text); }}
+                      >
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20">
+                          <suggestion.icon className="h-4 w-4" />
+                        </div>
+                        <p className="text-sm text-foreground">{suggestion.text}</p>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm text-primary-foreground">
+                    {lastPrompt}
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    </div>
+                    <div className={cn(
+                      "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-md px-4 py-3 text-sm",
+                      state.error || promptError ? "bg-destructive/10 text-destructive" : "bg-muted/60 text-foreground",
+                    )}>
+                      {busy ? "Estou consultando os dados e preparando uma resposta…" : response ?? "Pedido preparado para sua confirmação."}
+                      {state.result?.navigateTo && (
+                        <Button
+                          size="sm"
+                          className="mt-3 flex h-8 gap-1.5 text-xs"
+                          onClick={() => navigate({ to: state.result!.navigateTo as never })}
+                        >
+                          Abrir módulo <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <div className="max-w-[80%] space-y-3 text-sm">
-                    <p>Aqui vai o resumo dos últimos 7 dias, Rafael:</p>
-                    <ul className="space-y-1.5 text-muted-foreground">
-                      <li>• <span className="text-foreground">Receita:</span> R$ 128.4k <span className="text-success">(+12,4%)</span></li>
-                      <li>• <span className="text-foreground">Novos clientes:</span> 342 <span className="text-success">(+8,1%)</span></li>
-                      <li>• <span className="text-foreground">Conversão:</span> 24,8%, com destaque para o canal WhatsApp</li>
-                      <li>• <span className="text-foreground">Alerta:</span> 3 automações apresentaram falhas em etapas críticas</li>
-                    </ul>
-                    <p className="text-muted-foreground">Quer que eu detalhe algum ponto ou crie um relatório em PDF?</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
           <div className="border-t border-border bg-background/60 p-4">
             <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-border bg-card p-2.5">
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                <Paperclip className="h-4 w-4 text-muted-foreground" />
-              </Button>
               <textarea
                 rows={1}
-                placeholder="Pergunte qualquer coisa ao Copilot..."
-                className="max-h-40 min-h-[24px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void submit();
+                  }
+                }}
+                disabled={busy}
+                placeholder="Peça uma análise ou uma ação ao Copilot…"
+                className="max-h-40 min-h-[24px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none"
               />
-              <Button size="icon" className="h-8 w-8 shrink-0 rounded-lg bg-primary hover:bg-primary/90">
-                <Send className="h-4 w-4" />
+              <Button
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-lg"
+                disabled={!prompt.trim() || busy}
+                onClick={() => void submit()}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
             <p className="mx-auto mt-2 max-w-3xl text-center text-[10px] text-muted-foreground">
-              O Copilot pode cometer erros. Verifique informações importantes.
+              A IA prepara ações; você confirma antes de qualquer alteração.
             </p>
           </div>
         </section>
       </div>
+
+      <AlertDialog open={Boolean(state.pendingConfirm)} onOpenChange={(open) => { if (!open) cancelConfirm(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="block">
+                A ação <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span> fará alterações.
+              </span>
+              {state.pendingConfirm?.preview && (
+                <span className="mt-3 block max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-foreground">
+                  {state.pendingConfirm.preview}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelConfirm}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirm}>Confirmar e executar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

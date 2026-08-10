@@ -84,7 +84,7 @@ export class CustomerSupabaseRepository implements CustomerRepository {
       const s = sanitize(filter.search);
       if (s) {
         q = q.or(
-          `first_name.ilike.%${s}%,last_name.ilike.%${s}%,company_name.ilike.%${s}%,email.ilike.%${s}%`,
+          `first_name.ilike.%${s}%,last_name.ilike.%${s}%,company_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,mobile.ilike.%${s}%`,
         );
       }
     }

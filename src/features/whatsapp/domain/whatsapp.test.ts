@@ -36,6 +36,7 @@ describe("WhatsApp · Conversation", () => {
       lastMessageAt: null,
       lastMessagePreview: null,
       lastInboundAt: new Date().toISOString(),
+      lastOutboundAt: null,
       windowExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
       tags: [],
       createdAt: "",

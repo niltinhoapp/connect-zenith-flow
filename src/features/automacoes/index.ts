@@ -9,6 +9,7 @@
 export const MODULE_KEY = "automacoes" as const;
 
 export * from "./domain/engine";
+export * from "./domain/schedule";
 export {
   normalizeAiFlow,
   AI_TRIGGERS,
