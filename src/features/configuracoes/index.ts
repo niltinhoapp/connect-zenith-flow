@@ -11,3 +11,4 @@ export * from "@/features/configuracoes/schema";
 export * from "@/features/configuracoes/application/settings-service";
 export * from "@/features/configuracoes/application/api-key-service";
 export * from "@/features/configuracoes/hooks/use-settings";
+export * from "@/features/configuracoes/copilot-tools";

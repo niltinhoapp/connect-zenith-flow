@@ -4,6 +4,7 @@ import {
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
   createWhatsAppCommerceAssistantTool,
+  createCommerceRegisterCrmTool,
   type WhatsAppAssistant,
 } from "@/features/whatsapp/copilot-tools";
 
@@ -71,5 +72,18 @@ describe("WhatsApp · Copilot tools", () => {
     expect(result.summary).toContain("forma de pagamento");
     expect(result.summary).toContain("revise antes de enviar");
     expect(tool.risk).toBe("external");
+  });
+
+  it("expõe o registro no CRM como escrita e devolve o vínculo criado", async () => {
+    const register = vi.fn(async () => ({
+      customer: { id: "customer-1", name: "Ana", created: true },
+      deal: { id: "deal-1", title: "Pedido WhatsApp — Ana", created: true, amount: 8200, stage: "Ganho" },
+    }));
+    const tool = createCommerceRegisterCrmTool({ register });
+    const analysis = await assistant().analyzeCommerce({ conversationId: "conversation-1" });
+    const result = await tool.execute({ conversationId: "conversation-1", analysis }, context);
+    expect(tool.risk).toBe("write");
+    expect(register).toHaveBeenCalledOnce();
+    expect(result.data?.deal.id).toBe("deal-1");
   });
 });

@@ -24,6 +24,7 @@ export interface DomainEventMap {
   "lead.converted": TenantPayload & { leadId: string; customerId: string };
 
   "deal.created": TenantPayload & { dealId: string };
+  "deal.updated": TenantPayload & { dealId: string };
   "deal.stage.changed": TenantPayload & { dealId: string; fromStageId: string | null; toStageId: string };
   "deal.won": TenantPayload & { dealId: string; amount: number };
   "deal.lost": TenantPayload & { dealId: string; reason?: string };

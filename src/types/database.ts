@@ -1005,6 +1005,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      write_audit: {
+        Args: { p_org: string; p_action: string; p_entity_type?: string | null; p_entity_id?: string | null; p_metadata?: Json };
+        Returns: undefined;
+      };
       automation_save: {
         Args: {
           p_org: string;

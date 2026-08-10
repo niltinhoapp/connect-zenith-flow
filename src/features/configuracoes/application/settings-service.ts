@@ -44,6 +44,17 @@ export interface SettingsView {
   usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }>;
 }
 
+export interface ActivationStatus {
+  companyConfigured: boolean;
+  whatsappConnected: boolean;
+  hasCustomerOrLead: boolean;
+  hasInboundMessage: boolean;
+  hasLinkedConversation: boolean;
+  hasActiveAutomation: boolean;
+  hasSuccessfulMessageAutomation: boolean;
+  hasFailedMessageAutomation: boolean;
+}
+
 export class SettingsApplicationService {
   constructor(
     private readonly db: SupabaseClient<Database>,
@@ -55,88 +66,197 @@ export class SettingsApplicationService {
   }
 
   getSettings(): Promise<SettingsView> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const [profileResult, workspaceResult, whatsappResult, preferences] = await Promise.all([
-        this.db
-          .from("profiles")
-          .select("full_name, email, avatar_url")
-          .eq("id", this.ctx.actorId)
-          .single(),
-        this.db
-          .from("organizations")
-          .select("id, name, slug, plan_id, enabled_modules")
-          .eq("id", this.ctx.organizationId)
-          .single(),
-        this.db
-          .from("whatsapp_accounts")
-          .select("provider, name, status, connected_at")
-          .eq("organization_id", this.ctx.organizationId)
-          .is("deleted_at", null)
-          // Contas antigas/rascunhos têm connected_at nulo. Sem NULLS LAST o
-          // Postgres pode devolver um rascunho "pending" antes da conexão real.
-          .order("connected_at", { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle(),
-        this.loadPreferences(),
-      ]);
-      if (profileResult.error) {
-        throw new InfrastructureError(profileResult.error.message, { cause: profileResult.error });
-      }
-      if (workspaceResult.error) {
-        throw new InfrastructureError(workspaceResult.error.message, { cause: workspaceResult.error });
-      }
-      if (whatsappResult.error) {
-        throw new InfrastructureError(whatsappResult.error.message, { cause: whatsappResult.error });
-      }
-      const profile = profileResult.data;
-      const workspace = workspaceResult.data;
-      const whatsapp = whatsappResult.data;
-      const usage = await this.loadUsage(workspace.plan_id);
-      return {
-        profile: {
-          fullName: profile.full_name,
-          email: profile.email,
-          avatarUrl: profile.avatar_url,
-        },
-        workspace: {
-          id: workspace.id,
-          name: workspace.name,
-          slug: workspace.slug,
-          planId: workspace.plan_id,
-          enabledModules: workspace.enabled_modules,
-        },
-        whatsapp: {
-          connected: whatsapp?.status === "connected",
-          provider: whatsapp?.provider ?? null,
-          name: whatsapp?.name ?? null,
-          status: whatsapp?.status ?? null,
-          connectedAt: whatsapp?.connected_at ?? null,
-        },
-        preferences,
-        usage,
-      };
-    }, { service: "settings.get" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const [profileResult, workspaceResult, whatsappResult, preferences] = await Promise.all([
+          this.db
+            .from("profiles")
+            .select("full_name, email, avatar_url")
+            .eq("id", this.ctx.actorId)
+            .single(),
+          this.db
+            .from("organizations")
+            .select("id, name, slug, plan_id, enabled_modules")
+            .eq("id", this.ctx.organizationId)
+            .single(),
+          this.db
+            .from("whatsapp_accounts")
+            .select("provider, name, status, connected_at")
+            .eq("organization_id", this.ctx.organizationId)
+            .is("deleted_at", null)
+            // Contas antigas/rascunhos têm connected_at nulo. Sem NULLS LAST o
+            // Postgres pode devolver um rascunho "pending" antes da conexão real.
+            .order("connected_at", { ascending: false, nullsFirst: false })
+            .limit(1)
+            .maybeSingle(),
+          this.loadPreferences(),
+        ]);
+        if (profileResult.error) {
+          throw new InfrastructureError(profileResult.error.message, {
+            cause: profileResult.error,
+          });
+        }
+        if (workspaceResult.error) {
+          throw new InfrastructureError(workspaceResult.error.message, {
+            cause: workspaceResult.error,
+          });
+        }
+        if (whatsappResult.error) {
+          throw new InfrastructureError(whatsappResult.error.message, {
+            cause: whatsappResult.error,
+          });
+        }
+        const profile = profileResult.data;
+        const workspace = workspaceResult.data;
+        const whatsapp = whatsappResult.data;
+        const usage = await this.loadUsage(workspace.plan_id);
+        return {
+          profile: {
+            fullName: profile.full_name,
+            email: profile.email,
+            avatarUrl: profile.avatar_url,
+          },
+          workspace: {
+            id: workspace.id,
+            name: workspace.name,
+            slug: workspace.slug,
+            planId: workspace.plan_id,
+            enabledModules: workspace.enabled_modules,
+          },
+          whatsapp: {
+            connected: whatsapp?.status === "connected",
+            provider: whatsapp?.provider ?? null,
+            name: whatsapp?.name ?? null,
+            status: whatsapp?.status ?? null,
+            connectedAt: whatsapp?.connected_at ?? null,
+          },
+          preferences,
+          usage,
+        };
+      },
+      { service: "settings.get" },
+    );
+  }
+
+  getActivationStatus(): Promise<ActivationStatus> {
+    return guard(
+      async () => {
+        const org = this.ctx.organizationId;
+        const results = await Promise.all([
+          this.db.from("organizations").select("name").eq("id", org).single(),
+          this.db
+            .from("whatsapp_accounts")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .eq("status", "connected")
+            .is("deleted_at", null),
+          this.db
+            .from("customers")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .is("deleted_at", null),
+          this.db
+            .from("leads")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .is("deleted_at", null),
+          this.db
+            .from("messages")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .eq("direction", "inbound")
+            .eq("status", "received")
+            .not("wa_message_id", "is", null),
+          this.db
+            .from("conversations")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .not("customer_id", "is", null)
+            .is("deleted_at", null),
+          this.db
+            .from("automations")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .eq("status", "active")
+            .is("deleted_at", null),
+          this.db
+            .from("automation_runs")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .eq("status", "succeeded")
+            .eq("trigger_event", "whatsapp.message.received"),
+          this.db
+            .from("automation_runs")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", org)
+            .eq("status", "failed")
+            .eq("trigger_event", "whatsapp.message.received"),
+        ]);
+        const failed = results.find((result) => result.error)?.error;
+        if (failed) throw new InfrastructureError(failed.message, { cause: failed });
+        const [
+          company,
+          whatsapp,
+          customers,
+          leads,
+          messages,
+          linked,
+          active,
+          succeeded,
+          failedRuns,
+        ] = results;
+        return {
+          companyConfigured: Boolean(
+            company.data && "name" in company.data && company.data.name.trim().length >= 2,
+          ),
+          whatsappConnected: (whatsapp.count ?? 0) > 0,
+          hasCustomerOrLead: (customers.count ?? 0) + (leads.count ?? 0) > 0,
+          hasInboundMessage: (messages.count ?? 0) > 0,
+          hasLinkedConversation: (linked.count ?? 0) > 0,
+          hasActiveAutomation: (active.count ?? 0) > 0,
+          hasSuccessfulMessageAutomation: (succeeded.count ?? 0) > 0,
+          hasFailedMessageAutomation: (failedRuns.count ?? 0) > 0,
+        };
+      },
+      { service: "settings.activation" },
+    );
   }
 
   private async loadUsage(planId: string): Promise<SettingsView["usage"]> {
     const month = new Date().toISOString().slice(0, 7);
     const [limitsResult, usageResult] = await Promise.all([
       this.db.from("plan_limits").select("resource, limit_value, period").eq("plan_id", planId),
-      this.db.from("quota_usage").select("resource, period_key, used").eq("organization_id", this.ctx.organizationId),
+      this.db
+        .from("quota_usage")
+        .select("resource, period_key, used")
+        .eq("organization_id", this.ctx.organizationId),
     ]);
-    if (limitsResult.error) throw new InfrastructureError(limitsResult.error.message, { cause: limitsResult.error });
-    if (usageResult.error) throw new InfrastructureError(usageResult.error.message, { cause: usageResult.error });
+    if (limitsResult.error)
+      throw new InfrastructureError(limitsResult.error.message, { cause: limitsResult.error });
+    if (usageResult.error)
+      throw new InfrastructureError(usageResult.error.message, { cause: usageResult.error });
     return (limitsResult.data ?? []).map((limit) => {
-      const record = (usageResult.data ?? []).find((item) =>
-        item.resource === limit.resource && (limit.period === "total" || item.period_key === month),
+      const record = (usageResult.data ?? []).find(
+        (item) =>
+          item.resource === limit.resource &&
+          (limit.period === "total" || item.period_key === month),
       );
-      return { resource: limit.resource, used: record?.used ?? 0, limit: limit.limit_value, period: limit.period };
+      return {
+        resource: limit.resource,
+        used: record?.used ?? 0,
+        limit: limit.limit_value,
+        period: limit.period,
+      };
     });
   }
 
   private async configurationModuleId(): Promise<string> {
-    const { data, error } = await this.db.from("modules").select("id").eq("key", "configuracoes").single();
+    const { data, error } = await this.db
+      .from("modules")
+      .select("id")
+      .eq("key", "configuracoes")
+      .single();
     if (error) throw new InfrastructureError(error.message, { cause: error });
     return data.id;
   }
@@ -150,61 +270,75 @@ export class SettingsApplicationService {
       .eq("module_id", moduleId)
       .maybeSingle();
     if (error) throw new InfrastructureError(error.message, { cause: error });
-    const candidate = data?.config && typeof data.config === "object" && !Array.isArray(data.config)
-      ? (data.config as Record<string, unknown>).notifications
-      : null;
+    const candidate =
+      data?.config && typeof data.config === "object" && !Array.isArray(data.config)
+        ? (data.config as Record<string, unknown>).notifications
+        : null;
     const parsed = notificationPreferencesSchema.safeParse(candidate);
     return parsed.success ? parsed.data : defaultPreferences;
   }
 
   updatePreferences(input: NotificationPreferences): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const preferences = notificationPreferencesSchema.parse(input);
-      const moduleId = await this.configurationModuleId();
-      const { data: current, error: readError } = await this.db
-        .from("module_configs")
-        .select("config")
-        .eq("organization_id", this.ctx.organizationId)
-        .eq("module_id", moduleId)
-        .maybeSingle();
-      if (readError) throw new InfrastructureError(readError.message, { cause: readError });
-      const currentConfig = current?.config && typeof current.config === "object" && !Array.isArray(current.config)
-        ? current.config
-        : {};
-      const { error } = await this.db.from("module_configs").upsert({
-        organization_id: this.ctx.organizationId,
-        module_id: moduleId,
-        config: { ...currentConfig, notifications: preferences },
-        schema_version: 1,
-        updated_by: this.ctx.actorId,
-        validated_at: new Date().toISOString(),
-      }, { onConflict: "organization_id,module_id" });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-    }, { service: "settings.preferences.update" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const preferences = notificationPreferencesSchema.parse(input);
+        const moduleId = await this.configurationModuleId();
+        const { data: current, error: readError } = await this.db
+          .from("module_configs")
+          .select("config")
+          .eq("organization_id", this.ctx.organizationId)
+          .eq("module_id", moduleId)
+          .maybeSingle();
+        if (readError) throw new InfrastructureError(readError.message, { cause: readError });
+        const currentConfig =
+          current?.config && typeof current.config === "object" && !Array.isArray(current.config)
+            ? current.config
+            : {};
+        const { error } = await this.db.from("module_configs").upsert(
+          {
+            organization_id: this.ctx.organizationId,
+            module_id: moduleId,
+            config: { ...currentConfig, notifications: preferences },
+            schema_version: 1,
+            updated_by: this.ctx.actorId,
+            validated_at: new Date().toISOString(),
+          },
+          { onConflict: "organization_id,module_id" },
+        );
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "settings.preferences.update" },
+    );
   }
 
   updateProfile(input: UpdateProfileInput): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const values = updateProfileSchema.parse(input);
-      const { error } = await this.db
-        .from("profiles")
-        .update({ full_name: values.fullName })
-        .eq("id", this.ctx.actorId);
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-    }, { service: "settings.profile.update" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const values = updateProfileSchema.parse(input);
+        const { error } = await this.db
+          .from("profiles")
+          .update({ full_name: values.fullName })
+          .eq("id", this.ctx.actorId);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "settings.profile.update" },
+    );
   }
 
   updateWorkspace(input: UpdateWorkspaceInput): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const values = updateWorkspaceSchema.parse(input);
-      const { error } = await this.db
-        .from("organizations")
-        .update({ name: values.name })
-        .eq("id", this.ctx.organizationId);
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-    }, { service: "settings.workspace.update" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const values = updateWorkspaceSchema.parse(input);
+        const { error } = await this.db
+          .from("organizations")
+          .update({ name: values.name })
+          .eq("id", this.ctx.organizationId);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+      },
+      { service: "settings.workspace.update" },
+    );
   }
 }

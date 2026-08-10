@@ -18,6 +18,8 @@ import {
   PenLine,
   UserCog,
   CheckCircle2,
+  Database,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,9 +95,13 @@ function StageStepper({ stage }: { stage: CommerceStage }) {
 export function CommerceAnalysisView({
   analysis,
   onUseReply,
+  onRegisterCrm,
+  registeringCrm = false,
 }: {
   analysis: CommerceAnalysis;
   onUseReply?: (text: string) => void;
+  onRegisterCrm?: () => void;
+  registeringCrm?: boolean;
 }) {
   const a = analysis;
 
@@ -220,6 +226,16 @@ export function CommerceAnalysisView({
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {onRegisterCrm && (
+        <div className="rounded-lg border border-border bg-card p-2.5">
+          <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={registeringCrm} onClick={onRegisterCrm}>
+            {registeringCrm ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Database className="h-3.5 w-3.5" />}
+            {registeringCrm ? "Registrando…" : "Registrar no CRM"}
+          </Button>
+          <p className="mt-1 text-[10px] text-muted-foreground">Você verá uma prévia e precisará confirmar antes de qualquer gravação.</p>
         </div>
       )}
     </div>

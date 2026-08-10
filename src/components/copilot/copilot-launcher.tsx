@@ -26,6 +26,7 @@ import { useCopilotPrompt } from "./use-copilot-prompt";
 import { useInsertDraft } from "./copilot-focus";
 import { CommerceAnalysisView } from "@/features/whatsapp/components/commerce/commerce-analysis-view";
 import type { CommerceAnalysis } from "@/features/whatsapp/domain";
+import type { RegisterCommerceResult } from "@/features/whatsapp";
 
 const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "IA" };
 const RISK_CLS: Record<string, string> = {
@@ -33,6 +34,7 @@ const RISK_CLS: Record<string, string> = {
   write: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/25",
   external: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/25",
 };
+const money = (cents: number | null) => cents === null ? "não informado" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
 /** Ferramentas de IA da conversa: só aparecem no WhatsApp com conversa selecionada. */
 const WHATSAPP_ASSIST = new Set<string>([
@@ -206,6 +208,7 @@ export function CopilotLauncher() {
                 const isDraft = r.tool === "whatsapp.reply.draft";
                 const isSummary = r.tool === "whatsapp.conversation.summarize";
                 const isCommerce = r.tool === "whatsapp.commerce.analyze";
+                const isCommerceCrm = r.tool === "whatsapp.commerce.register_crm";
                 const isAssist = isDraft || isSummary || isCommerce;
                 const heading = isDraft
                   ? "Rascunho de resposta"
@@ -213,6 +216,8 @@ export function CopilotLauncher() {
                     ? "Resumo da conversa"
                     : isCommerce
                       ? "Atendimento comercial"
+                      : isCommerceCrm
+                        ? "Registro no CRM concluído"
                     : "Resultado";
                 return (
                   <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
@@ -222,6 +227,14 @@ export function CopilotLauncher() {
                     {isCommerce && r.data && typeof r.data === "object" ? (
                       <CommerceAnalysisView
                         analysis={r.data as CommerceAnalysis}
+                        registeringCrm={state.running === "whatsapp.commerce.register_crm"}
+                        onRegisterCrm={() => {
+                          const tool = tools.find((item) => item.name === "whatsapp.commerce.register_crm");
+                          if (!tool || focus?.type !== "conversation") return;
+                          const analysis = r.data as CommerceAnalysis;
+                          const preview = [`Cliente: ${focus.label ?? "contato da conversa"}`, `Valor: ${money(analysis.orderTotalCents)}`, `Etapa: ${analysis.stage}`, `Itens: ${analysis.items.map((item) => `${item.quantity ?? "?"}x ${item.description}`).join(", ") || "não informados"}`].join("\n");
+                          void runWithInput(tool, { conversationId: focus.id, analysis }, preview);
+                        }}
                         onUseReply={(text) => {
                           if (insertDraft(text)) {
                             clear();
@@ -229,7 +242,10 @@ export function CopilotLauncher() {
                           }
                         }}
                       />
-                    ) : (
+                    ) : isCommerceCrm && r.data ? (() => {
+                      const saved = r.data as RegisterCommerceResult;
+                      return <div className="space-y-1 text-xs text-foreground"><p><strong>Cliente vinculado:</strong> {saved.customer.name}</p><p><strong>Negócio:</strong> {saved.deal.created ? "criado" : "atualizado"}</p><p><strong>Valor:</strong> {money(saved.deal.amount)}</p><p><strong>Estágio:</strong> {saved.deal.stage}</p></div>;
+                    })() : (
                       <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
                         {r.summary}
                       </p>

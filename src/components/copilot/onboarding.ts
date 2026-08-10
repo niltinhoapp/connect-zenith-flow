@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 export type ChecklistModule = "clientes" | "whatsapp" | "automacoes" | "relatorios";
 
 export interface OnboardingStep {
-  id: "profile" | "empresa" | "cliente" | "whatsapp" | "automacao" | "relatorio";
+  id: "empresa" | "whatsapp" | "cliente" | "mensagem" | "crm" | "automacao" | "primeiro_valor";
   title: string;
   /** Benefício em português simples: por que fazer isso. */
   benefit: string;
@@ -27,50 +27,60 @@ export interface OnboardingStep {
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
-    id: "profile",
-    title: "Complete seu perfil",
-    benefit: "Seu nome identifica você para a equipe e nas mensagens. Leva 1 minuto.",
-    to: "/configuracoes",
-    cta: "Leve-me até lá",
-  },
-  {
     id: "empresa",
-    title: "Confira o nome da empresa",
-    benefit: "É como seus clientes reconhecem você. Confira se está escrito certo.",
+    title: "Configure sua empresa",
+    benefit: "Isso identifica sua operação e prepara o ConnectWeb para trabalhar com seus dados.",
     to: "/configuracoes",
-    cta: "Leve-me até lá",
-  },
-  {
-    id: "cliente",
-    title: "Cadastre o primeiro cliente",
-    benefit: "Os clientes são a base do CRM, das conversas e das automações.",
-    to: "/clientes",
-    cta: "Leve-me até lá",
-    module: "clientes",
+    cta: "Fazer agora",
   },
   {
     id: "whatsapp",
     title: "Conecte o WhatsApp",
-    benefit: "Envie e receba mensagens dos clientes direto no painel, com a IA ajudando.",
+    benefit: "É por aqui que uma mensagem real entra e inicia a jornada.",
     to: "/configuracoes",
-    cta: "Leve-me até lá",
+    cta: "Fazer agora",
     module: "whatsapp",
   },
   {
+    id: "cliente",
+    title: "Registre o primeiro cliente ou lead",
+    benefit: "O CRM precisa de uma pessoa real para organizar o atendimento.",
+    to: "/clientes",
+    cta: "Fazer agora",
+    module: "clientes",
+  },
+  {
+    id: "mensagem",
+    title: "Receba a primeira mensagem",
+    benefit: "Uma mensagem real comprova que o canal está funcionando.",
+    to: "/whatsapp",
+    cta: "Fazer agora",
+    module: "whatsapp",
+  },
+  {
+    id: "crm",
+    title: "Identifique o cliente no CRM",
+    benefit: "Vincule a conversa ao cliente para transformar atendimento em oportunidade.",
+    to: "/whatsapp",
+    cta: "Fazer agora",
+    module: "clientes",
+  },
+  {
     id: "automacao",
-    title: "Crie a primeira automação",
-    benefit: "Deixe tarefas repetitivas no automático: boas-vindas, tags e notas.",
+    title: "Crie e ative a primeira automação",
+    benefit: "Somente uma automação ativa pode reagir às mensagens recebidas.",
     to: "/automacoes",
-    cta: "Leve-me até lá",
+    cta: "Fazer agora",
     module: "automacoes",
   },
   {
-    id: "relatorio",
-    title: "Acompanhe o primeiro relatório",
-    benefit: "Veja com números reais o que está funcionando e onde focar.",
-    to: "/relatorios",
-    cta: "Leve-me até lá",
-    module: "relatorios",
+    id: "primeiro_valor",
+    title: "Execute a primeira automação",
+    benefit:
+      "O primeiro valor acontece quando uma mensagem recebida dispara uma automação com sucesso.",
+    to: "/automacoes",
+    cta: "Fazer agora",
+    module: "automacoes",
   },
 ];
 

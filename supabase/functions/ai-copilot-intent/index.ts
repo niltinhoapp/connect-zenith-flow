@@ -25,6 +25,7 @@ const INTENT_SCHEMA = {
       "crm.pipeline.read",
       "relatorios.overview.read",
       "clientes.create.batch",
+      "onboarding.activation.read",
       "none",
     ] },
     message: { type: "string" },
@@ -58,6 +59,7 @@ Interprete o pedido e use interpret_request. Ações disponíveis:
 - crm.pipeline.read: análise do funil, negócios e oportunidades;
 - relatorios.overview.read: visão geral dos relatórios;
 - clientes.create.batch: cadastrar/criar clientes ou contatos.
+- onboarding.activation.read: responder sobre primeiros passos, onboarding, progresso de ativação ou "o que faço agora?" usando dados reais.
 
 REGRAS:
 - Escolha exatamente uma ação que melhor responda ao pedido.
@@ -160,6 +162,7 @@ Deno.serve(async (req) => {
       "crm.pipeline.read",
       "relatorios.overview.read",
       "clientes.create.batch",
+      "onboarding.activation.read",
     ]);
     const action = allowedActions.has(String(input.action)) ? String(input.action) : "none";
     const customers = action === "clientes.create.batch" && Array.isArray(input.customers)

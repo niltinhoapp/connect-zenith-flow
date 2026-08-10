@@ -24,6 +24,8 @@ export {
 } from "./application/inbox-application-service";
 export { TemplateApplicationService } from "./application/template-application-service";
 export { ConversationInsightService } from "./application/conversation-insight-service";
+export { CommerceCrmApplicationService } from "./application/commerce-crm-service";
+export type { RegisterCommerceInput, RegisterCommerceResult } from "./application/commerce-crm-service";
 
 // Infrastructure
 export {
@@ -53,6 +55,7 @@ export {
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
   createWhatsAppCommerceAssistantTool,
+  createCommerceRegisterCrmTool,
   registerWhatsAppCopilotTools,
 } from "./copilot-tools";
 export { SupabaseWhatsAppAssistant } from "./infrastructure/supabase-whatsapp-assistant";
