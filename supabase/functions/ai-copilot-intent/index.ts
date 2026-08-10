@@ -19,7 +19,14 @@ const INTENT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    action: { type: "string", enum: ["clientes.create.batch", "none"] },
+    action: { type: "string", enum: [
+      "dashboard.metrics.read",
+      "clientes.overview.read",
+      "crm.pipeline.read",
+      "relatorios.overview.read",
+      "clientes.create.batch",
+      "none",
+    ] },
     message: { type: "string" },
     preview: { type: "string" },
     customers: {
@@ -45,16 +52,23 @@ const INTENT_SCHEMA = {
 };
 
 const SYSTEM = `Você é o Copiloto global do ConnectWeb, um CRM brasileiro.
-Interprete o pedido e use interpret_request. Nesta versão, a única ação executável é clientes.create.batch.
+Interprete o pedido e use interpret_request. Ações disponíveis:
+- dashboard.metrics.read: resumo geral, desempenho e métricas do painel;
+- clientes.overview.read: análise, contagem e situação da base de clientes;
+- crm.pipeline.read: análise do funil, negócios e oportunidades;
+- relatorios.overview.read: visão geral dos relatórios;
+- clientes.create.batch: cadastrar/criar clientes ou contatos.
 
 REGRAS:
+- Escolha exatamente uma ação que melhor responda ao pedido.
 - Use clientes.create.batch somente quando o usuário pedir para cadastrar/criar clientes ou contatos.
 - Extraia os contatos fornecidos. Se pedir dados fictícios, gere no máximo 20 nomes brasileiros variados, e-mails somente no domínio example.com e não invente telefone real (use null).
 - Para dados fictícios, inclua a tag "Teste IA" e notes deixando claro que é demonstração.
 - Status permitido: active, inactive, prospect, vip. Traduza a intenção do usuário.
 - Nunca inclua organizationId, ownerId ou permissões: isso vem da sessão segura.
 - preview deve resumir claramente quantidade, nomes e quais dados serão gravados.
-- Se o pedido não for criação de clientes, retorne action "none", customers [] e explique que esta primeira versão cria clientes; as demais ações chegarão gradualmente.
+- Para ações de leitura, retorne customers [] e uma mensagem curta dizendo qual análise será consultada.
+- Se nenhuma ação disponível atender ao pedido, retorne action "none", customers [] e explique com honestidade o que já pode fazer.
 - Não execute nada. Você só prepara uma proposta que exigirá confirmação humana.`;
 
 function cleanCustomer(raw: Record<string, unknown>) {
@@ -96,12 +110,12 @@ Deno.serve(async (req) => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: "unauthorized" }, 401);
 
-  const [{ data: canUseAI, error: aiError }, { data: canWrite, error: writeError }] = await Promise.all([
-    supabase.rpc("has_permission", { org: organizationId, perm: "ia.use" }),
-    supabase.rpc("has_permission", { org: organizationId, perm: "clientes.write" }),
-  ]);
-  if (aiError || writeError) return json({ error: (aiError ?? writeError)?.message }, 500);
-  if (!canUseAI || !canWrite) return json({ error: "Você não possui permissão para usar esta ação." }, 403);
+  const { data: canUseAI, error: aiError } = await supabase.rpc("has_permission", {
+    org: organizationId,
+    perm: "ia.use",
+  });
+  if (aiError) return json({ error: aiError.message }, 500);
+  if (!canUseAI) return json({ error: "Você não possui permissão para usar a IA." }, 403);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -140,12 +154,20 @@ Deno.serve(async (req) => {
     if (!consumed) return json({ error: "Seu limite de IA foi atingido." }, 429);
 
     const input = block.input as Record<string, unknown>;
-    const action = input.action === "clientes.create.batch" ? input.action : "none";
+    const allowedActions = new Set([
+      "dashboard.metrics.read",
+      "clientes.overview.read",
+      "crm.pipeline.read",
+      "relatorios.overview.read",
+      "clientes.create.batch",
+    ]);
+    const action = allowedActions.has(String(input.action)) ? String(input.action) : "none";
     const customers = action === "clientes.create.batch" && Array.isArray(input.customers)
       ? input.customers.map((item: Record<string, unknown>) => cleanCustomer(item)).filter((item) => item.firstName).slice(0, 20)
       : [];
+    const finalAction = action === "clientes.create.batch" && customers.length === 0 ? "none" : action;
     return json({
-      action: customers.length ? action : "none",
+      action: finalAction,
       message: String(input.message ?? "Pedido interpretado."),
       preview: String(input.preview ?? ""),
       input: { customers },
