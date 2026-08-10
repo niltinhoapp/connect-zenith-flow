@@ -888,6 +888,7 @@ export interface Database {
           status: "draft" | "active" | "paused";
           trigger_type: string;
           trigger_config: Json;
+          next_run_at: string | null;
           current_version: number;
           created_by: string | null;
           deleted_at: string | null;
@@ -1037,6 +1038,19 @@ export interface Database {
           p_idempotency?: string | null;
         };
         Returns: string;
+      };
+      automation_due_scheduled: {
+        Args: { p_limit?: number };
+        Returns: Array<{
+          id: string;
+          organization_id: string;
+          trigger_config: Json;
+          next_run_at: string | null;
+        }>;
+      };
+      automation_set_next_run: {
+        Args: { p_id: string; p_next: string };
+        Returns: undefined;
       };
       provision_organization: {
         Args: { p_name: string };
