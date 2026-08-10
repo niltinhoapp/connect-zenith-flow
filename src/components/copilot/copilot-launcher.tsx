@@ -24,6 +24,8 @@ import { OnboardingChecklist } from "./onboarding-checklist";
 import { useCopilot } from "./use-copilot";
 import { useCopilotPrompt } from "./use-copilot-prompt";
 import { useInsertDraft } from "./copilot-focus";
+import { CommerceAnalysisView } from "@/features/whatsapp/components/commerce/commerce-analysis-view";
+import type { CommerceAnalysis } from "@/features/whatsapp/domain";
 
 const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "IA" };
 const RISK_CLS: Record<string, string> = {
@@ -217,9 +219,21 @@ export function CopilotLauncher() {
                     <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-primary">
                       <Sparkles className="h-3 w-3" /> {heading}
                     </p>
-                    <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
-                      {r.summary}
-                    </p>
+                    {isCommerce && r.data && typeof r.data === "object" ? (
+                      <CommerceAnalysisView
+                        analysis={r.data as CommerceAnalysis}
+                        onUseReply={(text) => {
+                          if (insertDraft(text)) {
+                            clear();
+                            setOpen(false);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
+                        {r.summary}
+                      </p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {isAssist && (
                         <Button
