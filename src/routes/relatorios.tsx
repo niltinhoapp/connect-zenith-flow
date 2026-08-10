@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, Calendar, BarChart3, Users, RefreshCw } from "lucide-react";
+import { Download, Calendar, BarChart3, Users, RefreshCw, Database, Clock3, Info } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { AppLayout } from "@/components/app-layout";
 import { SectionCard } from "@/components/shared/section-card";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/relatorios")({
 
 const pieColors = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-muted-foreground)"];
 
-const fmtBRL = (cents: number) => "R$ " + (cents / 100).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+const fmtBRL = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function RelatoriosPage() {
   const { data: m, isLoading, isFetching, isError, refetch } = useReports();
@@ -42,11 +42,15 @@ function RelatoriosPage() {
       subtitle="Análise consolidada de todos os módulos"
       actions={
         <>
-          <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
-            <Calendar className="mr-1.5 h-4 w-4" /> Últimos 90 dias
+          <Button variant="outline" className="h-9 rounded-lg border-border bg-card" disabled>
+            <Calendar className="mr-1.5 h-4 w-4" /> Histórico + últimos 12 meses
           </Button>
-          <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90" disabled={isEmpty || isFetching}>
-            <Download className="mr-1.5 h-4 w-4" /> Exportar PDF
+          <Button
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90 print:hidden"
+            disabled={isEmpty || isFetching}
+            onClick={() => window.print()}
+          >
+            <Download className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
           </Button>
         </>
       }
@@ -118,10 +122,6 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
   const trend = m.revenueTrend.map((t) => ({ m: t.m, v: Math.round(t.v / 100) }));
   const funnel = m.funnel;
   const pie = m.sources.map((s) => ({ n: s.n, v: s.v }));
-  const cohort = m.revenueTrend.slice(-6).map((t) => {
-    const v = Math.round(t.v / 100);
-    return { w: t.m, a: v, b: v, c: v };
-  });
   const leads = funnel.find((f) => f.s === "Leads")?.v ?? 0;
   const converted = funnel.find((f) => f.s === "Convertidos")?.v ?? 0;
   const convRate = leads > 0 ? Math.round((converted / leads) * 100) : 0;
@@ -130,10 +130,10 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
     <>
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { l: "Receita total", v: fmtBRL(m?.revenueTotal ?? 0), d: "acumulado" },
-          { l: "Ticket médio", v: fmtBRL(m?.avgTicket ?? 0), d: "por negócio" },
-          { l: "Negócios ganhos", v: String(m?.wonCount ?? 0), d: "total" },
-          { l: "Conversão", v: `${convRate}%`, d: "leads" },
+          { l: "Receita no CRM", v: fmtBRL(m.revenueTotal), d: "negócios ganhos · histórico" },
+          { l: "Ticket médio", v: fmtBRL(m.avgTicket), d: "receita ÷ negócios ganhos" },
+          { l: "Negócios ganhos", v: String(m.wonCount), d: "histórico do CRM" },
+          { l: "Conversão de leads", v: `${convRate}%`, d: "convertidos ÷ leads" },
         ].map((k) => (
           <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{k.l}</p>
@@ -144,7 +144,7 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <SectionCard title="Evolução de receita" className="xl:col-span-2" description="Últimos 12 meses">
+        <SectionCard title="Evolução da receita registrada no CRM" className="xl:col-span-2" description="Negócios ganhos nos últimos 12 meses">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ left: -10, top: 5, right: 5, bottom: 0 }}>
@@ -194,20 +194,23 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
           </div>
         </SectionCard>
 
-        <SectionCard title="Retenção por coorte">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cohort} margin={{ left: -10, top: 5, right: 5, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="w" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
-                <Line type="monotone" dataKey="a" stroke="var(--color-primary)" strokeWidth={2} dot={false} name="Coorte A" />
-                <Line type="monotone" dataKey="b" stroke="var(--color-success)" strokeWidth={2} dot={false} name="Coorte B" />
-                <Line type="monotone" dataKey="c" stroke="var(--color-warning)" strokeWidth={2} dot={false} name="Coorte C" />
-              </LineChart>
-            </ResponsiveContainer>
+        <SectionCard title="Origem e atualização dos dados" description="Transparência dos indicadores">
+          <div className="space-y-4 py-2 text-sm">
+            <div className="flex gap-3">
+              <Database className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div><p className="font-medium">Receita e ticket médio</p><p className="text-xs text-muted-foreground">Valores dos negócios marcados como ganhos no CRM. Não representam extrato bancário.</p></div>
+            </div>
+            <div className="flex gap-3">
+              <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div><p className="font-medium">Funil e origem</p><p className="text-xs text-muted-foreground">Leads, conversões e canais cadastrados nesta empresa.</p></div>
+            </div>
+            <div className="flex gap-3">
+              <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div><p className="font-medium">Atualização automática</p><p className="text-xs text-muted-foreground">Consulta realizada em {new Date(m.generatedAt).toLocaleString("pt-BR")}.</p></div>
+            </div>
+            <div className="flex gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+              <Info className="h-4 w-4 shrink-0" /> A análise de retenção só será exibida quando houver compras recorrentes suficientes; nenhum dado de coorte é estimado.
+            </div>
           </div>
         </SectionCard>
       </div>
