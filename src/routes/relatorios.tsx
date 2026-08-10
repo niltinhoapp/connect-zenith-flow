@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, Calendar, BarChart3, Users, RefreshCw, Database, Clock3, Info } from "lucide-react";
+import { Download, Calendar, BarChart3, Users, RefreshCw, Database, Clock3, Info, Sparkles, Send, Loader2 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -9,6 +10,7 @@ import { chartTooltipStyle } from "@/components/shared/chart-theme";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReports } from "@/features/relatorios/hooks/use-reports";
+import { useAskReports } from "@/features/relatorios/hooks/use-ask-reports";
 
 export const Route = createFileRoute("/relatorios")({
   head: () => ({
@@ -128,6 +130,7 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
 
   return (
     <>
+      <ReportsQuestion />
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           { l: "Receita no CRM", v: fmtBRL(m.revenueTotal), d: "negócios ganhos · histórico" },
@@ -215,5 +218,73 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
         </SectionCard>
       </div>
     </>
+  );
+}
+
+const reportQuestions = [
+  "Qual é meu faturamento registrado no CRM?",
+  "Qual é minha taxa de conversão?",
+  "Qual canal trouxe mais leads?",
+];
+
+function ReportsQuestion() {
+  const [question, setQuestion] = useState("");
+  const ask = useAskReports();
+
+  const submit = (value = question) => {
+    const text = value.trim();
+    if (!text || ask.isPending) return;
+    setQuestion(text);
+    ask.mutate(text);
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl border border-primary/25 bg-primary/5 p-5 print:hidden">
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold">Pergunte aos seus dados</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">A IA consulta os mesmos números reais exibidos nesta página.</p>
+          <div className="mt-3 flex gap-2 rounded-xl border border-border bg-background p-2">
+            <input
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") { event.preventDefault(); submit(); }
+              }}
+              maxLength={1000}
+              placeholder="Ex.: Qual canal trouxe mais clientes?"
+              className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <Button size="icon" className="h-8 w-8 shrink-0" disabled={!question.trim() || ask.isPending} onClick={() => submit()}>
+              {ask.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+          {!ask.data && !ask.error && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {reportQuestions.map((item) => (
+                <button key={item} onClick={() => { setQuestion(item); submit(item); }} className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground">
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+          {ask.error && <p className="mt-3 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{ask.error.message}</p>}
+          {ask.data && (
+            <div className="mt-3 rounded-xl border border-primary/20 bg-background p-4">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{ask.data.answer}</p>
+              {ask.data.highlights.length > 0 && (
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {ask.data.highlights.map((highlight) => <li key={highlight} className="rounded-lg bg-muted/60 px-3 py-2 text-xs">{highlight}</li>)}
+                </ul>
+              )}
+              <p className="mt-3 text-[10px] text-muted-foreground">Consultado em {new Date(ask.data.generatedAt).toLocaleString("pt-BR")}.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

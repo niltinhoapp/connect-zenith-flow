@@ -41,6 +41,10 @@ verify_jwt = true
 [functions.ai-copilot-intent]
 verify_jwt = false
 
+# Perguntas em linguagem natural consultam a RPC real e validam JWT/RBAC internamente.
+[functions.ai-reports-answer]
+verify_jwt = false
+
 # API Pública: autenticação própria por chave `cw_live_*` (hash no banco).
 [functions.public-api]
 verify_jwt = false
