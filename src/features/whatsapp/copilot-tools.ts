@@ -1,5 +1,10 @@
 import { PERMISSIONS, registerCopilotTool } from "@/core";
 import type { CopilotTool } from "@/core";
+import {
+  formatCommerceAnalysis,
+  normalizeCommerceAnalysis,
+  type CommerceAnalysis,
+} from "@/features/whatsapp/domain";
 
 export interface ConversationToolInput {
   conversationId: string;
@@ -13,6 +18,7 @@ export interface ConversationAIResult {
 
 export interface WhatsAppAssistant {
   assist(input: ConversationToolInput & { mode: "summary" | "draft" }): Promise<ConversationAIResult>;
+  analyzeCommerce(input: ConversationToolInput): Promise<CommerceAnalysis & { tokensIn: number; tokensOut: number }>;
 }
 
 function requireConversationId(input: ConversationToolInput): void {
@@ -63,8 +69,30 @@ export function createWhatsAppReplyDraftTool(
   };
 }
 
+export function createWhatsAppCommerceAssistantTool(
+  assistant: WhatsAppAssistant,
+): CopilotTool<ConversationToolInput, CommerceAnalysis> {
+  return {
+    name: "whatsapp.commerce.analyze",
+    title: "Organizar atendimento comercial",
+    description: "Identifica pedido, entrega, pagamento e pendências e prepara a próxima resposta.",
+    module: "whatsapp",
+    permissions: [PERMISSIONS.WHATSAPP_READ, PERMISSIONS.IA_USE],
+    risk: "external",
+    async execute(input) {
+      requireConversationId(input);
+      const result = normalizeCommerceAnalysis(await assistant.analyzeCommerce(input));
+      return {
+        summary: formatCommerceAnalysis(result),
+        data: result,
+        navigateTo: `/whatsapp?conversation=${encodeURIComponent(input.conversationId)}`,
+      };
+    },
+  };
+}
+
 export function registerWhatsAppCopilotTools(assistant: WhatsAppAssistant): void {
   registerCopilotTool(createWhatsAppConversationSummaryTool(assistant));
   registerCopilotTool(createWhatsAppReplyDraftTool(assistant));
+  registerCopilotTool(createWhatsAppCommerceAssistantTool(assistant));
 }
-

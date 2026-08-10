@@ -37,6 +37,16 @@ async function getPayment(id: string) {
   return body;
 }
 
+async function getCheckout(id: string) {
+  const response = await fetch(`${ASAAS_BASE}/checkouts/${encodeURIComponent(id)}`, {
+    headers: { access_token: ASAAS_API_KEY, "User-Agent": "ConnectWeb-Automations/1.0" },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(`Não foi possível confirmar o checkout no Asaas (${response.status})`);
+  return body;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   const suppliedToken = req.headers.get("asaas-access-token") ?? "";
@@ -48,6 +58,7 @@ Deno.serve(async (req) => {
   const eventId = String(payload?.id ?? "");
   const eventType = String(payload?.event ?? "");
   const paymentId = String(payload?.payment?.id ?? "");
+  const checkoutId = String(payload?.checkout?.id ?? "");
   if (!eventId || !eventType) return json({ error: "invalid event" }, 400);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
@@ -55,7 +66,7 @@ Deno.serve(async (req) => {
     p_provider: "asaas",
     p_event_id: eventId,
     p_event_type: eventType,
-    p_object_id: paymentId || null,
+    p_object_id: paymentId || checkoutId || null,
     p_payload: payload,
   });
   if (recordError) return json({ error: recordError.message }, 500);
@@ -71,6 +82,36 @@ Deno.serve(async (req) => {
   };
 
   try {
+    if (eventType === "CHECKOUT_PAID" && checkoutId) {
+      if (!ASAAS_API_KEY) throw new Error("ASAAS_API_KEY não configurada");
+      const checkout = await getCheckout(checkoutId);
+      const match = /^cw:subscription:([0-9a-f-]{36})$/i.exec(
+        String(checkout.externalReference ?? payload?.checkout?.externalReference ?? ""),
+      );
+      if (!match) {
+        await finish("ignored");
+        return json({ ok: true, ignored: true });
+      }
+      const { data: subscription, error: subscriptionError } = await admin
+        .from("billing_subscriptions")
+        .select("id,provider_checkout_id")
+        .eq("id", match[1])
+        .single();
+      if (subscriptionError || !subscription)
+        throw subscriptionError ?? new Error("Assinatura não encontrada");
+      if (subscription.provider_checkout_id !== checkoutId)
+        throw new Error("Checkout não pertence à assinatura");
+      const providerSubscriptionId = String(
+        checkout?.subscription?.id ?? payload?.checkout?.subscription?.id ?? "",
+      );
+      const { error: activateError } = await admin.rpc("activate_asaas_subscription", {
+        p_checkout_id: checkoutId,
+        p_provider_subscription_id: providerSubscriptionId || null,
+      });
+      if (activateError) throw activateError;
+      await finish("processed");
+      return json({ ok: true });
+    }
     if (!paymentId) {
       await finish("ignored");
       return json({ ok: true, ignored: true });

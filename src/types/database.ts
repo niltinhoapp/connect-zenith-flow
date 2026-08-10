@@ -888,6 +888,7 @@ export interface Database {
           status: "draft" | "active" | "paused";
           trigger_type: string;
           trigger_config: Json;
+          next_run_at: string | null;
           current_version: number;
           created_by: string | null;
           deleted_at: string | null;
@@ -1038,8 +1039,25 @@ export interface Database {
         };
         Returns: string;
       };
+      automation_due_scheduled: {
+        Args: { p_limit?: number };
+        Returns: Array<{
+          id: string;
+          organization_id: string;
+          trigger_config: Json;
+          next_run_at: string | null;
+        }>;
+      };
+      automation_set_next_run: {
+        Args: { p_id: string; p_next: string };
+        Returns: undefined;
+      };
       provision_organization: {
         Args: { p_name: string };
+        Returns: Database["public"]["Tables"]["organizations"]["Row"];
+      };
+      ensure_user_workspace: {
+        Args: { p_company_name?: string | null };
         Returns: Database["public"]["Tables"]["organizations"]["Row"];
       };
       set_active_organization: {
@@ -1086,6 +1104,7 @@ export interface Database {
         Returns: boolean;
       };
       billing_overview: { Args: { p_org: string }; Returns: Json };
+      billing_access: { Args: { p_org: string }; Returns: Json };
       request_ai_addon_purchase: {
         Args: { p_org: string; p_product: string; p_idempotency_key: string };
         Returns: string;

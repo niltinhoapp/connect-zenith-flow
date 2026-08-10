@@ -305,6 +305,72 @@ let running = true;
 process.on("SIGINT", () => { running = false; });
 process.on("SIGTERM", () => { running = false; });
 
+const SCHEDULE_UNIT_MS = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
+
+function parseSchedule(config) {
+  if (!config || typeof config !== "object") return null;
+  const mode = String(config.mode ?? (config.every ? "interval" : config.at ? "daily" : ""));
+  if (mode === "interval") {
+    const every = Math.floor(Number(config.every));
+    const unit = String(config.unit);
+    if (!Number.isFinite(every) || every < 1 || !(unit in SCHEDULE_UNIT_MS)) return null;
+    return { mode, every, unit };
+  }
+  if (mode === "daily") {
+    const at = String(config.at ?? "");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) return null;
+    return { mode, at };
+  }
+  return null;
+}
+
+function scheduledNextRun(config, from = new Date()) {
+  const schedule = parseSchedule(config);
+  if (!schedule) return null;
+  if (schedule.mode === "interval") {
+    return new Date(from.getTime() + schedule.every * SCHEDULE_UNIT_MS[schedule.unit]);
+  }
+  const [hours, minutes] = schedule.at.split(":").map(Number);
+  const next = new Date(Date.UTC(
+    from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), hours, minutes, 0, 0,
+  ));
+  if (next.getTime() <= from.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+async function dispatchScheduled() {
+  const due = (await rpc("automation_due_scheduled", { p_limit: 50 })) ?? [];
+  const now = new Date();
+
+  for (const automation of due) {
+    try {
+      const next = scheduledNextRun(automation.trigger_config, now);
+      if (!next) {
+        console.warn(`[scheduler] configuração inválida na automação ${automation.id}`);
+        continue;
+      }
+
+      // Primeira leitura apenas inicializa o relógio; não dispara imediatamente.
+      if (!automation.next_run_at) {
+        await rpc("automation_set_next_run", { p_id: automation.id, p_next: next.toISOString() });
+        continue;
+      }
+
+      const slot = new Date(automation.next_run_at).toISOString();
+      await rpc("automation_start_run", {
+        p_org: automation.organization_id,
+        p_automation_id: automation.id,
+        p_trigger_event: "scheduled",
+        p_context: { scheduledAt: slot },
+        p_idempotency: `sched:${slot}`,
+      });
+      await rpc("automation_set_next_run", { p_id: automation.id, p_next: next.toISOString() });
+    } catch (error) {
+      console.warn(`[scheduler] falha na automação ${automation.id}: ${error?.message ?? error}`);
+    }
+  }
+}
+
 async function runOnce() {
   const jobs = (await rpc("claim_jobs", { p_worker: WORKER, p_limit: 10, p_lease_seconds: 60 })) ?? [];
   for (const job of jobs) {
@@ -329,8 +395,15 @@ async function runOnce() {
 }
 
 console.log(`[worker] iniciado (${WORKER}) → ${BASE}`);
+let nextSchedulerCheck = 0;
 while (running) {
-  try { await runOnce(); } catch (e) { console.error("[worker] loop:", e.message); }
+  try {
+    await runOnce();
+    if (Date.now() >= nextSchedulerCheck) {
+      nextSchedulerCheck = Date.now() + 30_000;
+      await dispatchScheduled();
+    }
+  } catch (e) { console.error("[worker] loop:", e.message); }
   await new Promise((r) => setTimeout(r, 2000));
 }
 console.log("[worker] parado.");

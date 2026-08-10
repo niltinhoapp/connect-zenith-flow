@@ -48,13 +48,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
-import { useBillingOverview } from "@/core/billing";
+import {
+  useBillingAccess,
+  useBillingOverview,
+  useSyncSubscriptionCheckout,
+} from "@/core/billing";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MonitoringSection } from "@/components/monitoring/monitoring-section";
 import { PlanShowcase } from "@/components/billing/plan-showcase";
 import { AddonCheckoutDialog } from "@/components/billing/addon-checkout-dialog";
 import type { IaPackage } from "@/components/billing/commercial";
 import { BillingAccountSummary } from "@/components/billing/billing-account-summary";
+import { SubscriptionCheckoutDialog } from "@/components/billing/subscription-checkout-dialog";
 import { ApiKeysSection } from "@/features/configuracoes/components/api-keys-section";
 import {
   updateProfileSchema,
@@ -339,7 +344,16 @@ function formatLimit(resource: string, value: number) {
 
 function BillingSection({ usage }: { usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
   const billing = useBillingOverview();
+  const access = useBillingAccess();
+  const syncSubscription = useSyncSubscriptionCheckout();
   const [checkoutPackage, setCheckoutPackage] = useState<IaPackage | null>(null);
+  const [subscriptionCheckout, setSubscriptionCheckout] = useState(false);
+  useEffect(() => {
+    if (access.data && access.data.status !== "active" && !syncSubscription.isPending) {
+      syncSubscription.mutate();
+    }
+    // Sincroniza uma vez quando o estado carregado da assinatura muda.
+  }, [access.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const subscriptionProduct = billing.data?.products.find((product) => product.kind === "subscription");
   const packages = billing.data?.products
     .filter((product) => product.kind === "ai_addon")
@@ -355,6 +369,10 @@ function BillingSection({ usage }: { usage: Array<{ resource: string; used: numb
       plan={subscriptionProduct ? { name: subscriptionProduct.name, priceCents: subscriptionProduct.priceCents } : undefined}
       packages={packages?.length ? packages : undefined}
       onPurchasePackage={setCheckoutPackage}
+      onSubscribe={access.data?.needsSubscription ? () => setSubscriptionCheckout(true) : undefined}
+      canPurchaseAddons={access.data?.canBuyAddons ?? false}
+      subscriptionActive={access.data?.status === "active"}
+      subscriptionOfferAvailable={access.data?.needsSubscription ?? false}
     /><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
       <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatLimit(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
       {usage.length === 0 && <p className="text-sm text-muted-foreground">Nenhum limite foi configurado para este plano.</p>}
@@ -366,7 +384,7 @@ function BillingSection({ usage }: { usage: Array<{ resource: string; used: numb
         </p>
         <p>Os números são medidos pela própria plataforma e refletem o uso real da sua empresa.</p>
       </HelpDisclosure>
-    </SectionCard><AddonCheckoutDialog package={checkoutPackage} onClose={() => setCheckoutPackage(null)} /></div>
+    </SectionCard><AddonCheckoutDialog package={checkoutPackage} onClose={() => setCheckoutPackage(null)} /><SubscriptionCheckoutDialog open={subscriptionCheckout} onClose={() => setSubscriptionCheckout(false)} /></div>
   );
 }
 

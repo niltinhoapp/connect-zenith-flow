@@ -26,6 +26,7 @@ describe("Relatórios · Copilot tools", () => {
             { n: "Instagram", v: 8 },
             { n: "WhatsApp", v: 21 },
           ],
+          generatedAt: "2026-08-09T12:00:00.000Z",
         };
       },
     });
@@ -38,4 +39,3 @@ describe("Relatórios · Copilot tools", () => {
     expect(result.navigateTo).toBe("/relatorios");
   });
 });
-

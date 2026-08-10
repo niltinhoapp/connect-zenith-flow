@@ -52,6 +52,7 @@ export { registerWhatsAppProvider } from "./bootstrap";
 export {
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
+  createWhatsAppCommerceAssistantTool,
   registerWhatsAppCopilotTools,
 } from "./copilot-tools";
 export { SupabaseWhatsAppAssistant } from "./infrastructure/supabase-whatsapp-assistant";

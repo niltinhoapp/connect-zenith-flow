@@ -3,6 +3,7 @@ import type { CopilotExecutionContext } from "@/core";
 import {
   createWhatsAppConversationSummaryTool,
   createWhatsAppReplyDraftTool,
+  createWhatsAppCommerceAssistantTool,
   type WhatsAppAssistant,
 } from "@/features/whatsapp/copilot-tools";
 
@@ -19,7 +20,14 @@ function assistant() {
     tokensIn: 20,
     tokensOut: 8,
   }));
-  return { assist };
+  const analyzeCommerce = vi.fn<WhatsAppAssistant["analyzeCommerce"]>(async () => ({
+    intent: "order", stage: "collecting_payment", items: [{ description: "X-bacon", quantity: 2 }],
+    fulfillment: "delivery", address: "Rua A, 10", paymentMethod: null,
+    cashForCents: null, orderTotalCents: 8200, changeCents: null, confirmed: false,
+    missingFields: ["forma de pagamento"], needsHuman: false, confidence: "high",
+    suggestedReply: "Qual será a forma de pagamento?", warnings: [], tokensIn: 30, tokensOut: 15,
+  }));
+  return { assist, analyzeCommerce };
 }
 
 describe("WhatsApp · Copilot tools", () => {
@@ -53,5 +61,15 @@ describe("WhatsApp · Copilot tools", () => {
     await expect(tool.execute({ conversationId: "" }, context)).rejects.toThrow(
       "Selecione uma conversa",
     );
+  });
+
+  it("organiza o atendimento comercial sem enviar mensagem", async () => {
+    const service = assistant();
+    const tool = createWhatsAppCommerceAssistantTool(service);
+    const result = await tool.execute({ conversationId: "conversation-1" }, context);
+    expect(service.analyzeCommerce).toHaveBeenCalledWith({ conversationId: "conversation-1" });
+    expect(result.summary).toContain("forma de pagamento");
+    expect(result.summary).toContain("revise antes de enviar");
+    expect(tool.risk).toBe("external");
   });
 });

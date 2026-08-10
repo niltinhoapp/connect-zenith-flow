@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { NodeType } from "@/features/automacoes";
+import { describeSchedule, parseSchedule, type NodeType } from "@/features/automacoes";
 import {
   useAutomationGraph, useSaveAutomation, useTestAutomation,
 } from "@/features/automacoes/hooks/use-automacoes";
@@ -85,7 +85,12 @@ function num(v: unknown, fb: number) { return typeof v === "number" && Number.is
 
 function nodeLabel(n: EN): { title: string; desc: string } {
   const c = n.config;
-  if (n.type === "trigger") return { title: "Gatilho", desc: String(c.trigger_type ?? "manual") };
+  if (n.type === "trigger") return {
+    title: "Gatilho",
+    desc: c.trigger_type === "scheduled"
+      ? describeSchedule(c.schedule)
+      : String(c.trigger_type ?? "manual"),
+  };
   if (n.type === "condition" || n.type === "branch")
     return { title: "Condição", desc: `${c.field ?? "?"} ${c.op ?? ""} ${c.value ?? ""}`.trim() };
   if (n.type === "delay") return { title: "Aguardar", desc: `${c.amount ?? ""} ${c.unit ?? ""}`.trim() };
@@ -144,7 +149,29 @@ function BuilderPage() {
       setName(graph.automation.name);
       setDescription(graph.automation.description ?? "");
       const seeded = seedLayout(graph.nodes, graph.edges);
-      setNodes(seeded.length ? seeded : [{ node_key: "trigger_1", type: "trigger", config: { trigger_type: graph.automation.trigger_type }, x: 80, y: 80 }]);
+      const hydrated = seeded.map((node) => {
+        if (node.type !== "trigger" || node.config.trigger_type !== "scheduled" || parseSchedule(node.config.schedule)) {
+          return node;
+        }
+        const savedSchedule = parseSchedule(graph.automation.trigger_config)
+          ? graph.automation.trigger_config
+          : { mode: "interval", every: 1, unit: "days" };
+        return { ...node, config: { ...node.config, schedule: savedSchedule } };
+      });
+      setNodes(hydrated.length ? hydrated : [{
+        node_key: "trigger_1",
+        type: "trigger",
+        config: {
+          trigger_type: graph.automation.trigger_type,
+          ...(graph.automation.trigger_type === "scheduled"
+            ? { schedule: parseSchedule(graph.automation.trigger_config)
+              ? graph.automation.trigger_config
+              : { mode: "interval", every: 1, unit: "days" } }
+            : {}),
+        },
+        x: 80,
+        y: 80,
+      }]);
       setEdges(graph.edges.map((e) => ({ from_node: e.from_node, to_node: e.to_node, branch: e.branch })));
       setSelected(null);
     }
@@ -247,7 +274,9 @@ function BuilderPage() {
       name: name.trim() || "Sem nome",
       description: description.trim() || null,
       triggerType,
-      triggerConfig: {},
+      triggerConfig: triggerType === "scheduled"
+        ? (nodes.find((n) => n.type === "trigger")?.config.schedule as Record<string, unknown> | undefined) ?? {}
+        : {},
       graph: {
         nodes: nodes.map((n) => ({ node_key: n.node_key, type: n.type, config: n.config, position: { x: n.x, y: n.y } })),
         edges: edges.map((e) => ({ from_node: e.from_node, to_node: e.to_node, branch: e.branch ?? null })),
@@ -445,6 +474,80 @@ function BuilderPage() {
   );
 }
 
+function ScheduleEditor(props: {
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const mode = props.value.mode === "daily" ? "daily" : "interval";
+
+  return (
+    <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+      <Field label="Como repetir">
+        <Select
+          value={mode}
+          onValueChange={(value) => props.onChange(value === "daily"
+            ? { mode: "daily", at: "12:00" }
+            : { mode: "interval", every: 1, unit: "days" })}
+        >
+          <SelectTrigger className="h-9 bg-background text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="interval" className="text-xs">A cada intervalo</SelectItem>
+            <SelectItem value="daily" className="text-xs">Todos os dias</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {mode === "interval" ? (
+        <div className="grid grid-cols-[1fr_1.4fr] gap-2">
+          <Field label="A cada">
+            <Input
+              type="number"
+              min={1}
+              value={String(props.value.every ?? 1)}
+              onChange={(event) => props.onChange({
+                mode: "interval",
+                every: Math.max(1, Number(event.target.value) || 1),
+                unit: props.value.unit ?? "days",
+              })}
+              className="h-9 bg-background text-xs"
+            />
+          </Field>
+          <Field label="Unidade">
+            <Select
+              value={String(props.value.unit ?? "days")}
+              onValueChange={(unit) => props.onChange({
+                mode: "interval",
+                every: Math.max(1, Number(props.value.every) || 1),
+                unit,
+              })}
+            >
+              <SelectTrigger className="h-9 bg-background text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="minutes" className="text-xs">minuto(s)</SelectItem>
+                <SelectItem value="hours" className="text-xs">hora(s)</SelectItem>
+                <SelectItem value="days" className="text-xs">dia(s)</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
+      ) : (
+        <Field label="Horário diário (UTC)">
+          <Input
+            type="time"
+            value={String(props.value.at ?? "12:00")}
+            onChange={(event) => props.onChange({ mode: "daily", at: event.target.value })}
+            className="h-9 bg-background text-xs"
+          />
+        </Field>
+      )}
+
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        A automação precisa estar ativa. O próximo disparo é recalculado ao alterar este agendamento.
+      </p>
+    </div>
+  );
+}
+
 // ── Inspector por tipo de nó ─────────────────────────────────────────────────
 function Inspector(props: {
   node: EN;
@@ -476,11 +579,23 @@ function Inspector(props: {
       <div className="mt-5 space-y-4">
         {node.type === "trigger" && (
           <Field label="Evento (gatilho)">
-            <Select value={String(c.trigger_type ?? "manual")} onValueChange={(v) => onConfig({ trigger_type: v })}>
+            <Select value={String(c.trigger_type ?? "manual")} onValueChange={(v) => onConfig({
+              trigger_type: v,
+              ...(v === "scheduled" && !c.schedule
+                ? { schedule: { mode: "interval", every: 1, unit: "days" } }
+                : {}),
+            })}>
               <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>{TRIGGERS.map((t) => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
+        )}
+
+        {node.type === "trigger" && c.trigger_type === "scheduled" && (
+          <ScheduleEditor
+            value={(c.schedule && typeof c.schedule === "object" ? c.schedule : {}) as Record<string, unknown>}
+            onChange={(schedule) => onConfig({ schedule })}
+          />
         )}
 
         {isCond && (

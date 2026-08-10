@@ -140,7 +140,7 @@ export interface AiUsage extends BaseEntity, TenantScoped {
 
 /* ---------------------------------------------------------------- Billing */
 
-export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+export type SubscriptionStatus = import("@/core/billing").SubscriptionStatus;
 
 export interface Subscription extends BaseEntity, TenantScoped {
   planId: string;
