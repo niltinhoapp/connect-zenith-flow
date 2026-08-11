@@ -83,7 +83,9 @@ function StageStepper({ stage }: { stage: CommerceStage }) {
               {step.label}
             </span>
             {index < STAGE_STEPS.length - 1 && (
-              <span className="text-muted-foreground/40" aria-hidden="true">›</span>
+              <span className="text-muted-foreground/40" aria-hidden="true">
+                ›
+              </span>
             )}
           </li>
         );
@@ -112,8 +114,12 @@ export function CommerceAnalysisView({
 
       {/* Intenção + confiança */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge className="border-0 bg-primary/15 text-[11px] text-primary">{INTENT_LABEL[a.intent]}</Badge>
-        <Badge className="border-0 bg-muted text-[11px] text-muted-foreground">{CONFIDENCE_LABEL[a.confidence]}</Badge>
+        <Badge className="border-0 bg-primary/15 text-[11px] text-primary">
+          {INTENT_LABEL[a.intent]}
+        </Badge>
+        <Badge className="border-0 bg-muted text-[11px] text-muted-foreground">
+          {CONFIDENCE_LABEL[a.confidence]}
+        </Badge>
       </div>
 
       {a.needsHuman && (
@@ -151,9 +157,15 @@ export function CommerceAnalysisView({
             ) : (
               <Truck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
             )}
-            {a.fulfillment === "delivery" ? "Entrega" : a.fulfillment === "pickup" ? "Retirada" : "Entrega/retirada"}
+            {a.fulfillment === "delivery"
+              ? "Entrega"
+              : a.fulfillment === "pickup"
+                ? "Retirada"
+                : "Entrega/retirada"}
           </p>
-          {a.fulfillment === null && <p className="text-muted-foreground">A definir com o cliente.</p>}
+          {a.fulfillment === null && (
+            <p className="text-muted-foreground">A definir com o cliente.</p>
+          )}
           {a.address && (
             <p className="flex items-start gap-1 text-muted-foreground">
               <MapPin className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
@@ -181,7 +193,10 @@ export function CommerceAnalysisView({
           <p className="mb-1 text-[11px] font-medium text-foreground">Ainda falta</p>
           <div className="flex flex-wrap gap-1.5">
             {a.missingFields.map((field, index) => (
-              <span key={index} className="rounded-md bg-warning/15 px-2 py-0.5 text-[11px] text-warning">
+              <span
+                key={index}
+                className="rounded-md bg-warning/15 px-2 py-0.5 text-[11px] text-warning"
+              >
                 {field}
               </span>
             ))}
@@ -231,11 +246,22 @@ export function CommerceAnalysisView({
 
       {onRegisterCrm && (
         <div className="rounded-lg border border-border bg-card p-2.5">
-          <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={registeringCrm} onClick={onRegisterCrm}>
-            {registeringCrm ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Database className="h-3.5 w-3.5" />}
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            disabled={registeringCrm}
+            onClick={onRegisterCrm}
+          >
+            {registeringCrm ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Database className="h-3.5 w-3.5" />
+            )}
             {registeringCrm ? "Registrando…" : "Registrar no CRM"}
           </Button>
-          <p className="mt-1 text-[10px] text-muted-foreground">Você verá uma prévia e precisará confirmar antes de qualquer gravação.</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Você verá uma prévia e precisará confirmar antes de qualquer gravação.
+          </p>
         </div>
       )}
     </div>

@@ -39,7 +39,12 @@ describe("DealApplicationService", () => {
     const service = new DealApplicationService(makeRepo(), ctx);
     const spy = vi.fn();
     const off = eventBus.subscribe("deal.created", spy);
-    const deal = await service.create({ pipelineId: "p", stageId: "s1", title: "Contrato", amount: 5000 });
+    const deal = await service.create({
+      pipelineId: "p",
+      stageId: "s1",
+      title: "Contrato",
+      amount: 5000,
+    });
     expect(deal.organizationId).toBe("org-1");
     expect(spy).toHaveBeenCalledTimes(1);
     off();
@@ -47,7 +52,12 @@ describe("DealApplicationService", () => {
 
   it("mover para estágio 'won' publica deal.stage.changed e deal.won", async () => {
     const service = new DealApplicationService(makeRepo(), ctx);
-    const deal = await service.create({ pipelineId: "p", stageId: "s1", title: "Grande", amount: 9000 });
+    const deal = await service.create({
+      pipelineId: "p",
+      stageId: "s1",
+      title: "Grande",
+      amount: 9000,
+    });
     const changed = vi.fn();
     const won = vi.fn();
     const offA = eventBus.subscribe("deal.stage.changed", changed);
@@ -56,7 +66,10 @@ describe("DealApplicationService", () => {
     const moved = await service.moveStage(deal.id, "s-won", "won");
 
     expect(moved.isWon).toBe(true);
-    expect(changed.mock.calls[0][0].payload).toMatchObject({ fromStageId: "s1", toStageId: "s-won" });
+    expect(changed.mock.calls[0][0].payload).toMatchObject({
+      fromStageId: "s1",
+      toStageId: "s-won",
+    });
     expect(won.mock.calls[0][0].payload.amount).toBe(9000);
     offA();
     offB();
@@ -64,7 +77,12 @@ describe("DealApplicationService", () => {
 
   it("mover para 'lost' publica deal.lost", async () => {
     const service = new DealApplicationService(makeRepo(), ctx);
-    const deal = await service.create({ pipelineId: "p", stageId: "s1", title: "Perdido", amount: 100 });
+    const deal = await service.create({
+      pipelineId: "p",
+      stageId: "s1",
+      title: "Perdido",
+      amount: 100,
+    });
     const lost = vi.fn();
     const off = eventBus.subscribe("deal.lost", lost);
     await service.moveStage(deal.id, "s-lost", "lost", "Sem orçamento");

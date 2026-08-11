@@ -11,10 +11,11 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: { ...CORS, "Content-Type": "application/json" },
-});
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
 
 const ANSWER_SCHEMA = {
   type: "object",
@@ -41,10 +42,15 @@ Deno.serve(async (req) => {
   const authorization = req.headers.get("Authorization") ?? "";
   if (!authorization) return json({ error: "unauthorized" }, 401);
   let body: { question?: string; organizationId?: string };
-  try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "bad json" }, 400);
+  }
   const question = String(body.question ?? "").trim();
   const organizationId = String(body.organizationId ?? "");
-  if (question.length < 3 || question.length > 1_000) return json({ error: "pergunta inválida" }, 400);
+  if (question.length < 3 || question.length > 1_000)
+    return json({ error: "pergunta inválida" }, 400);
   if (!organizationId) return json({ error: "organizationId obrigatório" }, 400);
 
   const supabase = createClient(SUPABASE_URL, ANON_KEY, {
@@ -52,14 +58,18 @@ Deno.serve(async (req) => {
   });
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: "unauthorized" }, 401);
-  const [{ data: canRead, error: readError }, { data: canUseAI, error: aiError }] = await Promise.all([
-    supabase.rpc("has_permission", { org: organizationId, perm: "relatorios.read" }),
-    supabase.rpc("has_permission", { org: organizationId, perm: "ia.use" }),
-  ]);
+  const [{ data: canRead, error: readError }, { data: canUseAI, error: aiError }] =
+    await Promise.all([
+      supabase.rpc("has_permission", { org: organizationId, perm: "relatorios.read" }),
+      supabase.rpc("has_permission", { org: organizationId, perm: "ia.use" }),
+    ]);
   if (readError || aiError) return json({ error: (readError ?? aiError)?.message }, 500);
-  if (!canRead || !canUseAI) return json({ error: "Você não possui permissão para esta análise." }, 403);
+  if (!canRead || !canUseAI)
+    return json({ error: "Você não possui permissão para esta análise." }, 403);
 
-  const { data: metrics, error: metricsError } = await supabase.rpc("reports_metrics", { p_org: organizationId });
+  const { data: metrics, error: metricsError } = await supabase.rpc("reports_metrics", {
+    p_org: organizationId,
+  });
   if (metricsError) return json({ error: metricsError.message }, 500);
 
   try {
@@ -75,16 +85,20 @@ Deno.serve(async (req) => {
         max_tokens: 700,
         thinking: { type: "disabled" },
         system: SYSTEM,
-        tools: [{
-          name: "answer_report",
-          description: "Responde à pergunta usando exclusivamente as métricas fornecidas.",
-          input_schema: ANSWER_SCHEMA,
-        }],
+        tools: [
+          {
+            name: "answer_report",
+            description: "Responde à pergunta usando exclusivamente as métricas fornecidas.",
+            input_schema: ANSWER_SCHEMA,
+          },
+        ],
         tool_choice: { type: "tool", name: "answer_report" },
-        messages: [{
-          role: "user",
-          content: `PERGUNTA:\n${question}\n\nMÉTRICAS REAIS:\n${JSON.stringify(metrics ?? {})}`,
-        }],
+        messages: [
+          {
+            role: "user",
+            content: `PERGUNTA:\n${question}\n\nMÉTRICAS REAIS:\n${JSON.stringify(metrics ?? {})}`,
+          },
+        ],
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -92,7 +106,10 @@ Deno.serve(async (req) => {
     const block = (data.content ?? []).find((item: { type?: string }) => item.type === "tool_use");
     if (!block?.input) throw new Error("A IA não conseguiu responder agora.");
 
-    const credits = Math.max(1, Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0));
+    const credits = Math.max(
+      1,
+      Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0),
+    );
     const { data: consumed, error: quotaError } = await supabase.rpc("try_consume_quota", {
       p_org: organizationId,
       p_resource: "ai_credits",

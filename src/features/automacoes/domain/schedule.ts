@@ -1,8 +1,7 @@
 export type ScheduleUnit = "minutes" | "hours" | "days";
 
 export type AutomationSchedule =
-  | { mode: "interval"; every: number; unit: ScheduleUnit }
-  | { mode: "daily"; at: string };
+  { mode: "interval"; every: number; unit: ScheduleUnit } | { mode: "daily"; at: string };
 
 const UNIT_MS: Record<ScheduleUnit, number> = {
   minutes: 60_000,
@@ -40,15 +39,9 @@ export function nextRunAt(config: unknown, from = new Date()): Date | null {
   }
 
   const [hours, minutes] = schedule.at.split(":").map(Number);
-  const next = new Date(Date.UTC(
-    from.getUTCFullYear(),
-    from.getUTCMonth(),
-    from.getUTCDate(),
-    hours,
-    minutes,
-    0,
-    0,
-  ));
+  const next = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), hours, minutes, 0, 0),
+  );
   if (next.getTime() <= from.getTime()) next.setUTCDate(next.getUTCDate() + 1);
   return next;
 }

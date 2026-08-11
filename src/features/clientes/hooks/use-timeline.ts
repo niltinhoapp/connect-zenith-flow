@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/core/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { TimelineApplicationService, type TimelineEntry } from "@/features/clientes/application/timeline-service";
+import {
+  TimelineApplicationService,
+  type TimelineEntry,
+} from "@/features/clientes/application/timeline-service";
 
 export function useCustomerTimeline(customerId: string | undefined) {
   const session = useSession();

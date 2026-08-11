@@ -2,8 +2,18 @@ import { Entity, invariant } from "@/core/domain";
 
 export type MessageDirection = "inbound" | "outbound";
 export type MessageType =
-  | "text" | "image" | "document" | "audio" | "video" | "sticker"
-  | "template" | "location" | "contacts" | "interactive" | "reaction" | "system";
+  | "text"
+  | "image"
+  | "document"
+  | "audio"
+  | "video"
+  | "sticker"
+  | "template"
+  | "location"
+  | "contacts"
+  | "interactive"
+  | "reaction"
+  | "system";
 export type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed" | "received";
 
 export interface MessageProps {

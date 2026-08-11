@@ -70,15 +70,15 @@ export class Customer extends Entity<CustomerProps> {
   ): Customer {
     const type: CustomerType = input.type ?? "person";
     const hasName =
-      type === "company"
-        ? Boolean(input.companyName?.trim())
-        : Boolean(input.firstName?.trim());
+      type === "company" ? Boolean(input.companyName?.trim()) : Boolean(input.firstName?.trim());
     invariant(hasName, type === "company" ? "Nome da empresa é obrigatório" : "Nome é obrigatório");
 
     const email = input.email ? Email.create(input.email).unwrap() : null;
     const phone = input.phone ? Phone.create(input.phone).unwrap() : null;
     const mobile = input.mobile ? Phone.create(input.mobile).unwrap() : null;
-    const status = input.status ? CustomerStatus.create(input.status).unwrap() : CustomerStatus.default().unwrap();
+    const status = input.status
+      ? CustomerStatus.create(input.status).unwrap()
+      : CustomerStatus.default().unwrap();
 
     return new Customer({
       id,
@@ -119,10 +119,17 @@ export class Customer extends Entity<CustomerProps> {
     this.touch();
   }
 
-  updateContact(input: { email?: string | null; phone?: string | null; mobile?: string | null }): void {
-    if (input.email !== undefined) this.props.email = input.email ? Email.create(input.email).unwrap() : null;
-    if (input.phone !== undefined) this.props.phone = input.phone ? Phone.create(input.phone).unwrap() : null;
-    if (input.mobile !== undefined) this.props.mobile = input.mobile ? Phone.create(input.mobile).unwrap() : null;
+  updateContact(input: {
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  }): void {
+    if (input.email !== undefined)
+      this.props.email = input.email ? Email.create(input.email).unwrap() : null;
+    if (input.phone !== undefined)
+      this.props.phone = input.phone ? Phone.create(input.phone).unwrap() : null;
+    if (input.mobile !== undefined)
+      this.props.mobile = input.mobile ? Phone.create(input.mobile).unwrap() : null;
     this.touch();
   }
 

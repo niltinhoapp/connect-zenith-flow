@@ -8,14 +8,17 @@ import { useEffect, useState } from "react";
 import type { AuthSession } from "@/core/auth";
 import { configureCopilotAudit, replaceCopilotTools, type ServiceContext } from "@/core";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import {
-  DashboardApplicationService,
-} from "@/features/dashboard/application/dashboard-service";
+import { DashboardApplicationService } from "@/features/dashboard/application/dashboard-service";
 import { createDashboardMetricsTool } from "@/features/dashboard";
 import { ReportsApplicationService } from "@/features/relatorios/application/reports-service";
 import { createReportsOverviewTool } from "@/features/relatorios";
 import { SettingsApplicationService, createActivationStatusTool } from "@/features/configuracoes";
-import { CrmBoardService, DealApplicationService, DealSupabaseRepository, createCrmPipelineTool } from "@/features/crm";
+import {
+  CrmBoardService,
+  DealApplicationService,
+  DealSupabaseRepository,
+  createCrmPipelineTool,
+} from "@/features/crm";
 import {
   CustomerApplicationService,
   CustomerSupabaseRepository,
@@ -64,7 +67,13 @@ export function useClientCopilotTools(session: AuthSession | null): number {
       db,
     );
     const whatsappAssistant = new SupabaseWhatsAppAssistant(db);
-    const commerceCrm = new CommerceCrmApplicationService(db, customers, deals, crm, context.organizationId);
+    const commerceCrm = new CommerceCrmApplicationService(
+      db,
+      customers,
+      deals,
+      crm,
+      context.organizationId,
+    );
 
     configureCopilotAudit(async (entry) => {
       const { error } = await db.rpc("write_audit", {
@@ -72,7 +81,13 @@ export function useClientCopilotTools(session: AuthSession | null): number {
         p_action: `copilot.${entry.status}`,
         p_entity_type: "copilot_tool",
         p_entity_id: entry.executionId,
-        p_metadata: { tool: entry.tool, module: entry.module, risk: entry.risk, confirmed: entry.confirmed, errorCode: entry.errorCode ?? null },
+        p_metadata: {
+          tool: entry.tool,
+          module: entry.module,
+          risk: entry.risk,
+          confirmed: entry.confirmed,
+          errorCode: entry.errorCode ?? null,
+        },
       });
       if (error) throw error;
     });

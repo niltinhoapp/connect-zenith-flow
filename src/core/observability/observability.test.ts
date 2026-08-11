@@ -4,7 +4,11 @@ import { setTracingProvider, traced, type TraceRecord } from "@/core/observabili
 const records: TraceRecord[] = [];
 beforeEach(() => {
   records.length = 0;
-  setTracingProvider({ record: (t) => { records.push(t); } });
+  setTracingProvider({
+    record: (t) => {
+      records.push(t);
+    },
+  });
 });
 
 describe("Core · Observability · traced", () => {

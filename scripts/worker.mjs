@@ -5,14 +5,24 @@
 import { readFileSync } from "node:fs";
 
 const env = readFileSync(new URL("../.env", import.meta.url), "utf8");
-const get = (k) => { const m = env.match(new RegExp("^" + k + "=(.*)$", "m")); return m ? m[1].trim().replace(/^["']|["']$/g, "") : ""; };
+const get = (k) => {
+  const m = env.match(new RegExp("^" + k + "=(.*)$", "m"));
+  return m ? m[1].trim().replace(/^["']|["']$/g, "") : "";
+};
 const BASE = get("VITE_SUPABASE_URL");
 const KEY = get("SUPABASE_SERVICE_ROLE_KEY");
-if (!BASE || !KEY) { console.error("[worker] .env sem VITE_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
+if (!BASE || !KEY) {
+  console.error("[worker] .env sem VITE_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY");
+  process.exit(1);
+}
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
 const rpc = async (n, b) => {
-  const r = await fetch(`${BASE}/rest/v1/rpc/${n}`, { method: "POST", headers: H, body: JSON.stringify(b) });
+  const r = await fetch(`${BASE}/rest/v1/rpc/${n}`, {
+    method: "POST",
+    headers: H,
+    body: JSON.stringify(b),
+  });
   if (!r.ok) throw new Error(`${n} ${r.status}: ${(await r.text()).slice(0, 200)}`);
   return r.status === 204 ? null : r.json();
 };
@@ -23,31 +33,56 @@ const GRAPH = get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 // erro de rede/5xx = transitório (relança → retry/backoff da fila).
 async function metaSend(ctx) {
   const url = `https://graph.facebook.com/${GRAPH}/${ctx.phone_number_id}/messages`;
-  const body = ctx.type === "template"
-    ? { messaging_product: "whatsapp", to: ctx.to, type: "template",
-        template: { name: ctx.template?.name, language: { code: ctx.template?.language },
-          ...(ctx.template?.components?.length ? { components: ctx.template.components } : {}) } }
-    : { messaging_product: "whatsapp", to: ctx.to, type: "text", text: { preview_url: false, body: ctx.body ?? "" } };
-  const r = await fetch(url, { method: "POST",
+  const body =
+    ctx.type === "template"
+      ? {
+          messaging_product: "whatsapp",
+          to: ctx.to,
+          type: "template",
+          template: {
+            name: ctx.template?.name,
+            language: { code: ctx.template?.language },
+            ...(ctx.template?.components?.length ? { components: ctx.template.components } : {}),
+          },
+        }
+      : {
+          messaging_product: "whatsapp",
+          to: ctx.to,
+          type: "text",
+          text: { preview_url: false, body: ctx.body ?? "" },
+        };
+  const r = await fetch(url, {
+    method: "POST",
     headers: { Authorization: `Bearer ${ctx.access_token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body) });
+    body: JSON.stringify(body),
+  });
   const data = await r.json().catch(() => ({}));
   if (r.ok) return { externalId: data.messages?.[0]?.id };
-  if (r.status >= 400 && r.status < 500) return { permanent: data?.error?.message ?? `meta ${r.status}` };
+  if (r.status >= 400 && r.status < 500)
+    return { permanent: data?.error?.message ?? `meta ${r.status}` };
   throw new Error(`meta ${r.status}`); // transitório
 }
 
 // ── Supabase Storage (binário via REST, service role) ───────────────────────
 const BUCKET = "whatsapp-media";
 async function storageGet(path) {
-  const r = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`,
-    { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+  const r = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`, {
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
+  });
   if (!r.ok) throw new Error(`storage get ${r.status}`);
   return new Uint8Array(await r.arrayBuffer());
 }
 async function storagePut(path, bytes, mime) {
-  const r = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`, { method: "POST",
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": mime, "x-upsert": "true" }, body: bytes });
+  const r = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      "Content-Type": mime,
+      "x-upsert": "true",
+    },
+    body: bytes,
+  });
   if (!r.ok) throw new Error(`storage put ${r.status}: ${(await r.text()).slice(0, 120)}`);
 }
 
@@ -57,11 +92,15 @@ async function metaUploadMedia(ctx, bytes, mime, filename) {
   form.append("messaging_product", "whatsapp");
   form.append("type", mime);
   form.append("file", new Blob([bytes], { type: mime }), filename || "file");
-  const r = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.phone_number_id}/media`,
-    { method: "POST", headers: { Authorization: `Bearer ${ctx.access_token}` }, body: form });
+  const r = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.phone_number_id}/media`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ctx.access_token}` },
+    body: form,
+  });
   const d = await r.json().catch(() => ({}));
   if (r.ok && d.id) return { mediaId: d.id };
-  if (r.status >= 400 && r.status < 500) return { permanent: d?.error?.message ?? `upload ${r.status}` };
+  if (r.status >= 400 && r.status < 500)
+    return { permanent: d?.error?.message ?? `upload ${r.status}` };
   throw new Error(`meta upload ${r.status}`);
 }
 // Envia mensagem de mídia (por media_id). 4xx = permanente.
@@ -70,27 +109,36 @@ async function metaSendMedia(ctx, mediaId) {
   const mediaObj = { id: mediaId };
   if (ctx.body && (t === "image" || t === "document")) mediaObj.caption = ctx.body;
   if (ctx.media?.filename && t === "document") mediaObj.filename = ctx.media.filename;
-  const r = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.phone_number_id}/messages`, { method: "POST",
+  const r = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.phone_number_id}/messages`, {
+    method: "POST",
     headers: { Authorization: `Bearer ${ctx.access_token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: ctx.to, type: t, [t]: mediaObj }) });
+    body: JSON.stringify({ messaging_product: "whatsapp", to: ctx.to, type: t, [t]: mediaObj }),
+  });
   const d = await r.json().catch(() => ({}));
   if (r.ok) return { externalId: d.messages?.[0]?.id };
-  if (r.status >= 400 && r.status < 500) return { permanent: d?.error?.message ?? `meta ${r.status}` };
+  if (r.status >= 400 && r.status < 500)
+    return { permanent: d?.error?.message ?? `meta ${r.status}` };
   throw new Error(`meta ${r.status}`);
 }
 
 // Baixa a mídia da Meta (resolve url → binário). 4xx = permanente.
 async function metaDownloadMedia(ctx) {
   const auth = { Authorization: `Bearer ${ctx.access_token}` };
-  const m = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.external_media_id}`, { headers: auth });
+  const m = await fetch(`https://graph.facebook.com/${GRAPH}/${ctx.external_media_id}`, {
+    headers: auth,
+  });
   const md = await m.json().catch(() => ({}));
   if (!m.ok || !md.url) {
-    if (m.status >= 400 && m.status < 500) return { permanent: md?.error?.message ?? `media ${m.status}` };
+    if (m.status >= 400 && m.status < 500)
+      return { permanent: md?.error?.message ?? `media ${m.status}` };
     throw new Error(`meta media ${m.status}`);
   }
   const b = await fetch(md.url, { headers: auth });
   if (!b.ok) throw new Error(`meta media dl ${b.status}`);
-  return { bytes: new Uint8Array(await b.arrayBuffer()), mime: md.mime_type || ctx.mime || "application/octet-stream" };
+  return {
+    bytes: new Uint8Array(await b.arrayBuffer()),
+    mime: md.mime_type || ctx.mime || "application/octet-stream",
+  };
 }
 
 // ── Motor de automações — espelho de src/features/automacoes/domain/engine.ts ─
@@ -123,37 +171,68 @@ function _coerce(v, type) {
   if (v == null) return v;
   if (type === "number") return typeof v === "number" ? v : Number(v);
   if (type === "boolean") return typeof v === "boolean" ? v : v === "true" || v === true || v === 1;
-  if (type === "date") { const t = v instanceof Date ? v.getTime() : Date.parse(String(v)); return Number.isNaN(t) ? NaN : t; }
+  if (type === "date") {
+    const t = v instanceof Date ? v.getTime() : Date.parse(String(v));
+    return Number.isNaN(t) ? NaN : t;
+  }
   return typeof v === "string" ? v : String(v);
 }
 function _evalCondition(c, ctx) {
-  const raw = _resolveField(ctx, c.field), op = c.op, vt = c.valueType;
+  const raw = _resolveField(ctx, c.field),
+    op = c.op,
+    vt = c.valueType;
   if (op === "exists") return raw !== undefined && raw !== null && raw !== "";
   if (op === "not_exists") return raw === undefined || raw === null || raw === "";
-  if (op === "in") { const list = Array.isArray(c.value) ? c.value : [c.value]; return list.some((i) => _coerce(raw, vt) === _coerce(i, vt)); }
+  if (op === "in") {
+    const list = Array.isArray(c.value) ? c.value : [c.value];
+    return list.some((i) => _coerce(raw, vt) === _coerce(i, vt));
+  }
   if (op === "contains" || op === "not_contains") {
     const needle = _coerce(c.value, vt ?? "text");
-    const hit = Array.isArray(raw) ? raw.map((x) => _coerce(x, vt ?? "text")).includes(needle) : String(raw ?? "").includes(String(needle ?? ""));
+    const hit = Array.isArray(raw)
+      ? raw.map((x) => _coerce(x, vt ?? "text")).includes(needle)
+      : String(raw ?? "").includes(String(needle ?? ""));
     return op === "contains" ? hit : !hit;
   }
   if (op === "starts_with") return String(raw ?? "").startsWith(String(c.value ?? ""));
-  const l = _coerce(raw, vt), r = _coerce(c.value, vt);
-  switch (op) { case "eq": return l === r; case "ne": return l !== r; case "gt": return l > r; case "gte": return l >= r; case "lt": return l < r; case "lte": return l <= r; default: return false; }
+  const l = _coerce(raw, vt),
+    r = _coerce(c.value, vt);
+  switch (op) {
+    case "eq":
+      return l === r;
+    case "ne":
+      return l !== r;
+    case "gt":
+      return l > r;
+    case "gte":
+      return l >= r;
+    case "lt":
+      return l < r;
+    case "lte":
+      return l <= r;
+    default:
+      return false;
+  }
 }
 function _delayMs(cfg) {
   if (typeof cfg.ms === "number") return Math.max(0, cfg.ms);
   return Math.max(0, Number(cfg.amount ?? 0) * (UNIT_MS[String(cfg.unit ?? "minutes")] ?? 60000));
 }
 function planFrom(g, startKey, ctx) {
-  const steps = []; let cur;
-  if (!startKey) { const e = _entryNode(g); cur = e ? _resolveNext(g, e.node_key) : null; } else cur = startKey;
+  const steps = [];
+  let cur;
+  if (!startKey) {
+    const e = _entryNode(g);
+    cur = e ? _resolveNext(g, e.node_key) : null;
+  } else cur = startKey;
   for (let i = 0; i < MAX_STEPS && cur; i++) {
     const node = _getNode(g, cur);
     if (!node) return { steps, done: true };
     if (node.type === "condition" || node.type === "branch") {
       const result = _evalCondition(node.config, ctx);
       steps.push({ node: node.node_key, type: node.type, result });
-      cur = _resolveNext(g, node.node_key, result); continue;
+      cur = _resolveNext(g, node.node_key, result);
+      continue;
     }
     if (node.type === "delay") {
       const next = _resolveNext(g, node.node_key);
@@ -161,8 +240,14 @@ function planFrom(g, startKey, ctx) {
       return { steps, wait: { node: next, ms: _delayMs(node.config) }, done: false };
     }
     if (node.type === "action") {
-      steps.push({ node: node.node_key, type: "action", action: String(node.config.action ?? ""), config: node.config });
-      cur = _resolveNext(g, node.node_key); continue;
+      steps.push({
+        node: node.node_key,
+        type: "action",
+        action: String(node.config.action ?? ""),
+        config: node.config,
+      });
+      cur = _resolveNext(g, node.node_key);
+      continue;
     }
     cur = _resolveNext(g, node.node_key);
   }
@@ -174,11 +259,21 @@ function interpolate(config, ctx) {
   const walk = (v) => {
     if (typeof v === "string") {
       const exact = v.match(/^\{\{\s*([\w.]+)\s*\}\}$/);
-      if (exact) { const r = _resolveField(ctx, exact[1]); return r === undefined ? v : r; }
-      return v.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, p) => { const r = _resolveField(ctx, p); return r == null ? "" : String(r); });
+      if (exact) {
+        const r = _resolveField(ctx, exact[1]);
+        return r === undefined ? v : r;
+      }
+      return v.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, p) => {
+        const r = _resolveField(ctx, p);
+        return r == null ? "" : String(r);
+      });
     }
     if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") { const o = {}; for (const k of Object.keys(v)) o[k] = walk(v[k]); return o; }
+    if (v && typeof v === "object") {
+      const o = {};
+      for (const k of Object.keys(v)) o[k] = walk(v[k]);
+      return o;
+    }
     return v;
   };
   return walk(config || {});
@@ -198,12 +293,14 @@ async function callWebhook(cfg) {
     });
     if (!r.ok && r.status >= 500) throw new Error(`webhook ${r.status}`);
     return { status: r.status };
-  } finally { clearTimeout(to); }
+  } finally {
+    clearTimeout(to);
+  }
 }
 
 // Handlers registrados por tipo (módulos futuros adicionam os seus).
 const handlers = {
-  "noop": async () => {},
+  noop: async () => {},
   "outbox.relay": async (job) => {
     const id = job.payload?.event_id;
     if (id) await rpc("relay_domain_event", { p_event_id: id });
@@ -212,43 +309,69 @@ const handlers = {
     const messageId = job.payload?.message_id;
     if (!messageId) return;
     const ctx = await rpc("wa_send_context", { p_message_id: messageId });
-    if (!ctx || ctx.status !== "pending") return;                 // idempotente
+    if (!ctx || ctx.status !== "pending") return; // idempotente
     const org = ctx.organization_id;
     if (!ctx.phone_number_id || !ctx.access_token) {
-      await rpc("wa_mark_failed", { p_org: org, p_message_id: messageId, p_error: { reason: "sem credencial/numero" } });
+      await rpc("wa_mark_failed", {
+        p_org: org,
+        p_message_id: messageId,
+        p_error: { reason: "sem credencial/numero" },
+      });
       return;
     }
-    const first = await rpc("claim_idempotency", { p_org: org, p_key: `whatsapp.send:dispatch:${messageId}` });
-    if (!first) return;                                           // despacho já feito
+    const first = await rpc("claim_idempotency", {
+      p_org: org,
+      p_key: `whatsapp.send:dispatch:${messageId}`,
+    });
+    if (!first) return; // despacho já feito
 
     let out;
     if (ctx.media) {
       // Mídia: baixa do Storage → upload p/ Meta → envia por media_id.
       const bytes = await storageGet(ctx.media.storage_path);
       const up = await metaUploadMedia(ctx, bytes, ctx.media.mime, ctx.media.filename);
-      if (up.permanent) { await rpc("wa_mark_failed", { p_org: org, p_message_id: messageId, p_error: { message: up.permanent } }); return; }
+      if (up.permanent) {
+        await rpc("wa_mark_failed", {
+          p_org: org,
+          p_message_id: messageId,
+          p_error: { message: up.permanent },
+        });
+        return;
+      }
       out = await metaSendMedia(ctx, up.mediaId);
     } else {
-      out = await metaSend(ctx);                                 // texto/template
+      out = await metaSend(ctx); // texto/template
     }
     if (out.permanent) {
-      await rpc("wa_mark_failed", { p_org: org, p_message_id: messageId, p_error: { message: out.permanent } });
+      await rpc("wa_mark_failed", {
+        p_org: org,
+        p_message_id: messageId,
+        p_error: { message: out.permanent },
+      });
     } else if (out.externalId) {
-      await rpc("wa_mark_sent", { p_org: org, p_message_id: messageId, p_wa_message_id: out.externalId });
+      await rpc("wa_mark_sent", {
+        p_org: org,
+        p_message_id: messageId,
+        p_wa_message_id: out.externalId,
+      });
     }
   },
   "whatsapp.media.download": async (job) => {
     const mediaId = job.payload?.media_id;
     if (!mediaId) return;
     const ctx = await rpc("wa_media_download_context", { p_media_id: mediaId });
-    if (!ctx || ctx.status === "stored") return;                 // idempotente
+    if (!ctx || ctx.status === "stored") return; // idempotente
     if (!ctx.access_token || !ctx.external_media_id) return;
     const dl = await metaDownloadMedia(ctx);
-    if (dl.permanent) return;                                     // mídia expirada na Meta: desiste
+    if (dl.permanent) return; // mídia expirada na Meta: desiste
     const ext = (dl.mime.split("/")[1] || "bin").split(";")[0];
     const path = `${ctx.organization_id}/inbound/${mediaId}.${ext}`;
     await storagePut(path, dl.bytes, dl.mime);
-    await rpc("wa_media_stored", { p_media_id: mediaId, p_storage_path: path, p_size: dl.bytes.length });
+    await rpc("wa_media_stored", {
+      p_media_id: mediaId,
+      p_storage_path: path,
+      p_size: dl.bytes.length,
+    });
   },
   "automation.run": async (job) => {
     const runId = job.payload?.run_id;
@@ -260,14 +383,27 @@ const handlers = {
     const flowCtx = ctx.context || {};
 
     // Marca em execução (publica automation.started na 1ª vez).
-    await rpc("automation_advance_run", { p_run_id: runId, p_current_node: ctx.current_node, p_status: "running", p_error: null });
+    await rpc("automation_advance_run", {
+      p_run_id: runId,
+      p_current_node: ctx.current_node,
+      p_status: "running",
+      p_error: null,
+    });
 
     const graph = { nodes: ctx.nodes || [], edges: ctx.edges || [] };
     const plan = planFrom(graph, ctx.current_node, flowCtx);
 
     for (const step of plan.steps) {
       if (step.type === "condition" || step.type === "branch") {
-        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: step.type, p_status: "ok", p_input: {}, p_output: { result: step.result }, p_error: null });
+        await rpc("automation_record_step", {
+          p_run_id: runId,
+          p_node: step.node,
+          p_type: step.type,
+          p_status: "ok",
+          p_input: {},
+          p_output: { result: step.result },
+          p_error: null,
+        });
         continue;
       }
       // Idempotência retry-safe: pula só se este nó de ação já concluiu com 'ok'.
@@ -275,35 +411,85 @@ const handlers = {
       if (await rpc("automation_node_done", { p_run_id: runId, p_node: step.node })) continue;
       const resolved = interpolate(step.config, flowCtx);
       try {
-        const out = step.action === "webhook.call"
-          ? await callWebhook(resolved)
-          : await rpc("automation_action", { p_org: org, p_action: step.action, p_config: resolved });
-        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: "action", p_status: "ok", p_input: resolved, p_output: out ?? {}, p_error: null });
+        const out =
+          step.action === "webhook.call"
+            ? await callWebhook(resolved)
+            : await rpc("automation_action", {
+                p_org: org,
+                p_action: step.action,
+                p_config: resolved,
+              });
+        await rpc("automation_record_step", {
+          p_run_id: runId,
+          p_node: step.node,
+          p_type: "action",
+          p_status: "ok",
+          p_input: resolved,
+          p_output: out ?? {},
+          p_error: null,
+        });
       } catch (e) {
-        await rpc("automation_record_step", { p_run_id: runId, p_node: step.node, p_type: "action", p_status: "failed", p_input: resolved, p_output: {}, p_error: String(e?.message ?? e) });
+        await rpc("automation_record_step", {
+          p_run_id: runId,
+          p_node: step.node,
+          p_type: "action",
+          p_status: "failed",
+          p_input: resolved,
+          p_output: {},
+          p_error: String(e?.message ?? e),
+        });
         throw e; // deixa a fila fazer retry/backoff/DLQ
       }
     }
 
     if (plan.wait) {
       const at = new Date(Date.now() + plan.wait.ms).toISOString();
-      await rpc("automation_record_step", { p_run_id: runId, p_node: plan.wait.node, p_type: "delay", p_status: "waiting", p_input: {}, p_output: { resume_at: at }, p_error: null });
-      await rpc("automation_advance_run", { p_run_id: runId, p_current_node: plan.wait.node, p_status: "running", p_error: null });
+      await rpc("automation_record_step", {
+        p_run_id: runId,
+        p_node: plan.wait.node,
+        p_type: "delay",
+        p_status: "waiting",
+        p_input: {},
+        p_output: { resume_at: at },
+        p_error: null,
+      });
+      await rpc("automation_advance_run", {
+        p_run_id: runId,
+        p_current_node: plan.wait.node,
+        p_status: "running",
+        p_error: null,
+      });
       await rpc("enqueue_job", {
-        p_org: org, p_type: "automation.run", p_payload: { run_id: runId }, p_available_at: at,
-        p_priority: 0, p_max_attempts: 5, p_trace_id: null, p_correlation_id: null,
-        p_idempotency_key: `automation.run:${runId}:resume:${plan.wait.node}`, p_payload_version: 1,
+        p_org: org,
+        p_type: "automation.run",
+        p_payload: { run_id: runId },
+        p_available_at: at,
+        p_priority: 0,
+        p_max_attempts: 5,
+        p_trace_id: null,
+        p_correlation_id: null,
+        p_idempotency_key: `automation.run:${runId}:resume:${plan.wait.node}`,
+        p_payload_version: 1,
       });
     } else {
-      await rpc("automation_advance_run", { p_run_id: runId, p_current_node: null, p_status: "succeeded", p_error: null });
+      await rpc("automation_advance_run", {
+        p_run_id: runId,
+        p_current_node: null,
+        p_status: "succeeded",
+        p_error: null,
+      });
     }
   },
 };
 
 const WORKER = `worker-local-${process.pid}`;
 let running = true;
-process.on("SIGINT", () => { running = false; });
-process.on("SIGTERM", () => { running = false; });
+process.on("SIGINT", () => {
+  running = false;
+});
+process.on("SIGTERM", () => {
+  running = false;
+});
 
 const SCHEDULE_UNIT_MS = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
 
@@ -331,9 +517,9 @@ function scheduledNextRun(config, from = new Date()) {
     return new Date(from.getTime() + schedule.every * SCHEDULE_UNIT_MS[schedule.unit]);
   }
   const [hours, minutes] = schedule.at.split(":").map(Number);
-  const next = new Date(Date.UTC(
-    from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), hours, minutes, 0, 0,
-  ));
+  const next = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), hours, minutes, 0, 0),
+  );
   if (next.getTime() <= from.getTime()) next.setUTCDate(next.getUTCDate() + 1);
   return next;
 }
@@ -372,7 +558,8 @@ async function dispatchScheduled() {
 }
 
 async function runOnce() {
-  const jobs = (await rpc("claim_jobs", { p_worker: WORKER, p_limit: 10, p_lease_seconds: 60 })) ?? [];
+  const jobs =
+    (await rpc("claim_jobs", { p_worker: WORKER, p_limit: 10, p_lease_seconds: 60 })) ?? [];
   for (const job of jobs) {
     const handler = handlers[job.type];
     try {
@@ -386,7 +573,10 @@ async function runOnce() {
       // Esgotou retries (DLQ): marca a run como failed (publica automation.failed).
       if (outcome === "dead" && job.type === "automation.run" && job.payload?.run_id) {
         await rpc("automation_advance_run", {
-          p_run_id: job.payload.run_id, p_current_node: null, p_status: "failed", p_error: err,
+          p_run_id: job.payload.run_id,
+          p_current_node: null,
+          p_status: "failed",
+          p_error: err,
         }).catch((e2) => console.warn(`  ! falha ao marcar run failed: ${e2?.message ?? e2}`));
       }
       console.warn(`✗ ${job.type} ${job.id} → ${outcome}`);
@@ -403,7 +593,9 @@ while (running) {
       nextSchedulerCheck = Date.now() + 30_000;
       await dispatchScheduled();
     }
-  } catch (e) { console.error("[worker] loop:", e.message); }
+  } catch (e) {
+    console.error("[worker] loop:", e.message);
+  }
   await new Promise((r) => setTimeout(r, 2000));
 }
 console.log("[worker] parado.");

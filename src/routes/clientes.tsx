@@ -114,7 +114,10 @@ function ClientesPage() {
           <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
             <Download className="mr-1.5 h-4 w-4" /> Exportar
           </Button>
-          <Button onClick={() => setCreateOpen(true)} className="h-9 rounded-lg bg-primary hover:bg-primary/90">
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90"
+          >
             <Plus className="mr-1.5 h-4 w-4" /> Novo cliente
           </Button>
         </>
@@ -122,7 +125,13 @@ function ClientesPage() {
     >
       <div className="rounded-2xl border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
-          <Tabs value={tab} onValueChange={(v) => { setTab(v); setPage(0); }}>
+          <Tabs
+            value={tab}
+            onValueChange={(v) => {
+              setTab(v);
+              setPage(0);
+            }}
+          >
             <TabsList className="h-9 rounded-lg border border-border bg-background p-0.5">
               {["Todos", "Ativos", "Trial", "Inativos", "VIP"].map((t) => (
                 <TabsTrigger
@@ -140,12 +149,19 @@ function ClientesPage() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
                 placeholder="Buscar cliente..."
                 className="h-9 w-full min-w-[220px] rounded-lg border-border bg-background pl-8 text-sm"
               />
             </div>
-            <Button variant="outline" size="sm" className="h-9 rounded-lg border-border bg-background">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-lg border-border bg-background"
+            >
               <Filter className="mr-1.5 h-3.5 w-3.5" /> Filtros
             </Button>
           </div>
@@ -155,9 +171,13 @@ function ClientesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="w-10 px-5 py-3"><Checkbox /></th>
+                <th className="w-10 px-5 py-3">
+                  <Checkbox />
+                </th>
                 <th className="px-4 py-3 font-medium">
-                  <button className="inline-flex items-center gap-1 hover:text-foreground">Cliente <ArrowUpDown className="h-3 w-3" /></button>
+                  <button className="inline-flex items-center gap-1 hover:text-foreground">
+                    Cliente <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="px-4 py-3 font-medium">Empresa</th>
                 <th className="px-4 py-3 font-medium">Plano</th>
@@ -172,7 +192,9 @@ function ClientesPage() {
               {isLoading &&
                 Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <tr key={`sk-${i}`} className="border-b border-border/60 last:border-0">
-                    <td className="px-5 py-3"><Checkbox /></td>
+                    <td className="px-5 py-3">
+                      <Checkbox />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Skeleton className="h-8 w-8 rounded-full" />
@@ -182,12 +204,24 @@ function ClientesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><Skeleton className="h-3.5 w-24" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-md" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-md" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-3.5 w-16" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-3.5 w-24" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-md" /></td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-3.5 w-24" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-5 w-14 rounded-md" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-3.5 w-16" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-3.5 w-24" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                    </td>
                     <td className="px-5 py-3" />
                   </tr>
                 ))}
@@ -195,7 +229,9 @@ function ClientesPage() {
               {isError && (
                 <tr className="border-b border-border/60 last:border-0">
                   <td colSpan={9} className="px-5 py-12 text-center">
-                    <p className="text-sm text-muted-foreground">Não foi possível carregar os clientes.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Não foi possível carregar os clientes.
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -216,15 +252,29 @@ function ClientesPage() {
                 </tr>
               )}
 
-              {!isLoading && !isError &&
+              {!isLoading &&
+                !isError &&
                 rows.map((r) => (
-                  <tr key={r.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/30">
-                    <td className="px-5 py-3"><Checkbox /></td>
+                  <tr
+                    key={r.id}
+                    className="group border-b border-border/60 transition-colors last:border-0 hover:bg-accent/30"
+                  >
+                    <td className="px-5 py-3">
+                      <Checkbox />
+                    </td>
                     <td className="px-4 py-3">
-                      <Link to="/clientes/$id" params={{ id: r.id }} className="flex items-center gap-3">
+                      <Link
+                        to="/clientes/$id"
+                        params={{ id: r.id }}
+                        className="flex items-center gap-3"
+                      >
                         <Avatar className="h-8 w-8 border border-border">
                           <AvatarFallback className="bg-primary/15 text-[10px] font-semibold text-primary">
-                            {r.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                            {r.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .slice(0, 2)
+                              .join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
@@ -235,10 +285,20 @@ function ClientesPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.company}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="secondary" className="rounded-md border-0 bg-muted text-[11px] text-foreground">{r.plan}</Badge>
+                      <Badge
+                        variant="secondary"
+                        className="rounded-md border-0 bg-muted text-[11px] text-foreground"
+                      >
+                        {r.plan}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset", statusStyles[r.status])}>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+                          statusStyles[r.status],
+                        )}
+                      >
                         <span className="h-1.5 w-1.5 rounded-full bg-current" /> {r.status}
                       </span>
                     </td>
@@ -247,14 +307,21 @@ function ClientesPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {r.tags.map((t) => (
-                          <Badge key={t} className="rounded-md border-0 bg-primary/10 text-[10px] font-medium text-primary">
+                          <Badge
+                            key={t}
+                            className="rounded-md border-0 bg-primary/10 text-[10px] font-medium text-primary"
+                          >
                             {t}
                           </Badge>
                         ))}
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                      >
                         <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </td>
@@ -265,7 +332,9 @@ function ClientesPage() {
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-5 py-3 text-xs text-muted-foreground">
-          <span>Mostrando {from}–{to} de {total.toLocaleString("pt-BR")}</span>
+          <span>
+            Mostrando {from}–{to} de {total.toLocaleString("pt-BR")}
+          </span>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
@@ -276,7 +345,9 @@ function ClientesPage() {
             >
               Anterior
             </Button>
-            <Button size="sm" className="h-8 w-8 rounded-md bg-primary p-0 text-xs">{page + 1}</Button>
+            <Button size="sm" className="h-8 w-8 rounded-md bg-primary p-0 text-xs">
+              {page + 1}
+            </Button>
             <Button
               variant="outline"
               size="sm"

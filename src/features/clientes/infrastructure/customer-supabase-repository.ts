@@ -73,10 +73,7 @@ export class CustomerSupabaseRepository implements CustomerRepository {
     const limit = filter.limit ?? 50;
     const offset = filter.offset ?? 0;
 
-    let q = this.db
-      .from("customers")
-      .select("*", { count: "exact" })
-      .is("deleted_at", null);
+    let q = this.db.from("customers").select("*", { count: "exact" }).is("deleted_at", null);
 
     if (filter.status) q = q.eq("status", filter.status);
     if (filter.ownerId) q = q.eq("owner_id", filter.ownerId);

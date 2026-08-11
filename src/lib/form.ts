@@ -8,7 +8,5 @@ import { toast } from "sonner";
  */
 export function toastFirstError(errors: FieldErrors) {
   const first = Object.values(errors).find(Boolean) as { message?: unknown } | undefined;
-  toast.error(
-    typeof first?.message === "string" ? first.message : "Verifique os campos.",
-  );
+  toast.error(typeof first?.message === "string" ? first.message : "Verifique os campos.");
 }

@@ -61,8 +61,7 @@ export async function signOut() {
 
 export async function requestPasswordReset(email: string) {
   const supabase = getSupabaseBrowserClient();
-  const redirectTo =
-    typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+  const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw error;
 }

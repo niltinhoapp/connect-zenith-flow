@@ -21,22 +21,13 @@ export function SectionCard({
   padded?: boolean;
 }) {
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-2xl border border-border bg-card",
-        className,
-      )}
-    >
+    <section className={cn("overflow-hidden rounded-2xl border border-border bg-card", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            {title && (
-              <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
-            )}
+            {title && <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>}
             {description && (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {description}
-              </p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{description}</p>
             )}
           </div>
           {action}

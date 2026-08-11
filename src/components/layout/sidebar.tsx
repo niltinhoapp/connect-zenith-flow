@@ -135,7 +135,9 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{fullName}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{roleName} • {orgName}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {roleName} • {orgName}
+                </p>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

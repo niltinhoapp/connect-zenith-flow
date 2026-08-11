@@ -1,8 +1,32 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, Calendar, BarChart3, Users, RefreshCw, Database, Clock3, Info, Sparkles, Send, Loader2 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Download,
+  Calendar,
+  BarChart3,
+  Users,
+  RefreshCw,
+  Database,
+  Clock3,
+  Info,
+  Sparkles,
+  Send,
+  Loader2,
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { AppLayout } from "@/components/app-layout";
 import { SectionCard } from "@/components/shared/section-card";
@@ -22,19 +46,25 @@ export const Route = createFileRoute("/relatorios")({
   component: RelatoriosPage,
 });
 
-const pieColors = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-muted-foreground)"];
+const pieColors = [
+  "var(--color-primary)",
+  "var(--color-success)",
+  "var(--color-warning)",
+  "var(--color-muted-foreground)",
+];
 
-const fmtBRL = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtBRL = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function RelatoriosPage() {
   const { data: m, isLoading, isFetching, isError, refetch } = useReports();
-  const isEmpty = !m || (
-    m.revenueTotal === 0 &&
-    m.wonCount === 0 &&
-    m.revenueTrend.every((point) => point.v === 0) &&
-    m.funnel.every((step) => step.v === 0) &&
-    m.sources.every((source) => source.v === 0)
-  );
+  const isEmpty =
+    !m ||
+    (m.revenueTotal === 0 &&
+      m.wonCount === 0 &&
+      m.revenueTrend.every((point) => point.v === 0) &&
+      m.funnel.every((step) => step.v === 0) &&
+      m.sources.every((source) => source.v === 0));
 
   if (isLoading) return <ReportsLoading />;
 
@@ -61,9 +91,16 @@ function RelatoriosPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
           <div>
             <p className="text-sm font-medium">Não foi possível carregar os relatórios</p>
-            <p className="mt-1 text-xs text-muted-foreground">Confira sua conexão e tente novamente. Nenhum número estimado foi exibido.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Confira sua conexão e tente novamente. Nenhum número estimado foi exibido.
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 rounded-md border-border bg-background text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-8 rounded-md border-border bg-background text-xs"
+          >
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Tentar novamente
           </Button>
         </div>
@@ -109,18 +146,29 @@ function ReportsEmpty() {
         </div>
         <h2 className="mt-4 text-lg font-semibold">Seus relatórios aparecerão aqui</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Ainda não há movimentação suficiente nesta empresa. Cadastre clientes e registre negócios no CRM; os indicadores serão atualizados automaticamente.
+          Ainda não há movimentação suficiente nesta empresa. Cadastre clientes e registre negócios
+          no CRM; os indicadores serão atualizados automaticamente.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <Button asChild size="sm"><Link to="/clientes"><Users className="mr-1.5 h-4 w-4" /> Cadastrar clientes</Link></Button>
-          <Button asChild size="sm" variant="outline"><Link to="/crm">Abrir CRM</Link></Button>
+          <Button asChild size="sm">
+            <Link to="/clientes">
+              <Users className="mr-1.5 h-4 w-4" /> Cadastrar clientes
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/crm">Abrir CRM</Link>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
 
-function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof useReports>["data"]> }) {
+function ReportsContent({
+  metrics: m,
+}: {
+  metrics: NonNullable<ReturnType<typeof useReports>["data"]>;
+}) {
   const trend = m.revenueTrend.map((t) => ({ m: t.m, v: Math.round(t.v / 100) }));
   const funnel = m.funnel;
   const pie = m.sources.map((s) => ({ n: s.n, v: s.v }));
@@ -147,7 +195,11 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <SectionCard title="Evolução da receita registrada no CRM" className="xl:col-span-2" description="Negócios ganhos nos últimos 12 meses">
+        <SectionCard
+          title="Evolução da receita registrada no CRM"
+          className="xl:col-span-2"
+          description="Negócios ganhos nos últimos 12 meses"
+        >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ left: -10, top: 5, right: 5, bottom: 0 }}>
@@ -158,10 +210,27 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="m" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} />
+                <XAxis
+                  dataKey="m"
+                  stroke="var(--color-muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                />
                 <Tooltip contentStyle={chartTooltipStyle} />
-                <Area type="monotone" dataKey="v" stroke="var(--color-primary)" fill="url(#ga)" strokeWidth={2} />
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke="var(--color-primary)"
+                  fill="url(#ga)"
+                  strokeWidth={2}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -171,8 +240,18 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={pie} dataKey="v" nameKey="n" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="var(--color-card)">
-                  {pie.map((_, i) => <Cell key={i} fill={pieColors[i]} />)}
+                <Pie
+                  data={pie}
+                  dataKey="v"
+                  nameKey="n"
+                  innerRadius={55}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  stroke="var(--color-card)"
+                >
+                  {pie.map((_, i) => (
+                    <Cell key={i} fill={pieColors[i]} />
+                  ))}
                 </Pie>
                 <Tooltip contentStyle={chartTooltipStyle} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
@@ -189,7 +268,15 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
               <BarChart data={funnel} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid horizontal={false} stroke="var(--color-border)" />
                 <XAxis type="number" hide />
-                <YAxis dataKey="s" type="category" stroke="var(--color-muted-foreground)" tickLine={false} axisLine={false} fontSize={11} width={80} />
+                <YAxis
+                  dataKey="s"
+                  type="category"
+                  stroke="var(--color-muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  width={80}
+                />
                 <Tooltip contentStyle={chartTooltipStyle} />
                 <Bar dataKey="v" fill="var(--color-primary)" radius={[0, 6, 6, 0]} barSize={18} />
               </BarChart>
@@ -197,22 +284,42 @@ function ReportsContent({ metrics: m }: { metrics: NonNullable<ReturnType<typeof
           </div>
         </SectionCard>
 
-        <SectionCard title="Origem e atualização dos dados" description="Transparência dos indicadores">
+        <SectionCard
+          title="Origem e atualização dos dados"
+          description="Transparência dos indicadores"
+        >
           <div className="space-y-4 py-2 text-sm">
             <div className="flex gap-3">
               <Database className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <div><p className="font-medium">Receita e ticket médio</p><p className="text-xs text-muted-foreground">Valores dos negócios marcados como ganhos no CRM. Não representam extrato bancário.</p></div>
+              <div>
+                <p className="font-medium">Receita e ticket médio</p>
+                <p className="text-xs text-muted-foreground">
+                  Valores dos negócios marcados como ganhos no CRM. Não representam extrato
+                  bancário.
+                </p>
+              </div>
             </div>
             <div className="flex gap-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <div><p className="font-medium">Funil e origem</p><p className="text-xs text-muted-foreground">Leads, conversões e canais cadastrados nesta empresa.</p></div>
+              <div>
+                <p className="font-medium">Funil e origem</p>
+                <p className="text-xs text-muted-foreground">
+                  Leads, conversões e canais cadastrados nesta empresa.
+                </p>
+              </div>
             </div>
             <div className="flex gap-3">
               <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <div><p className="font-medium">Atualização automática</p><p className="text-xs text-muted-foreground">Consulta realizada em {new Date(m.generatedAt).toLocaleString("pt-BR")}.</p></div>
+              <div>
+                <p className="font-medium">Atualização automática</p>
+                <p className="text-xs text-muted-foreground">
+                  Consulta realizada em {new Date(m.generatedAt).toLocaleString("pt-BR")}.
+                </p>
+              </div>
             </div>
             <div className="flex gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-              <Info className="h-4 w-4 shrink-0" /> A análise de retenção só será exibida quando houver compras recorrentes suficientes; nenhum dado de coorte é estimado.
+              <Info className="h-4 w-4 shrink-0" /> A análise de retenção só será exibida quando
+              houver compras recorrentes suficientes; nenhum dado de coorte é estimado.
             </div>
           </div>
         </SectionCard>
@@ -246,41 +353,72 @@ function ReportsQuestion() {
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold">Pergunte aos seus dados</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">A IA consulta os mesmos números reais exibidos nesta página.</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            A IA consulta os mesmos números reais exibidos nesta página.
+          </p>
           <div className="mt-3 flex gap-2 rounded-xl border border-border bg-background p-2">
             <input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") { event.preventDefault(); submit(); }
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submit();
+                }
               }}
               maxLength={1000}
               placeholder="Ex.: Qual canal trouxe mais clientes?"
               className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <Button size="icon" className="h-8 w-8 shrink-0" disabled={!question.trim() || ask.isPending} onClick={() => submit()}>
-              {ask.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              disabled={!question.trim() || ask.isPending}
+              onClick={() => submit()}
+            >
+              {ask.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
           {!ask.data && !ask.error && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {reportQuestions.map((item) => (
-                <button key={item} onClick={() => { setQuestion(item); submit(item); }} className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground">
+                <button
+                  key={item}
+                  onClick={() => {
+                    setQuestion(item);
+                    submit(item);
+                  }}
+                  className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                >
                   {item}
                 </button>
               ))}
             </div>
           )}
-          {ask.error && <p className="mt-3 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{ask.error.message}</p>}
+          {ask.error && (
+            <p className="mt-3 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+              {ask.error.message}
+            </p>
+          )}
           {ask.data && (
             <div className="mt-3 rounded-xl border border-primary/20 bg-background p-4">
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{ask.data.answer}</p>
               {ask.data.highlights.length > 0 && (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {ask.data.highlights.map((highlight) => <li key={highlight} className="rounded-lg bg-muted/60 px-3 py-2 text-xs">{highlight}</li>)}
+                  {ask.data.highlights.map((highlight) => (
+                    <li key={highlight} className="rounded-lg bg-muted/60 px-3 py-2 text-xs">
+                      {highlight}
+                    </li>
+                  ))}
                 </ul>
               )}
-              <p className="mt-3 text-[10px] text-muted-foreground">Consultado em {new Date(ask.data.generatedAt).toLocaleString("pt-BR")}.</p>
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                Consultado em {new Date(ask.data.generatedAt).toLocaleString("pt-BR")}.
+              </p>
             </div>
           )}
         </div>

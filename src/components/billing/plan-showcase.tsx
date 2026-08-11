@@ -65,43 +65,43 @@ export function PlanShowcase({
   return (
     <div className="space-y-4">
       {!subscriptionActive && subscriptionOfferAvailable && (
-      <SectionCard title="Seu plano" description="Plano único, tudo incluído">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-0 bg-primary/15 text-primary">{plan.name}</Badge>
-              <span className="text-sm text-muted-foreground">
-                <span className="text-base font-semibold text-foreground">
-                  {formatBRL(plan.priceCents)}
+        <SectionCard title="Seu plano" description="Plano único, tudo incluído">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-0 bg-primary/15 text-primary">{plan.name}</Badge>
+                <span className="text-sm text-muted-foreground">
+                  <span className="text-base font-semibold text-foreground">
+                    {formatBRL(plan.priceCents)}
+                  </span>
+                  /mês
                 </span>
-                /mês
-              </span>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                {PLAN_POINTS.map((point) => (
+                  <li key={point} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              {PLAN_POINTS.map((point) => (
-                <li key={point} className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
+            {!subscriptionActive && onSubscribe && (
+              <Button onClick={onSubscribe} className="shrink-0">
+                Assinar agora
+              </Button>
+            )}
           </div>
-          {!subscriptionActive && onSubscribe && (
-            <Button onClick={onSubscribe} className="shrink-0">
-              Assinar agora
-            </Button>
-          )}
-        </div>
 
-        <div className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-          <span>
-            As mensagens e conversas do WhatsApp são cobradas pela Meta diretamente da sua conta e{" "}
-            <span className="font-medium text-foreground">não estão incluídas</span> na mensalidade
-            da ConnectWeb.
-          </span>
-        </div>
-      </SectionCard>
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+            <span>
+              As mensagens e conversas do WhatsApp são cobradas pela Meta diretamente da sua conta e{" "}
+              <span className="font-medium text-foreground">não estão incluídas</span> na
+              mensalidade da ConnectWeb.
+            </span>
+          </div>
+        </SectionCard>
       )}
 
       <SectionCard

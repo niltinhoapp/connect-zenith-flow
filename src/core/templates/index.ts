@@ -27,11 +27,19 @@ export class TemplateService {
       .eq("is_active", true)
       .order("position");
     if (error) throw new InfrastructureError(error.message, { cause: error });
-    return (data ?? []).map((t) => ({ key: t.key, name: t.name, description: t.description, version: t.version }));
+    return (data ?? []).map((t) => ({
+      key: t.key,
+      name: t.name,
+      description: t.description,
+      version: t.version,
+    }));
   }
 
   async apply(key: string): Promise<void> {
-    const { error } = await this.db.rpc("apply_market_template", { p_org: this.ctx.organizationId, p_key: key });
+    const { error } = await this.db.rpc("apply_market_template", {
+      p_org: this.ctx.organizationId,
+      p_key: key,
+    });
     if (error) throw new InfrastructureError(error.message, { cause: error });
   }
 }

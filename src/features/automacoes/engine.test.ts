@@ -1,14 +1,24 @@
 import { describe, it, expect } from "vitest";
 import {
-  entryNode, resolveNext, resolveField, evalCondition, delayMs, planFrom,
-  type FlowGraph, type ConditionConfig,
+  entryNode,
+  resolveNext,
+  resolveField,
+  evalCondition,
+  delayMs,
+  planFrom,
+  type FlowGraph,
+  type ConditionConfig,
 } from "./domain/engine";
 
 // Grafo: trigger → cond(deal.value >= 1000) → [sim] action A / [não] action B
 const branchingGraph: FlowGraph = {
   nodes: [
     { node_key: "t", type: "trigger", config: {} },
-    { node_key: "c", type: "condition", config: { field: "deal.value", op: "gte", value: 1000, valueType: "number" } },
+    {
+      node_key: "c",
+      type: "condition",
+      config: { field: "deal.value", op: "gte", value: 1000, valueType: "number" },
+    },
     { node_key: "a", type: "action", config: { action: "whatsapp.send", to: "x" } },
     { node_key: "b", type: "action", config: { action: "crm.add_tag", tag: "frio" } },
   ],
@@ -54,8 +64,12 @@ describe("engine · evalCondition", () => {
     expect(c({ field: "deal.value", op: "lt", value: 1000, valueType: "number" })).toBe(false);
   });
   it("texto: eq/contains/starts_with", () => {
-    expect(c({ field: "deal.stage", op: "eq", value: "negotiation", valueType: "text" })).toBe(true);
-    expect(c({ field: "msg.body", op: "contains", value: "orçamento", valueType: "text" })).toBe(true);
+    expect(c({ field: "deal.stage", op: "eq", value: "negotiation", valueType: "text" })).toBe(
+      true,
+    );
+    expect(c({ field: "msg.body", op: "contains", value: "orçamento", valueType: "text" })).toBe(
+      true,
+    );
     expect(c({ field: "msg.body", op: "starts_with", value: "Quero" })).toBe(true);
   });
   it("tag em lista (contains sobre array)", () => {
@@ -73,8 +87,12 @@ describe("engine · evalCondition", () => {
   });
   it("data: gte", () => {
     const withDate = { d: "2026-06-01" };
-    expect(evalCondition({ field: "d", op: "gte", value: "2026-01-01", valueType: "date" }, withDate)).toBe(true);
-    expect(evalCondition({ field: "d", op: "lt", value: "2026-01-01", valueType: "date" }, withDate)).toBe(false);
+    expect(
+      evalCondition({ field: "d", op: "gte", value: "2026-01-01", valueType: "date" }, withDate),
+    ).toBe(true);
+    expect(
+      evalCondition({ field: "d", op: "lt", value: "2026-01-01", valueType: "date" }, withDate),
+    ).toBe(false);
   });
 });
 

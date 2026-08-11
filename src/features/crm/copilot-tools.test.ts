@@ -58,4 +58,3 @@ describe("CRM · Copilot tools", () => {
     expect(result.navigateTo).toBe("/crm");
   });
 });
-

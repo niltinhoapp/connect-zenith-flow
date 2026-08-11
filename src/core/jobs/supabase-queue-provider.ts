@@ -54,7 +54,10 @@ export class SupabaseQueueProvider implements QueueProvider {
   }
 
   async complete(id: string, result?: Record<string, unknown>): Promise<void> {
-    const { error } = await this.db.rpc("complete_job", { p_id: id, p_result: (result ?? {}) as Json });
+    const { error } = await this.db.rpc("complete_job", {
+      p_id: id,
+      p_result: (result ?? {}) as Json,
+    });
     if (error) throw new InfrastructureError(error.message, { cause: error });
   }
 

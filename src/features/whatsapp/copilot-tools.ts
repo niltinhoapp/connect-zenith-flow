@@ -1,6 +1,10 @@
 import { PERMISSIONS, registerCopilotTool } from "@/core";
 import type { CopilotTool } from "@/core";
-import type { CommerceCrmApplicationService, RegisterCommerceInput, RegisterCommerceResult } from "./application/commerce-crm-service";
+import type {
+  CommerceCrmApplicationService,
+  RegisterCommerceInput,
+  RegisterCommerceResult,
+} from "./application/commerce-crm-service";
 import {
   formatCommerceAnalysis,
   normalizeCommerceAnalysis,
@@ -18,15 +22,21 @@ export interface ConversationAIResult {
 }
 
 export interface WhatsAppAssistant {
-  assist(input: ConversationToolInput & { mode: "summary" | "draft" }): Promise<ConversationAIResult>;
-  analyzeCommerce(input: ConversationToolInput): Promise<CommerceAnalysis & { tokensIn: number; tokensOut: number }>;
+  assist(
+    input: ConversationToolInput & { mode: "summary" | "draft" },
+  ): Promise<ConversationAIResult>;
+  analyzeCommerce(
+    input: ConversationToolInput,
+  ): Promise<CommerceAnalysis & { tokensIn: number; tokensOut: number }>;
 }
 
 function requireConversationId(input: ConversationToolInput): void {
   if (!input.conversationId?.trim()) throw new Error("Selecione uma conversa primeiro.");
 }
 
-export function createCommerceRegisterCrmTool(service: Pick<CommerceCrmApplicationService, "register">): CopilotTool<RegisterCommerceInput, RegisterCommerceResult> {
+export function createCommerceRegisterCrmTool(
+  service: Pick<CommerceCrmApplicationService, "register">,
+): CopilotTool<RegisterCommerceInput, RegisterCommerceResult> {
   return {
     name: "whatsapp.commerce.register_crm",
     title: "Registrar no CRM",
@@ -35,9 +45,14 @@ export function createCommerceRegisterCrmTool(service: Pick<CommerceCrmApplicati
     permissions: [PERMISSIONS.WHATSAPP_READ, PERMISSIONS.CLIENTES_WRITE, PERMISSIONS.CRM_WRITE],
     risk: "write",
     async execute(input) {
-      if (!input?.conversationId || !input?.analysis) throw new Error("Analise a conversa antes de registrar no CRM.");
+      if (!input?.conversationId || !input?.analysis)
+        throw new Error("Analise a conversa antes de registrar no CRM.");
       const data = await service.register(input);
-      return { summary: `${data.customer.created ? "Cliente criado" : "Cliente vinculado"}: ${data.customer.name}. Negócio ${data.deal.created ? "criado" : "atualizado"}: ${data.deal.title}.`, data, navigateTo: "/crm" };
+      return {
+        summary: `${data.customer.created ? "Cliente criado" : "Cliente vinculado"}: ${data.customer.name}. Negócio ${data.deal.created ? "criado" : "atualizado"}: ${data.deal.title}.`,
+        data,
+        navigateTo: "/crm",
+      };
     },
   };
 }
@@ -54,7 +69,10 @@ export function createWhatsAppConversationSummaryTool(
     risk: "external",
     async execute(input) {
       requireConversationId(input);
-      const result = await assistant.assist({ conversationId: input.conversationId, mode: "summary" });
+      const result = await assistant.assist({
+        conversationId: input.conversationId,
+        mode: "summary",
+      });
       return {
         summary: result.text,
         data: result,
@@ -76,7 +94,10 @@ export function createWhatsAppReplyDraftTool(
     risk: "external",
     async execute(input) {
       requireConversationId(input);
-      const result = await assistant.assist({ conversationId: input.conversationId, mode: "draft" });
+      const result = await assistant.assist({
+        conversationId: input.conversationId,
+        mode: "draft",
+      });
       return {
         summary: result.text,
         data: result,

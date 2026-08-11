@@ -132,7 +132,8 @@ export class Deal extends Entity<DealProps> {
       invariant(input.title.trim().length >= 2, "Título do negócio é obrigatório");
       this.props.title = input.title.trim();
     }
-    if (input.amount !== undefined) this.props.amount = Money.create(input.amount, this.props.currency).amount;
+    if (input.amount !== undefined)
+      this.props.amount = Money.create(input.amount, this.props.currency).amount;
     if (input.customerId !== undefined) this.props.customerId = input.customerId;
     if (input.notes !== undefined) this.props.notes = input.notes;
     if (input.tags !== undefined) this.props.tags = input.tags;

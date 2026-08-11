@@ -242,8 +242,7 @@ Deno.serve(async (req) => {
       externalReference: organizationId,
       notificationDisabled: false,
     };
-    const existingCustomerId =
-      profile.provider === "asaas" ? profile.provider_customer_id : null;
+    const existingCustomerId = profile.provider === "asaas" ? profile.provider_customer_id : null;
     const asaasCustomer = existingCustomerId
       ? await asaasRequest(
           `/customers/${encodeURIComponent(existingCustomerId)}`,
@@ -255,7 +254,11 @@ Deno.serve(async (req) => {
     if (!customerId) throw new Error("Asaas não devolveu o identificador do cliente");
     const { error: saveCustomerError } = await admin
       .from("billing_customer_profiles")
-      .update({ provider: "asaas", provider_customer_id: customerId, updated_at: new Date().toISOString() })
+      .update({
+        provider: "asaas",
+        provider_customer_id: customerId,
+        updated_at: new Date().toISOString(),
+      })
       .eq("organization_id", organizationId);
     if (saveCustomerError) throw saveCustomerError;
     // O cartão é autorizado agora, mas a primeira cobrança respeita integralmente

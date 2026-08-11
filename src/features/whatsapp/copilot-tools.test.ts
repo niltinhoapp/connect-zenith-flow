@@ -22,11 +22,23 @@ function assistant() {
     tokensOut: 8,
   }));
   const analyzeCommerce = vi.fn<WhatsAppAssistant["analyzeCommerce"]>(async () => ({
-    intent: "order", stage: "collecting_payment", items: [{ description: "X-bacon", quantity: 2 }],
-    fulfillment: "delivery", address: "Rua A, 10", paymentMethod: null,
-    cashForCents: null, orderTotalCents: 8200, changeCents: null, confirmed: false,
-    missingFields: ["forma de pagamento"], needsHuman: false, confidence: "high",
-    suggestedReply: "Qual será a forma de pagamento?", warnings: [], tokensIn: 30, tokensOut: 15,
+    intent: "order",
+    stage: "collecting_payment",
+    items: [{ description: "X-bacon", quantity: 2 }],
+    fulfillment: "delivery",
+    address: "Rua A, 10",
+    paymentMethod: null,
+    cashForCents: null,
+    orderTotalCents: 8200,
+    changeCents: null,
+    confirmed: false,
+    missingFields: ["forma de pagamento"],
+    needsHuman: false,
+    confidence: "high",
+    suggestedReply: "Qual será a forma de pagamento?",
+    warnings: [],
+    tokensIn: 30,
+    tokensOut: 15,
   }));
   return { assist, analyzeCommerce };
 }
@@ -77,7 +89,13 @@ describe("WhatsApp · Copilot tools", () => {
   it("expõe o registro no CRM como escrita e devolve o vínculo criado", async () => {
     const register = vi.fn(async () => ({
       customer: { id: "customer-1", name: "Ana", created: true },
-      deal: { id: "deal-1", title: "Pedido WhatsApp — Ana", created: true, amount: 8200, stage: "Ganho" },
+      deal: {
+        id: "deal-1",
+        title: "Pedido WhatsApp — Ana",
+        created: true,
+        amount: 8200,
+        stage: "Ganho",
+      },
     }));
     const tool = createCommerceRegisterCrmTool({ register });
     const analysis = await assistant().analyzeCommerce({ conversationId: "conversation-1" });

@@ -65,15 +65,26 @@ export function useCopilot() {
   });
 
   const doExecute = useCallback(
-    async (tool: CopilotToolSummary, confirmed: boolean, explicitInput?: unknown, preview?: string) => {
+    async (
+      tool: CopilotToolSummary,
+      confirmed: boolean,
+      explicitInput?: unknown,
+      preview?: string,
+    ) => {
       if (!context) return;
       setState((s) => ({ ...s, running: tool.name, error: null, pendingConfirm: null }));
-      const input = explicitInput ?? (CONTEXTUAL_TOOLS.has(tool.name) ? focusToToolInput(focus) : {});
+      const input =
+        explicitInput ?? (CONTEXTUAL_TOOLS.has(tool.name) ? focusToToolInput(focus) : {});
       try {
         // Input contextual por ferramenta: só as ferramentas de conversa
         // recebem o foco (conversationId). O resto é resolvido server-side.
         const result = await executeCopilotTool({ tool: tool.name, input, confirmed }, context);
-        setState({ running: null, pendingConfirm: null, result: { ...result, tool: tool.name }, error: null });
+        setState({
+          running: null,
+          pendingConfirm: null,
+          result: { ...result, tool: tool.name },
+          error: null,
+        });
       } catch (e) {
         if (e instanceof CopilotToolError && e.code === "CONFIRMATION_REQUIRED") {
           setState((s) => ({ ...s, running: null, pendingConfirm: { tool, input, preview } }));
@@ -88,17 +99,34 @@ export function useCopilot() {
   /** Dispara a ferramenta (pede confirmação se o Core exigir). */
   const run = useCallback((tool: CopilotToolSummary) => doExecute(tool, false), [doExecute]);
   const runWithInput = useCallback(
-    (tool: CopilotToolSummary, input: unknown, preview?: string) => doExecute(tool, false, input, preview),
+    (tool: CopilotToolSummary, input: unknown, preview?: string) =>
+      doExecute(tool, false, input, preview),
     [doExecute],
   );
   /** Confirma e executa a ferramenta pendente. */
   const confirm = useCallback(() => {
     if (state.pendingConfirm) {
-      void doExecute(state.pendingConfirm.tool, true, state.pendingConfirm.input, state.pendingConfirm.preview);
+      void doExecute(
+        state.pendingConfirm.tool,
+        true,
+        state.pendingConfirm.input,
+        state.pendingConfirm.preview,
+      );
     }
   }, [doExecute, state.pendingConfirm]);
   const cancelConfirm = useCallback(() => setState((s) => ({ ...s, pendingConfirm: null })), []);
   const clear = useCallback(() => setState((s) => ({ ...s, result: null, error: null })), []);
 
-  return { org, hasSession: !!context, tools, state, run, runWithInput, confirm, cancelConfirm, clear, focus };
+  return {
+    org,
+    hasSession: !!context,
+    tools,
+    state,
+    run,
+    runWithInput,
+    confirm,
+    cancelConfirm,
+    clear,
+    focus,
+  };
 }

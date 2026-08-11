@@ -22,9 +22,7 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Error 404
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Error 404</p>
         <h1 className="mt-4 text-6xl font-bold tracking-tight text-foreground">
           Página não encontrada
         </h1>
@@ -53,9 +51,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Algo deu errado
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Algo deu errado</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Tente novamente ou volte para a tela inicial.
         </p>

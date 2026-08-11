@@ -11,14 +11,10 @@ describe("isAwaitingReply", () => {
   });
 
   it("encerra a pendência quando há resposta posterior", () => {
-    expect(
-      isAwaitingReply("2026-08-08T13:43:00Z", "2026-08-08T13:44:00Z"),
-    ).toBe(false);
+    expect(isAwaitingReply("2026-08-08T13:43:00Z", "2026-08-08T13:44:00Z")).toBe(false);
   });
 
   it("volta a sinalizar quando o cliente escreve novamente", () => {
-    expect(
-      isAwaitingReply("2026-08-08T13:45:00Z", "2026-08-08T13:44:00Z"),
-    ).toBe(true);
+    expect(isAwaitingReply("2026-08-08T13:45:00Z", "2026-08-08T13:44:00Z")).toBe(true);
   });
 });

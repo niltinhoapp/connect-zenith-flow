@@ -14,11 +14,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSettings } from "@/features/configuracoes";
 import { useAutomations } from "@/features/automacoes/hooks/use-automacoes";
 import { useConversations } from "@/features/whatsapp/hooks/use-inbox";
-import type {
-  MonitoringState,
-  OperationalHealth,
-  WhatsAppHealthStatus,
-} from "./types";
+import type { MonitoringState, OperationalHealth, WhatsAppHealthStatus } from "./types";
 
 function maxIso(values: Array<string | null>): string | null {
   let best: number | null = null;
@@ -46,7 +42,10 @@ function mapWhatsAppStatus(
   return "disconnected";
 }
 
-export function useOperationalHealth(): { state: MonitoringState; health: OperationalHealth | null } {
+export function useOperationalHealth(): {
+  state: MonitoringState;
+  health: OperationalHealth | null;
+} {
   const session = useSession();
   const modules = session?.enabledModules ?? [];
   const waEnabled = isModuleEnabled(modules, "whatsapp");
@@ -66,12 +65,22 @@ export function useOperationalHealth(): { state: MonitoringState; health: Operat
       const db = getSupabaseBrowserClient();
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const [pendingJobs, erroredJobs, failedRuns] = await Promise.all([
-        db.from("jobs").select("id", { count: "exact", head: true })
-          .eq("organization_id", organizationId!).in("status", ["queued", "running"]),
-        db.from("jobs").select("id", { count: "exact", head: true })
-          .eq("organization_id", organizationId!).in("status", ["failed", "dead"]),
-        db.from("automation_runs").select("id", { count: "exact", head: true })
-          .eq("organization_id", organizationId!).eq("status", "failed").gte("updated_at", since),
+        db
+          .from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId!)
+          .in("status", ["queued", "running"]),
+        db
+          .from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId!)
+          .in("status", ["failed", "dead"]),
+        db
+          .from("automation_runs")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId!)
+          .eq("status", "failed")
+          .gte("updated_at", since),
       ]);
       const error = pendingJobs.error ?? erroredJobs.error ?? failedRuns.error;
       if (error) throw error;
@@ -83,7 +92,8 @@ export function useOperationalHealth(): { state: MonitoringState; health: Operat
     },
   });
 
-  if (settings.isLoading || billing.isLoading || operations.isLoading) return { state: "loading", health: null };
+  if (settings.isLoading || billing.isLoading || operations.isLoading)
+    return { state: "loading", health: null };
   if (!settings.data) return { state: "unavailable", health: null };
 
   const wa = settings.data.whatsapp;

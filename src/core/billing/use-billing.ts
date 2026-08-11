@@ -103,7 +103,8 @@ export function useSyncSubscriptionCheckout() {
   return useMutation({
     ...mutationDefaults,
     mutationFn: () => {
-      if (!organizationId) throw new Error("Selecione uma empresa antes de confirmar a assinatura.");
+      if (!organizationId)
+        throw new Error("Selecione uma empresa antes de confirmar a assinatura.");
       return new BillingService(
         getSupabaseBrowserClient(),
         organizationId,

@@ -63,7 +63,9 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
     const [{ data: orgs }, { data: roles }] = await Promise.all([
       orgIds.length
         ? supabase.from("organizations").select("id, name, enabled_modules").in("id", orgIds)
-        : Promise.resolve({ data: [] as { id: string; name: string; enabled_modules: string[] }[] }),
+        : Promise.resolve({
+            data: [] as { id: string; name: string; enabled_modules: string[] }[],
+          }),
       roleIds.length
         ? supabase.from("roles").select("id, key, name").in("id", roleIds)
         : Promise.resolve({ data: [] as { id: string; key: string; name: string }[] }),
@@ -89,8 +91,7 @@ export const fetchSession = createServerFn({ method: "GET" }).handler(
         ? profile.active_organization_id
         : (orgIds[0] ?? null);
 
-    const activeOrganization =
-      memberships.find((m) => m.organizationId === activeId) ?? null;
+    const activeOrganization = memberships.find((m) => m.organizationId === activeId) ?? null;
 
     const enabledModules = (activeId && orgById.get(activeId)?.enabled_modules) || [];
 

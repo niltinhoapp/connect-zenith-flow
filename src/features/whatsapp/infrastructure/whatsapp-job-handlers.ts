@@ -45,7 +45,9 @@ export function createWhatsAppSendHandler(provider: WhatsAppProvider, gateway: W
     if (ctx.status !== "pending") return; // já processada (idempotente)
 
     if (!ctx.phone_number_id || !ctx.access_token) {
-      await gateway.markFailed(ctx.organization_id, messageId, { reason: "conta sem credencial/numero" });
+      await gateway.markFailed(ctx.organization_id, messageId, {
+        reason: "conta sem credencial/numero",
+      });
       return;
     }
 

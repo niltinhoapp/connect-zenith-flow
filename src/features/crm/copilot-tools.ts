@@ -1,9 +1,6 @@
 import { PERMISSIONS, registerCopilotTool } from "@/core";
 import type { CopilotTool } from "@/core";
-import type {
-  CrmBoard,
-  CrmBoardService,
-} from "@/features/crm/application/crm-board-service";
+import type { CrmBoard, CrmBoardService } from "@/features/crm/application/crm-board-service";
 
 export interface CrmCopilotSummary {
   board: CrmBoard;

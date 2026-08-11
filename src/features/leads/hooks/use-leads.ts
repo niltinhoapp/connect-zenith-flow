@@ -37,7 +37,8 @@ export function useCreateLead() {
   const qc = useQueryClient();
   return useMutation({
     ...mutationDefaults,
-    mutationFn: (input: Omit<CreateLeadInput, "organizationId">) => makeService(session!).create(input),
+    mutationFn: (input: Omit<CreateLeadInput, "organizationId">) =>
+      makeService(session!).create(input),
     onSuccess: () => {
       if (org) qc.invalidateQueries({ queryKey: queryKeys.leads.all(org) });
     },

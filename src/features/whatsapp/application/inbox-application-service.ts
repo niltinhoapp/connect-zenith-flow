@@ -37,35 +37,53 @@ export class InboxApplicationService {
   }
 
   listConversations(filter?: ConversationFilter): Promise<Paginated<Conversation>> {
-    return guard(() => {
-      this.ensureEnabled();
-      return this.conversations.findMany(filter);
-    }, { service: "whatsapp.listConversations" });
+    return guard(
+      () => {
+        this.ensureEnabled();
+        return this.conversations.findMany(filter);
+      },
+      { service: "whatsapp.listConversations" },
+    );
   }
 
   getConversation(id: string): Promise<Conversation> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const conv = await this.conversations.findById(id);
-      if (!conv) throw new NotFoundError("Conversa não encontrada");
-      return conv;
-    }, { service: "whatsapp.getConversation", id });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const conv = await this.conversations.findById(id);
+        if (!conv) throw new NotFoundError("Conversa não encontrada");
+        return conv;
+      },
+      { service: "whatsapp.getConversation", id },
+    );
   }
 
-  listMessages(conversationId: string, limit?: number, offset?: number): Promise<Paginated<Message>> {
-    return guard(() => {
-      this.ensureEnabled();
-      return this.messages.findByConversation({ conversationId, limit, offset });
-    }, { service: "whatsapp.listMessages", conversationId });
+  listMessages(
+    conversationId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Paginated<Message>> {
+    return guard(
+      () => {
+        this.ensureEnabled();
+        return this.messages.findByConversation({ conversationId, limit, offset });
+      },
+      { service: "whatsapp.listMessages", conversationId },
+    );
   }
 
   counters(): Promise<InboxCounters> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const { data, error } = await this.db.rpc("inbox_counters", { p_org: this.ctx.organizationId });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-      const c = (data ?? {}) as Partial<InboxCounters>;
-      return { open: c.open ?? 0, unread: c.unread ?? 0, mine: c.mine ?? 0 };
-    }, { service: "whatsapp.counters" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const { data, error } = await this.db.rpc("inbox_counters", {
+          p_org: this.ctx.organizationId,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        const c = (data ?? {}) as Partial<InboxCounters>;
+        return { open: c.open ?? 0, unread: c.unread ?? 0, mine: c.mine ?? 0 };
+      },
+      { service: "whatsapp.counters" },
+    );
   }
 }

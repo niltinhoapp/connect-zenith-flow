@@ -27,25 +27,28 @@ export class TimelineApplicationService {
   ) {}
 
   list(customerId: string): Promise<TimelineEntry[]> {
-    return guard(async () => {
-      assertModuleEnabled(this.ctx.enabledModules, "clientes");
-      const { data, error } = await this.db
-        .from("customer_timeline")
-        .select("id, event_type, title, description, module, payload, created_at")
-        .eq("customer_id", customerId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-      return (data ?? []).map((r) => ({
-        id: r.id,
-        eventType: r.event_type,
-        title: r.title,
-        description: r.description,
-        module: r.module,
-        payload: r.payload,
-        createdAt: r.created_at,
-      }));
-    }, { service: "timeline.list", customerId });
+    return guard(
+      async () => {
+        assertModuleEnabled(this.ctx.enabledModules, "clientes");
+        const { data, error } = await this.db
+          .from("customer_timeline")
+          .select("id, event_type, title, description, module, payload, created_at")
+          .eq("customer_id", customerId)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return (data ?? []).map((r) => ({
+          id: r.id,
+          eventType: r.event_type,
+          title: r.title,
+          description: r.description,
+          module: r.module,
+          payload: r.payload,
+          createdAt: r.created_at,
+        }));
+      },
+      { service: "timeline.list", customerId },
+    );
   }
 }

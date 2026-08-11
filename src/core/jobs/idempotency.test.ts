@@ -10,8 +10,12 @@ describe("Core · withIdempotency", () => {
       return true;
     };
     let runs = 0;
-    const first = await withIdempotency(acquire, "k1", async () => { runs++; });
-    const second = await withIdempotency(acquire, "k1", async () => { runs++; });
+    const first = await withIdempotency(acquire, "k1", async () => {
+      runs++;
+    });
+    const second = await withIdempotency(acquire, "k1", async () => {
+      runs++;
+    });
 
     expect(first).toBe(true);
     expect(second).toBe(false);

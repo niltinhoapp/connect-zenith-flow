@@ -34,9 +34,7 @@ export function AuthShell({
           </div>
         </div>
 
-        {footer && (
-          <p className="text-center text-xs text-muted-foreground">{footer}</p>
-        )}
+        {footer && <p className="text-center text-xs text-muted-foreground">{footer}</p>}
       </div>
 
       {/* Right panel — brand */}
@@ -48,7 +46,9 @@ export function AuthShell({
         <div className="relative flex h-full flex-col justify-between p-12">
           <div className="inline-flex w-max items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs backdrop-blur-md">
             <Sparkles className="h-3 w-3 text-primary" />
-            <span className="text-muted-foreground">Novidade: <span className="text-foreground">Copilot IA nativo</span></span>
+            <span className="text-muted-foreground">
+              Novidade: <span className="text-foreground">Copilot IA nativo</span>
+            </span>
           </div>
 
           <div className="max-w-md">
@@ -56,7 +56,8 @@ export function AuthShell({
               Automatize seu negócio com a elegância de um produto premium.
             </h2>
             <p className="mt-4 text-sm text-muted-foreground">
-              CRM, WhatsApp, automações e IA — tudo em uma única plataforma feita para times de alta performance.
+              CRM, WhatsApp, automações e IA — tudo em uma única plataforma feita para times de alta
+              performance.
             </p>
 
             <div className="mt-8 grid grid-cols-1 gap-3">
@@ -65,7 +66,10 @@ export function AuthShell({
                 { i: LineChart, t: "Insights automáticos com IA" },
                 { i: Shield, t: "Segurança e privacidade em primeiro lugar" },
               ].map((f) => (
-                <div key={f.t} className="flex items-center gap-3 rounded-xl border border-border bg-card/50 p-3 backdrop-blur-md">
+                <div
+                  key={f.t}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card/50 p-3 backdrop-blur-md"
+                >
                   <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
                     <f.i className="h-4 w-4" />
                   </div>

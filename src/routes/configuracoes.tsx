@@ -48,11 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { can, PERMISSIONS } from "@/core/permissions";
 import { requestPasswordReset, useSession } from "@/core/auth";
-import {
-  useBillingAccess,
-  useBillingOverview,
-  useSyncSubscriptionCheckout,
-} from "@/core/billing";
+import { useBillingAccess, useBillingOverview, useSyncSubscriptionCheckout } from "@/core/billing";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { MonitoringSection } from "@/components/monitoring/monitoring-section";
 import { PlanShowcase } from "@/components/billing/plan-showcase";
@@ -91,7 +87,15 @@ export const Route = createFileRoute("/configuracoes")({
   component: ConfigPage,
 });
 
-type Section = "profile" | "workspace" | "monitoring" | "billing" | "notifications" | "security" | "integrations" | "api";
+type Section =
+  | "profile"
+  | "workspace"
+  | "monitoring"
+  | "billing"
+  | "notifications"
+  | "security"
+  | "integrations"
+  | "api";
 
 const menu: Array<{ id: Section; i: typeof User; l: string; d: string }> = [
   { id: "profile", i: User, l: "Perfil", d: "Dados pessoais e senha" },
@@ -158,7 +162,9 @@ function ConfigPage() {
                         : "text-muted-foreground hover:bg-accent/40 hover:text-foreground")
                     }
                   >
-                    <item.i className={"h-4 w-4 " + (active ? "text-primary" : "text-muted-foreground")} />
+                    <item.i
+                      className={"h-4 w-4 " + (active ? "text-primary" : "text-muted-foreground")}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.l}</p>
                       <p className="truncate text-[11px] text-muted-foreground">{item.d}</p>
@@ -179,19 +185,36 @@ function ConfigPage() {
           )}
           {settings.isError && (
             <div className="rounded-2xl border border-border bg-card p-6 text-center">
-              <p className="text-sm text-muted-foreground">Não foi possível carregar as configurações.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => settings.refetch()}>
+              <p className="text-sm text-muted-foreground">
+                Não foi possível carregar as configurações.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => settings.refetch()}
+              >
                 Tentar novamente
               </Button>
             </div>
           )}
-          {settings.data && section === "profile" && <ProfileSection data={settings.data.profile} />}
-          {settings.data && section === "workspace" && <WorkspaceSection data={settings.data.workspace} />}
+          {settings.data && section === "profile" && (
+            <ProfileSection data={settings.data.profile} />
+          )}
+          {settings.data && section === "workspace" && (
+            <WorkspaceSection data={settings.data.workspace} />
+          )}
           {section === "monitoring" && <MonitoringSection />}
           {settings.data && section === "billing" && <BillingSection usage={settings.data.usage} />}
-          {settings.data && section === "notifications" && <NotificationsSection values={settings.data.preferences} />}
-          {settings.data && section === "security" && <SecuritySection email={settings.data.profile.email} />}
-          {settings.data && section === "integrations" && <IntegrationsSection whatsapp={settings.data.whatsapp} />}
+          {settings.data && section === "notifications" && (
+            <NotificationsSection values={settings.data.preferences} />
+          )}
+          {settings.data && section === "security" && (
+            <SecuritySection email={settings.data.profile.email} />
+          )}
+          {settings.data && section === "integrations" && (
+            <IntegrationsSection whatsapp={settings.data.whatsapp} />
+          )}
           {settings.data && section === "api" && <WebhooksSection />}
         </div>
       </div>
@@ -199,7 +222,11 @@ function ConfigPage() {
   );
 }
 
-function ProfileSection({ data }: { data: { fullName: string; email: string; avatarUrl: string | null } }) {
+function ProfileSection({
+  data,
+}: {
+  data: { fullName: string; email: string; avatarUrl: string | null };
+}) {
   const update = useUpdateProfile();
   const router = useRouter();
   const form = useForm<UpdateProfileInput>({
@@ -207,7 +234,14 @@ function ProfileSection({ data }: { data: { fullName: string; email: string; ava
     defaultValues: { fullName: data.fullName },
   });
   useEffect(() => form.reset({ fullName: data.fullName }), [data.fullName, form]);
-  const initials = data.fullName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
+  const initials =
+    data.fullName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "U";
 
   const submit = form.handleSubmit(async (values) => {
     try {
@@ -223,11 +257,15 @@ function ProfileSection({ data }: { data: { fullName: string; email: string; ava
     <SectionCard title="Perfil" description="Suas informações pessoais">
       <div className="flex items-center gap-4">
         <Avatar className="h-16 w-16 border border-border">
-          <AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">
+            {initials}
+          </AvatarFallback>
         </Avatar>
         <div>
           <p className="text-sm font-medium">{data.fullName || "Seu perfil"}</p>
-          <p className="text-xs text-muted-foreground">A foto personalizada será habilitada com o Storage.</p>
+          <p className="text-xs text-muted-foreground">
+            A foto personalizada será habilitada com o Storage.
+          </p>
         </div>
       </div>
       <Separator className="my-6 bg-border" />
@@ -235,13 +273,26 @@ function ProfileSection({ data }: { data: { fullName: string; email: string; ava
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label className="text-xs">Nome completo</Label>
-            <Input className="mt-1.5 h-10 rounded-lg border-border bg-background" {...form.register("fullName")} />
-            {form.formState.errors.fullName && <p className="mt-1 text-xs text-destructive">{form.formState.errors.fullName.message}</p>}
+            <Input
+              className="mt-1.5 h-10 rounded-lg border-border bg-background"
+              {...form.register("fullName")}
+            />
+            {form.formState.errors.fullName && (
+              <p className="mt-1 text-xs text-destructive">
+                {form.formState.errors.fullName.message}
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs">E-mail</Label>
-            <Input value={data.email} disabled className="mt-1.5 h-10 rounded-lg border-border bg-muted" />
-            <p className="mt-1 text-[11px] text-muted-foreground">O e-mail da conta é protegido pelo login.</p>
+            <Input
+              value={data.email}
+              disabled
+              className="mt-1.5 h-10 rounded-lg border-border bg-muted"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              O e-mail da conta é protegido pelo login.
+            </p>
           </div>
         </div>
         <div className="flex justify-end">
@@ -253,15 +304,20 @@ function ProfileSection({ data }: { data: { fullName: string; email: string; ava
       <HelpDisclosure title="Por que não consigo mudar o e-mail por aqui?">
         <p>
           O e-mail é a chave de acesso da sua conta, por isso ele é gerenciado pelo login para sua
-          segurança. Para trocar a senha, use a seção <span className="font-medium text-foreground">Segurança</span>.
-          A foto de perfil será liberada quando o armazenamento de imagens estiver ativo.
+          segurança. Para trocar a senha, use a seção{" "}
+          <span className="font-medium text-foreground">Segurança</span>. A foto de perfil será
+          liberada quando o armazenamento de imagens estiver ativo.
         </p>
       </HelpDisclosure>
     </SectionCard>
   );
 }
 
-function WorkspaceSection({ data }: { data: { id: string; name: string; slug: string; enabledModules: string[] } }) {
+function WorkspaceSection({
+  data,
+}: {
+  data: { id: string; name: string; slug: string; enabledModules: string[] };
+}) {
   const session = useSession();
   const allowed = can(session, PERMISSIONS.ORG_MANAGE);
   const update = useUpdateWorkspace();
@@ -288,16 +344,31 @@ function WorkspaceSection({ data }: { data: { id: string; name: string; slug: st
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label className="text-xs">Nome da empresa</Label>
-              <Input disabled={!allowed} className="mt-1.5 h-10 rounded-lg border-border bg-background" {...form.register("name")} />
+              <Input
+                disabled={!allowed}
+                className="mt-1.5 h-10 rounded-lg border-border bg-background"
+                {...form.register("name")}
+              />
             </div>
             <div>
               <Label className="text-xs">Identificador</Label>
-              <Input value={data.slug} disabled className="mt-1.5 h-10 rounded-lg border-border bg-muted" />
+              <Input
+                value={data.slug}
+                disabled
+                className="mt-1.5 h-10 rounded-lg border-border bg-muted"
+              />
             </div>
           </div>
-          {!allowed && <p className="text-xs text-muted-foreground">Somente proprietários e administradores podem alterar a empresa.</p>}
+          {!allowed && (
+            <p className="text-xs text-muted-foreground">
+              Somente proprietários e administradores podem alterar a empresa.
+            </p>
+          )}
           <div className="flex justify-end">
-            <Button type="submit" disabled={!allowed || update.isPending || !form.formState.isDirty}>
+            <Button
+              type="submit"
+              disabled={!allowed || update.isPending || !form.formState.isDirty}
+            >
               {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar empresa
             </Button>
           </div>
@@ -306,24 +377,31 @@ function WorkspaceSection({ data }: { data: { id: string; name: string; slug: st
       <SectionCard title="Módulos ativos" description="Recursos disponíveis para esta empresa">
         {data.enabledModules.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {data.enabledModules.map((module) => <Badge key={module} variant="secondary">{module}</Badge>)}
+            {data.enabledModules.map((module) => (
+              <Badge key={module} variant="secondary">
+                {module}
+              </Badge>
+            ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Nenhum módulo ativo nesta empresa ainda.</p>
         )}
         <Separator className="my-4" />
-        <Link to="/configuracoes/papeis" className="text-sm font-medium text-primary hover:underline">
+        <Link
+          to="/configuracoes/papeis"
+          className="text-sm font-medium text-primary hover:underline"
+        >
           Gerenciar papéis e permissões
         </Link>
         <HelpDisclosure title="O que são módulos e o identificador?">
           <p>
-            <span className="font-medium text-foreground">Módulos</span> são as áreas liberadas para a
-            sua empresa (CRM, WhatsApp, Automações e assim por diante). Eles definem o que aparece no
-            menu e o que cada pessoa pode usar.
+            <span className="font-medium text-foreground">Módulos</span> são as áreas liberadas para
+            a sua empresa (CRM, WhatsApp, Automações e assim por diante). Eles definem o que aparece
+            no menu e o que cada pessoa pode usar.
           </p>
           <p>
-            O <span className="font-medium text-foreground">identificador</span> é o apelido único da
-            empresa dentro do ConnectWeb; ele é fixo e usado internamente pelo sistema.
+            O <span className="font-medium text-foreground">identificador</span> é o apelido único
+            da empresa dentro do ConnectWeb; ele é fixo e usado internamente pelo sistema.
           </p>
         </HelpDisclosure>
       </SectionCard>
@@ -331,10 +409,17 @@ function WorkspaceSection({ data }: { data: { id: string; name: string; slug: st
   );
 }
 
-const resourceLabels: Record<string, string> = { customers: "Clientes", messages: "Mensagens", ai_credits: "Créditos de IA", storage_bytes: "Armazenamento", api_calls: "Chamadas de API" };
+const resourceLabels: Record<string, string> = {
+  customers: "Clientes",
+  messages: "Mensagens",
+  ai_credits: "Créditos de IA",
+  storage_bytes: "Armazenamento",
+  api_calls: "Chamadas de API",
+};
 
 function formatUsage(resource: string, value: number) {
-  if (resource === "storage_bytes") return `${(value / 1_073_741_824).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`;
+  if (resource === "storage_bytes")
+    return `${(value / 1_073_741_824).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`;
   return value.toLocaleString("pt-BR");
 }
 
@@ -342,7 +427,11 @@ function formatLimit(resource: string, value: number) {
   return value < 0 ? "Ilimitado" : formatUsage(resource, value);
 }
 
-function BillingSection({ usage }: { usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }> }) {
+function BillingSection({
+  usage,
+}: {
+  usage: Array<{ resource: string; used: number; limit: number; period: "month" | "total" }>;
+}) {
   const billing = useBillingOverview();
   const access = useBillingAccess();
   const syncSubscription = useSyncSubscriptionCheckout();
@@ -354,7 +443,9 @@ function BillingSection({ usage }: { usage: Array<{ resource: string; used: numb
     }
     // Sincroniza uma vez quando o estado carregado da assinatura muda.
   }, [access.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
-  const subscriptionProduct = billing.data?.products.find((product) => product.kind === "subscription");
+  const subscriptionProduct = billing.data?.products.find(
+    (product) => product.kind === "subscription",
+  );
   const packages = billing.data?.products
     .filter((product) => product.kind === "ai_addon")
     .map((product) => ({
@@ -365,52 +456,140 @@ function BillingSection({ usage }: { usage: Array<{ resource: string; used: numb
       highlight: product.id === "ai_turbo",
     }));
   return (
-    <div className="space-y-4"><BillingAccountSummary overview={billing.data} loading={billing.isLoading} /><PlanShowcase
-      plan={subscriptionProduct ? { name: subscriptionProduct.name, priceCents: subscriptionProduct.priceCents } : undefined}
-      packages={packages?.length ? packages : undefined}
-      onPurchasePackage={setCheckoutPackage}
-      onSubscribe={access.data?.needsSubscription ? () => setSubscriptionCheckout(true) : undefined}
-      canPurchaseAddons={access.data?.canBuyAddons ?? false}
-      subscriptionActive={access.data?.status === "active"}
-      subscriptionOfferAvailable={access.data?.needsSubscription ?? false}
-    /><SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
-      <div className="grid gap-5 sm:grid-cols-2">{usage.map((item) => { const percentage = item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0; return <div key={item.resource}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-medium">{resourceLabels[item.resource] ?? item.resource}</p><p className="text-[11px] text-muted-foreground">{item.period === "month" ? "Neste mês" : "Total armazenado"}</p></div><span className="text-xs text-muted-foreground">{formatUsage(item.resource, item.used)} / {formatLimit(item.resource, item.limit)}</span></div><Progress value={percentage} className="h-2" /></div>; })}</div>
-      {usage.length === 0 && <p className="text-sm text-muted-foreground">Nenhum limite foi configurado para este plano.</p>}
-      <HelpDisclosure title="Como leio o consumo do meu plano?">
-        <p>
-          Cada barra mostra quanto você já usou em relação ao limite do plano — por exemplo,
-          mensagens e créditos de IA no mês, ou armazenamento total. Quando a barra se aproxima de
-          100%, vale a pena revisar o uso ou considerar um plano maior.
-        </p>
-        <p>Os números são medidos pela própria plataforma e refletem o uso real da sua empresa.</p>
-      </HelpDisclosure>
-    </SectionCard><AddonCheckoutDialog package={checkoutPackage} onClose={() => setCheckoutPackage(null)} /><SubscriptionCheckoutDialog open={subscriptionCheckout} onClose={() => setSubscriptionCheckout(false)} /></div>
+    <div className="space-y-4">
+      <BillingAccountSummary overview={billing.data} loading={billing.isLoading} />
+      <PlanShowcase
+        plan={
+          subscriptionProduct
+            ? { name: subscriptionProduct.name, priceCents: subscriptionProduct.priceCents }
+            : undefined
+        }
+        packages={packages?.length ? packages : undefined}
+        onPurchasePackage={setCheckoutPackage}
+        onSubscribe={
+          access.data?.needsSubscription ? () => setSubscriptionCheckout(true) : undefined
+        }
+        canPurchaseAddons={access.data?.canBuyAddons ?? false}
+        subscriptionActive={access.data?.status === "active"}
+        subscriptionOfferAvailable={access.data?.needsSubscription ?? false}
+      />
+      <SectionCard title="Uso do plano" description="Consumo medido pela plataforma">
+        <div className="grid gap-5 sm:grid-cols-2">
+          {usage.map((item) => {
+            const percentage =
+              item.limit > 0 ? Math.min(100, Math.round((item.used / item.limit) * 100)) : 0;
+            return (
+              <div key={item.resource}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {resourceLabels[item.resource] ?? item.resource}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {item.period === "month" ? "Neste mês" : "Total armazenado"}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {formatUsage(item.resource, item.used)} /{" "}
+                    {formatLimit(item.resource, item.limit)}
+                  </span>
+                </div>
+                <Progress value={percentage} className="h-2" />
+              </div>
+            );
+          })}
+        </div>
+        {usage.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum limite foi configurado para este plano.
+          </p>
+        )}
+        <HelpDisclosure title="Como leio o consumo do meu plano?">
+          <p>
+            Cada barra mostra quanto você já usou em relação ao limite do plano — por exemplo,
+            mensagens e créditos de IA no mês, ou armazenamento total. Quando a barra se aproxima de
+            100%, vale a pena revisar o uso ou considerar um plano maior.
+          </p>
+          <p>
+            Os números são medidos pela própria plataforma e refletem o uso real da sua empresa.
+          </p>
+        </HelpDisclosure>
+      </SectionCard>
+      <AddonCheckoutDialog package={checkoutPackage} onClose={() => setCheckoutPackage(null)} />
+      <SubscriptionCheckoutDialog
+        open={subscriptionCheckout}
+        onClose={() => setSubscriptionCheckout(false)}
+      />
+    </div>
   );
 }
 
-function NotificationsSection({ values }: { values: { email: boolean; push: boolean; compact: boolean; analytics: boolean } }) {
+function NotificationsSection({
+  values,
+}: {
+  values: { email: boolean; push: boolean; compact: boolean; analytics: boolean };
+}) {
   const session = useSession();
   const allowed = can(session, PERMISSIONS.CONFIGURACOES_MANAGE);
   const update = useUpdatePreferences();
   const toggle = (field: keyof typeof values) => {
     const next = { ...values, [field]: !values[field] };
-    update.mutate(next, { onSuccess: () => toast.success("Preferências atualizadas."), onError: (error) => toast.error(error.message) });
+    update.mutate(next, {
+      onSuccess: () => toast.success("Preferências atualizadas."),
+      onError: (error) => toast.error(error.message),
+    });
   };
   const rows = [
-    { key: "email" as const, title: "Notificações por e-mail", desc: "Enviamos resumos e alertas importantes para o e-mail da conta." },
-    { key: "push" as const, title: "Notificações no navegador", desc: "Mostra avisos enquanto você usa o painel (o navegador pode pedir permissão)." },
-    { key: "compact" as const, title: "Modo compacto", desc: "Reduz espaçamentos para caber mais informação na tela." },
-    { key: "analytics" as const, title: "Ajudar a melhorar o produto", desc: "Compartilha estatísticas de uso anônimas com a nossa equipe." },
+    {
+      key: "email" as const,
+      title: "Notificações por e-mail",
+      desc: "Enviamos resumos e alertas importantes para o e-mail da conta.",
+    },
+    {
+      key: "push" as const,
+      title: "Notificações no navegador",
+      desc: "Mostra avisos enquanto você usa o painel (o navegador pode pedir permissão).",
+    },
+    {
+      key: "compact" as const,
+      title: "Modo compacto",
+      desc: "Reduz espaçamentos para caber mais informação na tela.",
+    },
+    {
+      key: "analytics" as const,
+      title: "Ajudar a melhorar o produto",
+      desc: "Compartilha estatísticas de uso anônimas com a nossa equipe.",
+    },
   ];
   return (
     <SectionCard title="Preferências" description="Valem para a empresa em todos os dispositivos">
-      {rows.map((row, index) => <div key={row.key}><div className="flex items-center justify-between gap-4 py-3"><div><p className="text-sm font-medium">{row.title}</p><p className="text-xs text-muted-foreground">{row.desc}</p></div><Switch checked={values[row.key]} disabled={!allowed || update.isPending} onCheckedChange={() => toggle(row.key)} aria-label={row.title} /></div>{index < rows.length - 1 && <Separator />}</div>)}
-      {!allowed && <p className="mt-3 text-xs text-muted-foreground">Somente administradores podem alterar as preferências da empresa.</p>}
+      {rows.map((row, index) => (
+        <div key={row.key}>
+          <div className="flex items-center justify-between gap-4 py-3">
+            <div>
+              <p className="text-sm font-medium">{row.title}</p>
+              <p className="text-xs text-muted-foreground">{row.desc}</p>
+            </div>
+            <Switch
+              checked={values[row.key]}
+              disabled={!allowed || update.isPending}
+              onCheckedChange={() => toggle(row.key)}
+              aria-label={row.title}
+            />
+          </div>
+          {index < rows.length - 1 && <Separator />}
+        </div>
+      ))}
+      {!allowed && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Somente administradores podem alterar as preferências da empresa.
+        </p>
+      )}
       <HelpDisclosure title="Essas preferências valem para quem?">
         <p>
-          As opções aqui são da <span className="font-medium text-foreground">empresa</span>: quando um
-          administrador altera, o novo padrão passa a valer para todos os usuários e aparelhos ligados a
-          esta empresa. Elas são salvas automaticamente ao ligar ou desligar cada opção.
+          As opções aqui são da <span className="font-medium text-foreground">empresa</span>: quando
+          um administrador altera, o novo padrão passa a valer para todos os usuários e aparelhos
+          ligados a esta empresa. Elas são salvas automaticamente ao ligar ou desligar cada opção.
         </p>
       </HelpDisclosure>
     </SectionCard>
@@ -420,7 +599,9 @@ function NotificationsSection({ values }: { values: { email: boolean; push: bool
 function SecuritySection({ email }: { email: string }) {
   const [sending, setSending] = useState(false);
   const [factor, setFactor] = useState<{ id: string; status: string } | null>(null);
-  const [enrollment, setEnrollment] = useState<{ id: string; qr: string; secret: string } | null>(null);
+  const [enrollment, setEnrollment] = useState<{ id: string; qr: string; secret: string } | null>(
+    null,
+  );
   const [code, setCode] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
   const [loadingFactor, setLoadingFactor] = useState(true);
@@ -446,31 +627,48 @@ function SecuritySection({ email }: { email: string }) {
   }, []);
   const reset = async () => {
     setSending(true);
-    try { await requestPasswordReset(email); toast.success("Enviamos as instruções para seu e-mail."); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível enviar."); }
-    finally { setSending(false); }
+    try {
+      await requestPasswordReset(email);
+      toast.success("Enviamos as instruções para seu e-mail.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar.");
+    } finally {
+      setSending(false);
+    }
   };
   const startMfa = async () => {
     setMfaBusy(true);
     try {
-      const { data, error } = await getSupabaseBrowserClient().auth.mfa.enroll({ factorType: "totp", friendlyName: "ConnectWeb" });
+      const { data, error } = await getSupabaseBrowserClient().auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "ConnectWeb",
+      });
       if (error) throw error;
       setEnrollment({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível iniciar o 2FA."); }
-    finally { setMfaBusy(false); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível iniciar o 2FA.");
+    } finally {
+      setMfaBusy(false);
+    }
   };
   const verifyMfa = async () => {
     if (!enrollment || code.trim().length !== 6) return;
     setMfaBusy(true);
     try {
-      const { error } = await getSupabaseBrowserClient().auth.mfa.challengeAndVerify({ factorId: enrollment.id, code: code.trim() });
+      const { error } = await getSupabaseBrowserClient().auth.mfa.challengeAndVerify({
+        factorId: enrollment.id,
+        code: code.trim(),
+      });
       if (error) throw error;
       setFactor({ id: enrollment.id, status: "verified" });
       setEnrollment(null);
       setCode("");
       toast.success("Autenticação em dois fatores ativada.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Código inválido."); }
-    finally { setMfaBusy(false); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Código inválido.");
+    } finally {
+      setMfaBusy(false);
+    }
   };
   const disableMfa = async () => {
     if (!factor) return;
@@ -480,8 +678,11 @@ function SecuritySection({ email }: { email: string }) {
       if (error) throw error;
       setFactor(null);
       toast.success("Autenticação em dois fatores desativada.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível desativar o 2FA."); }
-    finally { setMfaBusy(false); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível desativar o 2FA.");
+    } finally {
+      setMfaBusy(false);
+    }
   };
   const closeOtherSessions = async () => {
     setClosingSessions(true);
@@ -495,57 +696,166 @@ function SecuritySection({ email }: { email: string }) {
   };
   return (
     <div className="space-y-4">
-    <SectionCard title="Segurança" description="Acesso à sua conta">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Alterar senha</p><p className="text-xs text-muted-foreground">Receba um link seguro em {email}.</p></div></div>
-        <Button variant="outline" onClick={reset} disabled={sending}>{sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar link</Button>
-      </div>
-    </SectionCard>
-    <SectionCard title="Autenticação em dois fatores" description="Proteja a conta com um aplicativo autenticador">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-primary" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">Aplicativo autenticador</p><Badge variant={factor?.status === "verified" ? "default" : "secondary"}>{loadingFactor ? "Verificando…" : factor?.status === "verified" ? "Ativo" : "Desativado"}</Badge></div><p className="text-xs text-muted-foreground">Use Google Authenticator, Microsoft Authenticator ou similar.</p></div></div>
-        {loadingFactor ? (
-          <Button variant="outline" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Carregando</Button>
-        ) : factor?.status === "verified" ? (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" disabled={mfaBusy}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Desativar</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-warning" /> Desativar a verificação em duas etapas?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Sua conta passará a ser protegida somente pela senha. Sem o segundo fator, fica mais fácil para outra pessoa entrar caso descubra sua senha. Você pode reativar quando quiser.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Manter ativo</AlertDialogCancel>
-                <AlertDialogAction onClick={disableMfa} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Desativar mesmo assim</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : (
-          <Button variant="outline" disabled={mfaBusy || Boolean(enrollment)} onClick={startMfa}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Ativar 2FA</Button>
+      <SectionCard title="Segurança" description="Acesso à sua conta">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <LockKeyhole className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Alterar senha</p>
+              <p className="text-xs text-muted-foreground">Receba um link seguro em {email}.</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={reset} disabled={sending}>
+            {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar link
+          </Button>
+        </div>
+      </SectionCard>
+      <SectionCard
+        title="Autenticação em dois fatores"
+        description="Proteja a conta com um aplicativo autenticador"
+      >
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Aplicativo autenticador</p>
+                <Badge variant={factor?.status === "verified" ? "default" : "secondary"}>
+                  {loadingFactor
+                    ? "Verificando…"
+                    : factor?.status === "verified"
+                      ? "Ativo"
+                      : "Desativado"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use Google Authenticator, Microsoft Authenticator ou similar.
+              </p>
+            </div>
+          </div>
+          {loadingFactor ? (
+            <Button variant="outline" disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Carregando
+            </Button>
+          ) : factor?.status === "verified" ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={mfaBusy}>
+                  {mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Desativar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-warning" /> Desativar a verificação em duas
+                    etapas?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Sua conta passará a ser protegida somente pela senha. Sem o segundo fator, fica
+                    mais fácil para outra pessoa entrar caso descubra sua senha. Você pode reativar
+                    quando quiser.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Manter ativo</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={disableMfa}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Desativar mesmo assim
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button variant="outline" disabled={mfaBusy || Boolean(enrollment)} onClick={startMfa}>
+              {mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Ativar 2FA
+            </Button>
+          )}
+        </div>
+        {enrollment && (
+          <div className="mt-5 rounded-xl border border-border p-4">
+            <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+              <img
+                src={enrollment.qr}
+                alt="QR code para configurar autenticação em dois fatores"
+                className="h-44 w-44 rounded-lg bg-white p-2"
+              />
+              <div>
+                <p className="text-sm font-medium">1. Escaneie o QR code</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Abra seu app autenticador e aponte a câmera. Se preferir, digite a chave
+                  manualmente:{" "}
+                  <span className="break-all font-mono text-foreground">{enrollment.secret}</span>
+                </p>
+                <Label htmlFor="mfa-enroll-code" className="mt-4 block">
+                  2. Digite o código de 6 números
+                </Label>
+                <div className="mt-1.5 flex gap-2">
+                  <Input
+                    id="mfa-enroll-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void verifyMfa();
+                    }}
+                    className="max-w-44"
+                  />
+                  <Button onClick={verifyMfa} disabled={mfaBusy || code.length !== 6}>
+                    {mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
-      </div>
-      {enrollment && <div className="mt-5 rounded-xl border border-border p-4"><div className="grid gap-4 sm:grid-cols-[180px_1fr]"><img src={enrollment.qr} alt="QR code para configurar autenticação em dois fatores" className="h-44 w-44 rounded-lg bg-white p-2" /><div><p className="text-sm font-medium">1. Escaneie o QR code</p><p className="mt-1 text-xs text-muted-foreground">Abra seu app autenticador e aponte a câmera. Se preferir, digite a chave manualmente: <span className="break-all font-mono text-foreground">{enrollment.secret}</span></p><Label htmlFor="mfa-enroll-code" className="mt-4 block">2. Digite o código de 6 números</Label><div className="mt-1.5 flex gap-2"><Input id="mfa-enroll-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} onKeyDown={(event) => { if (event.key === "Enter") void verifyMfa(); }} className="max-w-44" /><Button onClick={verifyMfa} disabled={mfaBusy || code.length !== 6}>{mfaBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirmar</Button></div></div></div></div>}
-      <HelpDisclosure title="Como funciona a verificação em duas etapas?">
-        <p>
-          Além da senha, o login passa a pedir um código que muda a cada 30 segundos, gerado por um
-          aplicativo no seu celular (Google Authenticator, Microsoft Authenticator, entre outros).
-        </p>
-        <p>
-          Assim, mesmo que alguém descubra sua senha, não consegue entrar sem o seu celular. Ao ativar,
-          nas próximas vezes você digitará esse código na tela de verificação.
-        </p>
-      </HelpDisclosure>
-    </SectionCard>
-    <SectionCard title="Sessões" description="Controle onde sua conta permanece conectada"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><LogOut className="mt-0.5 h-5 w-5 text-primary" /><div><p className="text-sm font-medium">Encerrar outras sessões</p><p className="text-xs text-muted-foreground">Desconecta sua conta em todos os outros aparelhos e navegadores, mantendo só este.</p></div></div><Button variant="outline" onClick={closeOtherSessions} disabled={closingSessions}>{closingSessions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Encerrar outras</Button></div></SectionCard>
+        <HelpDisclosure title="Como funciona a verificação em duas etapas?">
+          <p>
+            Além da senha, o login passa a pedir um código que muda a cada 30 segundos, gerado por
+            um aplicativo no seu celular (Google Authenticator, Microsoft Authenticator, entre
+            outros).
+          </p>
+          <p>
+            Assim, mesmo que alguém descubra sua senha, não consegue entrar sem o seu celular. Ao
+            ativar, nas próximas vezes você digitará esse código na tela de verificação.
+          </p>
+        </HelpDisclosure>
+      </SectionCard>
+      <SectionCard title="Sessões" description="Controle onde sua conta permanece conectada">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <LogOut className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Encerrar outras sessões</p>
+              <p className="text-xs text-muted-foreground">
+                Desconecta sua conta em todos os outros aparelhos e navegadores, mantendo só este.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={closeOtherSessions} disabled={closingSessions}>
+            {closingSessions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Encerrar outras
+          </Button>
+        </div>
+      </SectionCard>
     </div>
   );
 }
 
-function IntegrationsSection({ whatsapp }: { whatsapp: { connected: boolean; provider: string | null; name: string | null; status: string | null; connectedAt: string | null } }) {
+function IntegrationsSection({
+  whatsapp,
+}: {
+  whatsapp: {
+    connected: boolean;
+    provider: string | null;
+    name: string | null;
+    status: string | null;
+    connectedAt: string | null;
+  };
+}) {
   const session = useSession();
   const allowed = can(session, PERMISSIONS.WHATSAPP_CONNECT);
   const connect = useConnectWhatsApp();
@@ -566,76 +876,170 @@ function IntegrationsSection({ whatsapp }: { whatsapp: { connected: boolean; pro
   });
   return (
     <div className="space-y-4">
-    <SectionCard title="Integrações" description="Conexões da empresa ativa">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3"><MessageCircle className="mt-0.5 h-5 w-5 text-success" /><div><div className="flex items-center gap-2"><p className="text-sm font-medium">WhatsApp</p><Badge variant={whatsapp.connected ? "default" : "secondary"}>{whatsapp.connected ? "Conectado" : whatsapp.status ?? "Não conectado"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{whatsapp.name || (whatsapp.provider ? `Provedor: ${whatsapp.provider}` : "Nenhuma conta oficial conectada.")}</p></div></div>
-        <Button disabled={!allowed} variant="outline" onClick={() => setShowForm((current) => !current)}>{whatsapp.connected ? "Atualizar conexão" : "Conectar WhatsApp"}</Button>
-      </div>
-    </SectionCard>
-    {showForm && (
-      <SectionCard title="Conexão oficial Meta" description="Use os dados do WhatsApp Business Manager">
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-            O token é enviado diretamente à função segura e armazenado na área protegida do servidor. Ele não fica salvo neste navegador.
-          </div>
-          <div>
-            <Label htmlFor="wa-token">Token de acesso permanente</Label>
-            <Input id="wa-token" type="password" autoComplete="off" className="mt-1.5" {...form.register("accessToken")} />
-            <p className="mt-1 text-[11px] text-muted-foreground">Token permanente do usuário do sistema (não o token temporário de teste).</p>
-            {form.formState.errors.accessToken && <p className="mt-1 text-xs text-destructive">{form.formState.errors.accessToken.message}</p>}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+      <SectionCard title="Integrações" description="Conexões da empresa ativa">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <MessageCircle className="mt-0.5 h-5 w-5 text-success" />
             <div>
-              <Label htmlFor="wa-waba">ID da conta WhatsApp (WABA)</Label>
-              <Input id="wa-waba" inputMode="numeric" className="mt-1.5" {...form.register("wabaId")} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Sequência de números da sua conta comercial.</p>
-              {form.formState.errors.wabaId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.wabaId.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="wa-phone">ID do número de telefone</Label>
-              <Input id="wa-phone" inputMode="numeric" className="mt-1.5" {...form.register("phoneNumberId")} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Identifica o número que envia as mensagens (não é o número em si).</p>
-              {form.formState.errors.phoneNumberId && <p className="mt-1 text-xs text-destructive">{form.formState.errors.phoneNumberId.message}</p>}
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">WhatsApp</p>
+                <Badge variant={whatsapp.connected ? "default" : "secondary"}>
+                  {whatsapp.connected ? "Conectado" : (whatsapp.status ?? "Não conectado")}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {whatsapp.name ||
+                  (whatsapp.provider
+                    ? `Provedor: ${whatsapp.provider}`
+                    : "Nenhuma conta oficial conectada.")}
+              </p>
             </div>
           </div>
-
-          <HelpDisclosure title="Onde encontrar esses dados na Meta?">
-            <p>
-              Acesse o <span className="font-medium text-foreground">Meta Business Manager</span> com a conta dona do WhatsApp Business:
-            </p>
-            <ol className="ml-4 list-decimal space-y-1.5">
-              <li>
-                <span className="font-medium text-foreground">WABA ID</span> e{" "}
-                <span className="font-medium text-foreground">Phone Number ID</span>: abra{" "}
-                <span className="font-medium text-foreground">Configurações da conta → WhatsApp → Contas do WhatsApp</span>{" "}
-                (ou o app em <span className="font-medium text-foreground">developers.facebook.com → seu app → WhatsApp → Configuração da API</span>). Os dois IDs aparecem no topo do painel do número.
-              </li>
-              <li>
-                <span className="font-medium text-foreground">Token permanente</span>: em{" "}
-                <span className="font-medium text-foreground">Configurações do negócio → Usuários → Usuários do sistema</span>, crie (ou selecione) um usuário do sistema, clique em{" "}
-                <span className="font-medium text-foreground">Gerar token</span>, escolha o app e marque as permissões{" "}
-                <span className="font-mono text-foreground">whatsapp_business_messaging</span> e{" "}
-                <span className="font-mono text-foreground">whatsapp_business_management</span>. Copie o token gerado — ele só aparece uma vez.
-              </li>
-            </ol>
-            <p className="flex items-center gap-1.5 pt-1">
-              <ExternalLink className="h-3 w-3 shrink-0" />
-              <a href="https://business.facebook.com/settings" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-                Abrir o Meta Business Manager
-              </a>
-            </p>
-            <p className="text-[11px]">Precisa que o número já esteja verificado e com a conta comercial aprovada na Meta.</p>
-          </HelpDisclosure>
-
-          <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button><Button type="submit" disabled={connect.isPending}>{connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Validar e conectar</Button></div>
-        </form>
+          <Button
+            disabled={!allowed}
+            variant="outline"
+            onClick={() => setShowForm((current) => !current)}
+          >
+            {whatsapp.connected ? "Atualizar conexão" : "Conectar WhatsApp"}
+          </Button>
+        </div>
       </SectionCard>
-    )}
+      {showForm && (
+        <SectionCard
+          title="Conexão oficial Meta"
+          description="Use os dados do WhatsApp Business Manager"
+        >
+          <form onSubmit={submit} className="space-y-4">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              O token é enviado diretamente à função segura e armazenado na área protegida do
+              servidor. Ele não fica salvo neste navegador.
+            </div>
+            <div>
+              <Label htmlFor="wa-token">Token de acesso permanente</Label>
+              <Input
+                id="wa-token"
+                type="password"
+                autoComplete="off"
+                className="mt-1.5"
+                {...form.register("accessToken")}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Token permanente do usuário do sistema (não o token temporário de teste).
+              </p>
+              {form.formState.errors.accessToken && (
+                <p className="mt-1 text-xs text-destructive">
+                  {form.formState.errors.accessToken.message}
+                </p>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="wa-waba">ID da conta WhatsApp (WABA)</Label>
+                <Input
+                  id="wa-waba"
+                  inputMode="numeric"
+                  className="mt-1.5"
+                  {...form.register("wabaId")}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Sequência de números da sua conta comercial.
+                </p>
+                {form.formState.errors.wabaId && (
+                  <p className="mt-1 text-xs text-destructive">
+                    {form.formState.errors.wabaId.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="wa-phone">ID do número de telefone</Label>
+                <Input
+                  id="wa-phone"
+                  inputMode="numeric"
+                  className="mt-1.5"
+                  {...form.register("phoneNumberId")}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Identifica o número que envia as mensagens (não é o número em si).
+                </p>
+                {form.formState.errors.phoneNumberId && (
+                  <p className="mt-1 text-xs text-destructive">
+                    {form.formState.errors.phoneNumberId.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <HelpDisclosure title="Onde encontrar esses dados na Meta?">
+              <p>
+                Acesse o <span className="font-medium text-foreground">Meta Business Manager</span>{" "}
+                com a conta dona do WhatsApp Business:
+              </p>
+              <ol className="ml-4 list-decimal space-y-1.5">
+                <li>
+                  <span className="font-medium text-foreground">WABA ID</span> e{" "}
+                  <span className="font-medium text-foreground">Phone Number ID</span>: abra{" "}
+                  <span className="font-medium text-foreground">
+                    Configurações da conta → WhatsApp → Contas do WhatsApp
+                  </span>{" "}
+                  (ou o app em{" "}
+                  <span className="font-medium text-foreground">
+                    developers.facebook.com → seu app → WhatsApp → Configuração da API
+                  </span>
+                  ). Os dois IDs aparecem no topo do painel do número.
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Token permanente</span>: em{" "}
+                  <span className="font-medium text-foreground">
+                    Configurações do negócio → Usuários → Usuários do sistema
+                  </span>
+                  , crie (ou selecione) um usuário do sistema, clique em{" "}
+                  <span className="font-medium text-foreground">Gerar token</span>, escolha o app e
+                  marque as permissões{" "}
+                  <span className="font-mono text-foreground">whatsapp_business_messaging</span> e{" "}
+                  <span className="font-mono text-foreground">whatsapp_business_management</span>.
+                  Copie o token gerado — ele só aparece uma vez.
+                </li>
+              </ol>
+              <p className="flex items-center gap-1.5 pt-1">
+                <ExternalLink className="h-3 w-3 shrink-0" />
+                <a
+                  href="https://business.facebook.com/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Abrir o Meta Business Manager
+                </a>
+              </p>
+              <p className="text-[11px]">
+                Precisa que o número já esteja verificado e com a conta comercial aprovada na Meta.
+              </p>
+            </HelpDisclosure>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={connect.isPending}>
+                {connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Validar e
+                conectar
+              </Button>
+            </div>
+          </form>
+        </SectionCard>
+      )}
     </div>
   );
 }
 
-const webhookEvents = ["customer.created", "customer.updated", "deal.created", "deal.updated", "message.received", "automation.completed"];
+const webhookEvents = [
+  "customer.created",
+  "customer.updated",
+  "deal.created",
+  "deal.updated",
+  "message.received",
+  "automation.completed",
+];
 
 function WebhooksSection() {
   const session = useSession();
@@ -644,29 +1048,100 @@ function WebhooksSection() {
   const create = useCreateWebhook();
   const toggle = useToggleWebhook();
   const remove = useRemoveWebhook();
-  const form = useForm<CreateWebhookInput>({ resolver: zodResolver(createWebhookSchema), defaultValues: { url: "", events: [], secret: "" } });
+  const form = useForm<CreateWebhookInput>({
+    resolver: zodResolver(createWebhookSchema),
+    defaultValues: { url: "", events: [], secret: "" },
+  });
   const selected = form.watch("events");
-  const changeEvent = (event: string) => form.setValue("events", selected.includes(event) ? selected.filter((item) => item !== event) : [...selected, event], { shouldValidate: true, shouldDirty: true });
+  const changeEvent = (event: string) =>
+    form.setValue(
+      "events",
+      selected.includes(event) ? selected.filter((item) => item !== event) : [...selected, event],
+      { shouldValidate: true, shouldDirty: true },
+    );
   const submit = form.handleSubmit(async (values) => {
-    try { await create.mutateAsync(values); form.reset(); toast.success("Webhook criado."); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível criar o webhook."); }
+    try {
+      await create.mutateAsync(values);
+      form.reset();
+      toast.success("Webhook criado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível criar o webhook.");
+    }
   });
   return (
     <div className="space-y-4">
       <SectionCard title="Webhooks" description="Envie eventos do ConnectWeb para outros sistemas">
-        {!allowed ? <p className="text-sm text-muted-foreground">Você não possui permissão para gerenciar webhooks.</p> : (
+        {!allowed ? (
+          <p className="text-sm text-muted-foreground">
+            Você não possui permissão para gerenciar webhooks.
+          </p>
+        ) : (
           <form onSubmit={submit} className="space-y-4">
-            <div><Label>URL HTTPS de destino</Label><Input placeholder="https://seusistema.com/webhooks/connectweb" className="mt-1.5" {...form.register("url")} />{form.formState.errors.url && <p className="mt-1 text-xs text-destructive">{form.formState.errors.url.message}</p>}</div>
-            <div><Label>Segredo para assinatura</Label><Input type="password" autoComplete="new-password" className="mt-1.5" {...form.register("secret")} /><p className="mt-1 text-[11px] text-muted-foreground">Use este segredo para validar que os eventos vieram do ConnectWeb.</p>{form.formState.errors.secret && <p className="mt-1 text-xs text-destructive">{form.formState.errors.secret.message}</p>}</div>
-            <div><Label>Eventos</Label><div className="mt-2 grid gap-2 sm:grid-cols-2">{webhookEvents.map((event) => <label key={event} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2 text-sm"><input type="checkbox" checked={selected.includes(event)} onChange={() => changeEvent(event)} className="accent-primary" />{event}</label>)}</div>{form.formState.errors.events && <p className="mt-1 text-xs text-destructive">{form.formState.errors.events.message}</p>}</div>
-            <div className="flex justify-end"><Button type="submit" disabled={create.isPending}>{create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar webhook</Button></div>
+            <div>
+              <Label>URL HTTPS de destino</Label>
+              <Input
+                placeholder="https://seusistema.com/webhooks/connectweb"
+                className="mt-1.5"
+                {...form.register("url")}
+              />
+              {form.formState.errors.url && (
+                <p className="mt-1 text-xs text-destructive">{form.formState.errors.url.message}</p>
+              )}
+            </div>
+            <div>
+              <Label>Segredo para assinatura</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                className="mt-1.5"
+                {...form.register("secret")}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Use este segredo para validar que os eventos vieram do ConnectWeb.
+              </p>
+              {form.formState.errors.secret && (
+                <p className="mt-1 text-xs text-destructive">
+                  {form.formState.errors.secret.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label>Eventos</Label>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {webhookEvents.map((event) => (
+                  <label
+                    key={event}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(event)}
+                      onChange={() => changeEvent(event)}
+                      className="accent-primary"
+                    />
+                    {event}
+                  </label>
+                ))}
+              </div>
+              {form.formState.errors.events && (
+                <p className="mt-1 text-xs text-destructive">
+                  {form.formState.errors.events.message}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={create.isPending}>
+                {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar webhook
+              </Button>
+            </div>
           </form>
         )}
         <HelpDisclosure title="O que é um webhook?">
           <p>
             É um aviso automático: sempre que algo acontece no ConnectWeb (um cliente novo, uma
-            mensagem recebida, uma automação concluída), enviamos uma notificação para a URL que você
-            cadastrar. Assim outro sistema seu — um ERP, uma planilha, um site — fica sabendo na hora.
+            mensagem recebida, uma automação concluída), enviamos uma notificação para a URL que
+            você cadastrar. Assim outro sistema seu — um ERP, uma planilha, um site — fica sabendo
+            na hora.
           </p>
           <p>
             O <span className="font-medium text-foreground">segredo</span> serve para o seu sistema
@@ -676,9 +1151,73 @@ function WebhooksSection() {
       </SectionCard>
       <SectionCard title="Endpoints cadastrados" description="Ative, pause ou remova integrações">
         {webhooks.isLoading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-        {webhooks.isError && <p className="text-sm text-destructive">Não foi possível carregar os webhooks.</p>}
-        {webhooks.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhum webhook cadastrado.</p>}
-        <div className="space-y-3">{webhooks.data?.map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"><Webhook className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-sm font-medium">{item.url}</p><Badge variant={item.enabled ? "default" : "secondary"} className="shrink-0">{item.enabled ? "Ativo" : "Pausado"}</Badge></div><p className="truncate text-xs text-muted-foreground">{item.events.join(" · ")}</p></div><Switch checked={item.enabled} disabled={!allowed || toggle.isPending} onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })} aria-label={item.enabled ? `Pausar webhook ${item.url}` : `Ativar webhook ${item.url}`} /><AlertDialog><AlertDialogTrigger asChild><Button size="icon" variant="ghost" disabled={!allowed || remove.isPending} aria-label={`Remover webhook ${item.url}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-destructive" /> Remover webhook?</AlertDialogTitle><AlertDialogDescription>Os eventos deixarão de ser enviados para <span className="break-all font-medium text-foreground">{item.url}</span>. Esta ação não pode ser desfeita — para voltar a receber, você precisará cadastrar o endpoint de novo.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate(item.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remover webhook</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>)}</div>
+        {webhooks.isError && (
+          <p className="text-sm text-destructive">Não foi possível carregar os webhooks.</p>
+        )}
+        {webhooks.data?.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhum webhook cadastrado.</p>
+        )}
+        <div className="space-y-3">
+          {webhooks.data?.map((item) => (
+            <div
+              key={item.id}
+              className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center"
+            >
+              <Webhook className="h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{item.url}</p>
+                  <Badge variant={item.enabled ? "default" : "secondary"} className="shrink-0">
+                    {item.enabled ? "Ativo" : "Pausado"}
+                  </Badge>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">{item.events.join(" · ")}</p>
+              </div>
+              <Switch
+                checked={item.enabled}
+                disabled={!allowed || toggle.isPending}
+                onCheckedChange={(enabled) => toggle.mutate({ id: item.id, enabled })}
+                aria-label={
+                  item.enabled ? `Pausar webhook ${item.url}` : `Ativar webhook ${item.url}`
+                }
+              />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={!allowed || remove.isPending}
+                    aria-label={`Remover webhook ${item.url}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-destructive" /> Remover webhook?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Os eventos deixarão de ser enviados para{" "}
+                      <span className="break-all font-medium text-foreground">{item.url}</span>.
+                      Esta ação não pode ser desfeita — para voltar a receber, você precisará
+                      cadastrar o endpoint de novo.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => remove.mutate(item.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Remover webhook
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ))}
+        </div>
       </SectionCard>
       <ApiKeysSection />
     </div>

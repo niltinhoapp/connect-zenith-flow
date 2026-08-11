@@ -6,12 +6,7 @@
  * lança DomainError (→ ValidationError na fronteira da aplicação).
  */
 export type AppErrorKind =
-  | "validation"
-  | "not_found"
-  | "permission"
-  | "conflict"
-  | "infrastructure"
-  | "unknown";
+  "validation" | "not_found" | "permission" | "conflict" | "infrastructure" | "unknown";
 
 export interface AppErrorOptions {
   cause?: unknown;

@@ -61,10 +61,16 @@ export class AutomacaoApplicationService {
         if (!automation) return null;
         const v = automation.current_version;
         const [{ data: nodes, error: nErr }, { data: edges, error: eErr }] = await Promise.all([
-          this.db.from("automation_nodes").select("node_key,type,config,position")
-            .eq("automation_id", id).eq("version", v),
-          this.db.from("automation_edges").select("from_node,to_node,branch")
-            .eq("automation_id", id).eq("version", v),
+          this.db
+            .from("automation_nodes")
+            .select("node_key,type,config,position")
+            .eq("automation_id", id)
+            .eq("version", v),
+          this.db
+            .from("automation_edges")
+            .select("from_node,to_node,branch")
+            .eq("automation_id", id)
+            .eq("version", v),
         ]);
         if (nErr) throw new InfrastructureError(nErr.message, { cause: nErr });
         if (eErr) throw new InfrastructureError(eErr.message, { cause: eErr });
@@ -128,7 +134,9 @@ export class AutomacaoApplicationService {
           try {
             const ctx = (error as { context?: Response }).context;
             if (ctx && typeof ctx.json === "function") msg = (await ctx.json())?.error ?? msg;
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
           throw new InfrastructureError(msg, { cause: error });
         }
         const flow = (data as { flow?: unknown })?.flow;

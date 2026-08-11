@@ -9,9 +9,11 @@ import { moduleByKey } from "@/config/modules";
  * habilita tudo (Enterprise).
  */
 export function isModuleEnabled(enabledModules: readonly string[], moduleKey: string): boolean {
-  return moduleByKey[moduleKey]?.core === true
-    || enabledModules.includes("*")
-    || enabledModules.includes(moduleKey);
+  return (
+    moduleByKey[moduleKey]?.core === true ||
+    enabledModules.includes("*") ||
+    enabledModules.includes(moduleKey)
+  );
 }
 
 /** Garante que o módulo esteja habilitado; senão lança PermissionError. */

@@ -1,6 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Mail, Phone, MapPin, Building2, MessageCircle, Edit3, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Building2,
+  MessageCircle,
+  Edit3,
+  MoreHorizontal,
+  CheckCircle2,
+} from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { Button } from "@/components/ui/button";
@@ -73,9 +83,13 @@ function ClienteDetalhe() {
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-semibold tracking-tight">{isLoading ? <Skeleton className="h-6 w-40" /> : name}</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {isLoading ? <Skeleton className="h-6 w-40" /> : name}
+            </h2>
             {!isLoading && (
-              <Badge className={`rounded-md border-0 text-[11px] font-medium ring-1 ring-inset ${statusBadge[status]}`}>
+              <Badge
+                className={`rounded-md border-0 text-[11px] font-medium ring-1 ring-inset ${statusBadge[status]}`}
+              >
                 {statusText[status] ?? status}
               </Badge>
             )}
@@ -86,7 +100,12 @@ function ClienteDetalhe() {
           <Button variant="outline" className="h-9 rounded-lg border-border bg-background">
             <MessageCircle className="mr-1.5 h-4 w-4" /> Enviar WhatsApp
           </Button>
-          <Button variant="outline" disabled={!customer} onClick={() => setEditOpen(true)} className="h-9 rounded-lg border-border bg-background">
+          <Button
+            variant="outline"
+            disabled={!customer}
+            onClick={() => setEditOpen(true)}
+            className="h-9 rounded-lg border-border bg-background"
+          >
             <Edit3 className="mr-1.5 h-4 w-4" /> Editar
           </Button>
           <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90">Nova ação</Button>
@@ -122,7 +141,9 @@ function ClienteDetalhe() {
                 </li>
               )}
               {!tLoading && timeline.length === 0 && (
-                <li className="relative text-sm text-muted-foreground">Sem atividades registradas ainda.</li>
+                <li className="relative text-sm text-muted-foreground">
+                  Sem atividades registradas ainda.
+                </li>
               )}
               {!tLoading &&
                 timeline.map((t) => (
@@ -139,16 +160,24 @@ function ClienteDetalhe() {
             </ol>
           </SectionCard>
 
-          <SectionCard title="Negócios ativos" description={`${deals.length} oportunidades relacionadas`}>
+          <SectionCard
+            title="Negócios ativos"
+            description={`${deals.length} oportunidades relacionadas`}
+          >
             <ul className="divide-y divide-border">
               {deals.length === 0 && (
-                <li className="py-6 text-center text-sm text-muted-foreground">Nenhum negócio relacionado.</li>
+                <li className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhum negócio relacionado.
+                </li>
               )}
               {deals.map((deal) => {
                 const dp = deal.toJSON();
                 const stage = dp.wonAt ? "Ganho" : dp.lostAt ? "Perdido" : "Em aberto";
                 return (
-                  <li key={deal.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <li
+                    key={deal.id}
+                    className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                  >
                     <div>
                       <p className="text-sm font-medium">{dp.title}</p>
                       <p className="text-xs text-muted-foreground">{stage}</p>
@@ -173,7 +202,9 @@ function ClienteDetalhe() {
                 <div key={it.l} className="flex items-start gap-3">
                   <it.i className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{it.l}</dt>
+                    <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {it.l}
+                    </dt>
                     <dd className="truncate text-foreground">{it.v}</dd>
                   </div>
                 </div>
@@ -186,7 +217,10 @@ function ClienteDetalhe() {
             <Separator className="my-4 bg-border" />
             <div className="flex flex-wrap gap-1.5">
               {(p?.tags ?? []).map((t) => (
-                <Badge key={t} className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground">
+                <Badge
+                  key={t}
+                  className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground"
+                >
                   #{t}
                 </Badge>
               ))}

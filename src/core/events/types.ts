@@ -25,13 +25,25 @@ export interface DomainEventMap {
 
   "deal.created": TenantPayload & { dealId: string };
   "deal.updated": TenantPayload & { dealId: string };
-  "deal.stage.changed": TenantPayload & { dealId: string; fromStageId: string | null; toStageId: string };
+  "deal.stage.changed": TenantPayload & {
+    dealId: string;
+    fromStageId: string | null;
+    toStageId: string;
+  };
   "deal.won": TenantPayload & { dealId: string; amount: number };
   "deal.lost": TenantPayload & { dealId: string; reason?: string };
 
   "comment.created": TenantPayload & { commentId: string; relatedType: string; relatedId: string };
-  "attachment.uploaded": TenantPayload & { attachmentId: string; relatedType: string; relatedId: string };
-  "timeline.event.created": TenantPayload & { timelineId: string; customerId: string | null; eventType: string };
+  "attachment.uploaded": TenantPayload & {
+    attachmentId: string;
+    relatedType: string;
+    relatedId: string;
+  };
+  "timeline.event.created": TenantPayload & {
+    timelineId: string;
+    customerId: string | null;
+    eventType: string;
+  };
 
   "whatsapp.message.received": TenantPayload & { conversationId: string; messageId: string };
   "whatsapp.message.sent": TenantPayload & { conversationId: string; messageId: string };
@@ -39,7 +51,10 @@ export interface DomainEventMap {
   "whatsapp.message.read": TenantPayload & { conversationId: string; messageId: string };
   "whatsapp.message.failed": TenantPayload & { conversationId: string; messageId: string };
   "whatsapp.conversation.opened": TenantPayload & { conversationId: string };
-  "whatsapp.conversation.assigned": TenantPayload & { conversationId: string; assignedTo: string | null };
+  "whatsapp.conversation.assigned": TenantPayload & {
+    conversationId: string;
+    assignedTo: string | null;
+  };
   "whatsapp.conversation.closed": TenantPayload & { conversationId: string };
   "whatsapp.template.approved": TenantPayload & { templateId: string };
   "whatsapp.template.rejected": TenantPayload & { templateId: string; reason?: string };

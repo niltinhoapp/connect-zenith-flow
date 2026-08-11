@@ -51,10 +51,7 @@ function assertAvailable(tool: CopilotTool, context: CopilotExecutionContext): v
   }
 
   if (!tool.permissions.every((permission) => context.permissions.includes(permission))) {
-    throw new CopilotToolError(
-      "Você não possui permissão para executar esta ação.",
-      "FORBIDDEN",
-    );
+    throw new CopilotToolError("Você não possui permissão para executar esta ação.", "FORBIDDEN");
   }
 }
 

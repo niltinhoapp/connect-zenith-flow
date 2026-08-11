@@ -30,11 +30,25 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
 
 // ── Catálogo permitido (espelho de domain/ai-flow.ts) ────────────────────────
-const TRIGGERS = ["lead.created","lead.converted","customer.created","deal.created","deal.stage.changed","deal.won","whatsapp.message.received","whatsapp.message.sent","manual","scheduled"];
-const NODE_TYPES = ["trigger","condition","delay","action","branch"];
+const TRIGGERS = [
+  "lead.created",
+  "lead.converted",
+  "customer.created",
+  "deal.created",
+  "deal.stage.changed",
+  "deal.won",
+  "whatsapp.message.received",
+  "whatsapp.message.sent",
+  "manual",
+  "scheduled",
+];
+const NODE_TYPES = ["trigger", "condition", "delay", "action", "branch"];
 
 const FLOW_SCHEMA = {
   type: "object",
@@ -46,7 +60,8 @@ const FLOW_SCHEMA = {
     nodes: {
       type: "array",
       items: {
-        type: "object", additionalProperties: true,
+        type: "object",
+        additionalProperties: true,
         properties: {
           node_key: { type: "string" },
           type: { type: "string", enum: NODE_TYPES },
@@ -58,7 +73,8 @@ const FLOW_SCHEMA = {
     edges: {
       type: "array",
       items: {
-        type: "object", additionalProperties: false,
+        type: "object",
+        additionalProperties: false,
         properties: {
           from_node: { type: "string" },
           to_node: { type: "string" },
@@ -120,13 +136,20 @@ async function generateFlow(description: string): Promise<{ flow: unknown; token
       // Sem strict: o config dos nós é livre (varia por ação), então o schema
       // é guia — tool_choice força a ferramenta e o normalizeAiFlow (testado)
       // é a garantia de segurança do lado do cliente.
-      tools: [{
-        name: "build_flow",
-        description: "Registra o grafo de automação projetado.",
-        input_schema: FLOW_SCHEMA,
-      }],
+      tools: [
+        {
+          name: "build_flow",
+          description: "Registra o grafo de automação projetado.",
+          input_schema: FLOW_SCHEMA,
+        },
+      ],
       tool_choice: { type: "tool", name: "build_flow" },
-      messages: [{ role: "user", content: `Descreva como automação (use build_flow): ${description.trim()}` }],
+      messages: [
+        {
+          role: "user",
+          content: `Descreva como automação (use build_flow): ${description.trim()}`,
+        },
+      ],
     }),
   });
   const data = await r.json().catch(() => ({}));
@@ -135,7 +158,10 @@ async function generateFlow(description: string): Promise<{ flow: unknown; token
   if (!block) throw new Error("IA não retornou um grafo");
   return {
     flow: block.input,
-    tokens: Math.max(1, Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0)),
+    tokens: Math.max(
+      1,
+      Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0),
+    ),
   };
 }
 
@@ -145,23 +171,31 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader) return json({ error: "unauthorized" }, 401);
-  if (!ANTHROPIC_API_KEY) return json({ error: "ANTHROPIC_API_KEY não configurada no projeto" }, 503);
+  if (!ANTHROPIC_API_KEY)
+    return json({ error: "ANTHROPIC_API_KEY não configurada no projeto" }, 503);
 
   let body: { description?: string; organizationId?: string };
-  try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "bad json" }, 400);
+  }
   const description = String(body.description ?? "").trim();
   const org = String(body.organizationId ?? "");
   if (description.length < 4) return json({ error: "descrição muito curta" }, 400);
   if (!org) return json({ error: "organizationId obrigatório" }, 400);
 
   // RBAC: valida como o usuário (RLS aplica auth.uid()).
-  const supabase = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+  const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: "unauthorized" }, 401);
-  const [{ data: canManage, error: permErr }, { data: canUseAI, error: aiPermErr }] = await Promise.all([
-    supabase.rpc("has_permission", { org, perm: "automacoes.manage" }),
-    supabase.rpc("has_permission", { org, perm: "ia.use" }),
-  ]);
+  const [{ data: canManage, error: permErr }, { data: canUseAI, error: aiPermErr }] =
+    await Promise.all([
+      supabase.rpc("has_permission", { org, perm: "automacoes.manage" }),
+      supabase.rpc("has_permission", { org, perm: "ia.use" }),
+    ]);
   if (permErr || aiPermErr) return json({ error: (permErr ?? aiPermErr)?.message }, 500);
   if (!canManage || !canUseAI) return json({ error: "forbidden" }, 403);
 

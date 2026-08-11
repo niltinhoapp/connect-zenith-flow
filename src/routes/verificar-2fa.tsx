@@ -43,7 +43,10 @@ function VerifyMfaPage() {
   const verify = async () => {
     if (!factorId || code.length !== 6) return;
     setBusy(true);
-    const { error } = await getSupabaseBrowserClient().auth.mfa.challengeAndVerify({ factorId, code });
+    const { error } = await getSupabaseBrowserClient().auth.mfa.challengeAndVerify({
+      factorId,
+      code,
+    });
     setBusy(false);
     if (error) {
       toast.error("Código inválido. Confira o aplicativo e tente novamente.");
@@ -54,11 +57,14 @@ function VerifyMfaPage() {
 
   if (!loading && !factorId) {
     return (
-      <AuthShell title="Confirme que é você" subtitle="Não encontramos um aplicativo autenticador ativo nesta conta.">
+      <AuthShell
+        title="Confirme que é você"
+        subtitle="Não encontramos um aplicativo autenticador ativo nesta conta."
+      >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Talvez a verificação em duas etapas não esteja concluída. Entre novamente para tentar de novo
-            ou revise a configuração em Segurança.
+            Talvez a verificação em duas etapas não esteja concluída. Entre novamente para tentar de
+            novo ou revise a configuração em Segurança.
           </p>
           <Link
             to="/login"
@@ -72,16 +78,39 @@ function VerifyMfaPage() {
   }
 
   return (
-    <AuthShell title="Confirme que é você" subtitle="Digite o código do seu aplicativo autenticador.">
+    <AuthShell
+      title="Confirme que é você"
+      subtitle="Digite o código do seu aplicativo autenticador."
+    >
       <div className="space-y-4">
         <div>
-          <Label htmlFor="mfa-code" className="text-xs">Código de 6 números</Label>
+          <Label htmlFor="mfa-code" className="text-xs">
+            Código de 6 números
+          </Label>
           <div className="relative mt-1.5">
             <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="mfa-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} onKeyDown={(event) => { if (event.key === "Enter") void verify(); }} className="h-11 pl-9 text-center text-lg tracking-[0.3em]" />
+            <Input
+              id="mfa-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void verify();
+              }}
+              className="h-11 pl-9 text-center text-lg tracking-[0.3em]"
+            />
           </div>
         </div>
-        <Button className="h-10 w-full" disabled={busy || !factorId || code.length !== 6} onClick={verify}>{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Verificar e entrar</Button>
+        <Button
+          className="h-10 w-full"
+          disabled={busy || !factorId || code.length !== 6}
+          onClick={verify}
+        >
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Verificar e entrar
+        </Button>
       </div>
     </AuthShell>
   );

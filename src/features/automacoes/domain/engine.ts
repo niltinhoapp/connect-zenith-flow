@@ -28,9 +28,18 @@ export type FlowContext = Record<string, unknown>;
 
 /** Operadores suportados por condições/ramificações. */
 export type CompareOp =
-  | "eq" | "ne" | "gt" | "gte" | "lt" | "lte"
-  | "contains" | "not_contains" | "starts_with"
-  | "in" | "exists" | "not_exists";
+  | "eq"
+  | "ne"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "contains"
+  | "not_contains"
+  | "starts_with"
+  | "in"
+  | "exists"
+  | "not_exists";
 
 export type ValueType = "text" | "number" | "date" | "boolean";
 
@@ -101,13 +110,16 @@ export function resolveField(ctx: FlowContext, path: string): unknown {
 function coerce(v: unknown, type?: ValueType): unknown {
   if (v === null || v === undefined) return v;
   switch (type) {
-    case "number": return typeof v === "number" ? v : Number(v);
-    case "boolean": return typeof v === "boolean" ? v : v === "true" || v === true || v === 1;
+    case "number":
+      return typeof v === "number" ? v : Number(v);
+    case "boolean":
+      return typeof v === "boolean" ? v : v === "true" || v === true || v === 1;
     case "date": {
       const t = v instanceof Date ? v.getTime() : Date.parse(String(v));
       return Number.isNaN(t) ? NaN : t;
     }
-    default: return typeof v === "string" ? v : String(v);
+    default:
+      return typeof v === "string" ? v : String(v);
   }
 }
 
@@ -136,19 +148,29 @@ export function evalCondition(config: ConditionConfig, ctx: FlowContext): boolea
   const left = coerce(raw, valueType);
   const right = coerce(config.value, valueType);
   switch (op) {
-    case "eq": return left === right;
-    case "ne": return left !== right;
-    case "gt": return (left as number) > (right as number);
-    case "gte": return (left as number) >= (right as number);
-    case "lt": return (left as number) < (right as number);
-    case "lte": return (left as number) <= (right as number);
-    default: return false;
+    case "eq":
+      return left === right;
+    case "ne":
+      return left !== right;
+    case "gt":
+      return (left as number) > (right as number);
+    case "gte":
+      return (left as number) >= (right as number);
+    case "lt":
+      return (left as number) < (right as number);
+    case "lte":
+      return (left as number) <= (right as number);
+    default:
+      return false;
   }
 }
 
 // ── Delay ────────────────────────────────────────────────────────────────────
 const UNIT_MS: Record<string, number> = {
-  seconds: 1000, minutes: 60_000, hours: 3_600_000, days: 86_400_000,
+  seconds: 1000,
+  minutes: 60_000,
+  hours: 3_600_000,
+  days: 86_400_000,
 };
 /** Duração de um nó delay em ms. config: { amount, unit } ou { ms }. */
 export function delayMs(config: Record<string, unknown>): number {
@@ -164,7 +186,11 @@ export function delayMs(config: Record<string, unknown>): number {
  * coletando ações, até encontrar um delay (pausa) ou o fim. Puro e determinístico.
  * Se `startKey` for undefined, começa no sucessor do nó de entrada (trigger).
  */
-export function planFrom(graph: FlowGraph, startKey: string | null | undefined, ctx: FlowContext): Plan {
+export function planFrom(
+  graph: FlowGraph,
+  startKey: string | null | undefined,
+  ctx: FlowContext,
+): Plan {
   const steps: PlanStep[] = [];
   let cur: string | null;
 

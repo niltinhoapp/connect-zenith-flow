@@ -390,7 +390,12 @@ export interface Database {
           is_active: boolean;
           metadata: Json;
         };
-        Insert: { id: string; kind: "subscription" | "ai_addon"; name: string; price_cents: number } & Partial<Database["public"]["Tables"]["billing_products"]["Row"]>;
+        Insert: {
+          id: string;
+          kind: "subscription" | "ai_addon";
+          name: string;
+          price_cents: number;
+        } & Partial<Database["public"]["Tables"]["billing_products"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["billing_products"]["Row"]>;
         Relationships: [];
       };
@@ -399,7 +404,8 @@ export interface Database {
           id: string;
           organization_id: string;
           product_id: string;
-          status: "incomplete" | "trialing" | "active" | "past_due" | "unpaid" | "paused" | "canceled";
+          status:
+            "incomplete" | "trialing" | "active" | "past_due" | "unpaid" | "paused" | "canceled";
           provider: string | null;
           provider_customer_id: string | null;
           provider_subscription_id: string | null;
@@ -409,7 +415,9 @@ export interface Database {
           canceled_at: string | null;
           metadata: Json;
         };
-        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["billing_subscriptions"]["Row"]>;
+        Insert: { organization_id: string } & Partial<
+          Database["public"]["Tables"]["billing_subscriptions"]["Row"]
+        >;
         Update: Partial<Database["public"]["Tables"]["billing_subscriptions"]["Row"]>;
         Relationships: [];
       };
@@ -432,7 +440,13 @@ export interface Database {
           metadata: Json;
           created_by: string | null;
         };
-        Insert: { organization_id: string; product_id: string; amount_cents: number; credits: number; idempotency_key: string } & Partial<Database["public"]["Tables"]["billing_purchases"]["Row"]>;
+        Insert: {
+          organization_id: string;
+          product_id: string;
+          amount_cents: number;
+          credits: number;
+          idempotency_key: string;
+        } & Partial<Database["public"]["Tables"]["billing_purchases"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["billing_purchases"]["Row"]>;
         Relationships: [];
       };
@@ -443,7 +457,9 @@ export interface Database {
           total_purchased: number;
           total_consumed: number;
         };
-        Insert: { organization_id: string } & Partial<Database["public"]["Tables"]["ai_credit_wallets"]["Row"]>;
+        Insert: { organization_id: string } & Partial<
+          Database["public"]["Tables"]["ai_credit_wallets"]["Row"]
+        >;
         Update: Partial<Database["public"]["Tables"]["ai_credit_wallets"]["Row"]>;
         Relationships: [];
       };
@@ -460,7 +476,13 @@ export interface Database {
           metadata: Json;
           created_at: string;
         };
-        Insert: { organization_id: string; kind: "purchase" | "consume" | "refund" | "adjustment"; amount: number; balance_after: number; idempotency_key: string } & Partial<Database["public"]["Tables"]["ai_credit_ledger"]["Row"]>;
+        Insert: {
+          organization_id: string;
+          kind: "purchase" | "consume" | "refund" | "adjustment";
+          amount: number;
+          balance_after: number;
+          idempotency_key: string;
+        } & Partial<Database["public"]["Tables"]["ai_credit_ledger"]["Row"]>;
         Update: never;
         Relationships: [];
       };
@@ -530,9 +552,12 @@ export interface Database {
           revoked_at: string | null;
           revoked_by: string | null;
         };
-        Insert: { organization_id: string; name: string; key_prefix: string; key_hash: string } & Partial<
-          Database["public"]["Tables"]["api_keys"]["Row"]
-        >;
+        Insert: {
+          organization_id: string;
+          name: string;
+          key_prefix: string;
+          key_hash: string;
+        } & Partial<Database["public"]["Tables"]["api_keys"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["api_keys"]["Row"]>;
         Relationships: [];
       };
@@ -1006,7 +1031,13 @@ export interface Database {
     Views: Record<string, never>;
     Functions: {
       write_audit: {
-        Args: { p_org: string; p_action: string; p_entity_type?: string | null; p_entity_id?: string | null; p_metadata?: Json };
+        Args: {
+          p_org: string;
+          p_action: string;
+          p_entity_type?: string | null;
+          p_entity_id?: string | null;
+          p_metadata?: Json;
+        };
         Returns: undefined;
       };
       automation_save: {
@@ -1168,7 +1199,12 @@ export interface Database {
       };
       api_key_revoke: { Args: { p_org: string; p_id: string }; Returns: undefined };
       verify_api_key: {
-        Args: { p_key: string; p_method?: string | null; p_path?: string | null; p_request_id?: string | null };
+        Args: {
+          p_key: string;
+          p_method?: string | null;
+          p_path?: string | null;
+          p_request_id?: string | null;
+        };
         Returns: Json;
       };
       apply_market_template: { Args: { p_org: string; p_key: string }; Returns: undefined };

@@ -53,15 +53,7 @@ export const plans: Record<PlanId, Plan> = {
     priceMonthly: 29_900,
     aiCredits: 150_000,
     seats: 10,
-    includedModules: [
-      "dashboard",
-      "crm",
-      "clientes",
-      "whatsapp",
-      "automacoes",
-      "ia",
-      "relatorios",
-    ],
+    includedModules: ["dashboard", "crm", "clientes", "whatsapp", "automacoes", "ia", "relatorios"],
     highlights: ["10 usuários", "Automações + IA", "150k créditos IA"],
   },
   enterprise: {
@@ -86,9 +78,27 @@ export interface AiAddon {
 }
 
 export const aiAddons: Record<AiAddonId, AiAddon> = {
-  ai_advantage: { id: "ai_advantage", name: "IA Advantage", price: 5_990, credits: 1_000_000, description: "Uso pontual acima da franquia." },
-  ai_turbo: { id: "ai_turbo", name: "IA Turbo", price: 14_990, credits: 3_000_000, description: "Atendimento e automações intensivas." },
-  ai_ultra: { id: "ai_ultra", name: "IA Ultra", price: 39_990, credits: 10_000_000, description: "Operações com alto volume." },
+  ai_advantage: {
+    id: "ai_advantage",
+    name: "IA Advantage",
+    price: 5_990,
+    credits: 1_000_000,
+    description: "Uso pontual acima da franquia.",
+  },
+  ai_turbo: {
+    id: "ai_turbo",
+    name: "IA Turbo",
+    price: 14_990,
+    credits: 3_000_000,
+    description: "Atendimento e automações intensivas.",
+  },
+  ai_ultra: {
+    id: "ai_ultra",
+    name: "IA Ultra",
+    price: 39_990,
+    credits: 10_000_000,
+    description: "Operações com alto volume.",
+  },
 };
 
 export const defaultPlanId: PlanId = "connectweb_complete";

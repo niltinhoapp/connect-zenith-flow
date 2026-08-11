@@ -24,8 +24,14 @@ export class ModuleRegistryService {
 
   async orgModules(): Promise<ModuleView[]> {
     const [{ data: mods, error: e1 }, { data: orgMods, error: e2 }] = await Promise.all([
-      this.db.from("modules").select("id, key, name, category, is_core, position").order("position"),
-      this.db.from("organization_modules").select("module_id, enabled").eq("organization_id", this.ctx.organizationId),
+      this.db
+        .from("modules")
+        .select("id, key, name, category, is_core, position")
+        .order("position"),
+      this.db
+        .from("organization_modules")
+        .select("module_id, enabled")
+        .eq("organization_id", this.ctx.organizationId),
     ]);
     if (e1) throw new InfrastructureError(e1.message, { cause: e1 });
     if (e2) throw new InfrastructureError(e2.message, { cause: e2 });
@@ -41,13 +47,20 @@ export class ModuleRegistryService {
   }
 
   async isEnabled(key: string): Promise<boolean> {
-    const { data, error } = await this.db.rpc("has_module", { p_org: this.ctx.organizationId, p_key: key });
+    const { data, error } = await this.db.rpc("has_module", {
+      p_org: this.ctx.organizationId,
+      p_key: key,
+    });
     if (error) throw new InfrastructureError(error.message, { cause: error });
     return data ?? false;
   }
 
   async setEnabled(moduleKey: string, enabled: boolean): Promise<void> {
-    const { data: mod, error: me } = await this.db.from("modules").select("id").eq("key", moduleKey).maybeSingle();
+    const { data: mod, error: me } = await this.db
+      .from("modules")
+      .select("id")
+      .eq("key", moduleKey)
+      .maybeSingle();
     if (me) throw new InfrastructureError(me.message, { cause: me });
     if (!mod) throw new NotFoundError("Módulo não encontrado");
     const { error } = await this.db
