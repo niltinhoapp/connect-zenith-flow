@@ -21,12 +21,7 @@ import type { ConversationInsight } from "@/features/whatsapp/domain";
  * `forbidden`/`unavailable` cobrem falta de permissão e limite/ módulo de IA.
  */
 export type ConversationInsightsState =
-  | "loading"
-  | "ready"
-  | "empty"
-  | "error"
-  | "forbidden"
-  | "unavailable";
+  "loading" | "ready" | "empty" | "error" | "forbidden" | "unavailable";
 
 export interface ConversationInsightsProps {
   insight: ConversationInsight | null;

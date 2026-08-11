@@ -36,7 +36,12 @@ export function setLogTransport(next: LogTransport): void {
   transport = next;
 }
 
-function emit(level: LogLevel, message: string, context?: Record<string, unknown>, error?: unknown) {
+function emit(
+  level: LogLevel,
+  message: string,
+  context?: Record<string, unknown>,
+  error?: unknown,
+) {
   const record: LogRecord = {
     level,
     message,

@@ -54,7 +54,11 @@ export class QuotaService {
   }
 
   /** Consome atomicamente ou lança ConflictError se estourar o limite. */
-  async ensureAndConsume(organizationId: string, resource: QuotaResource, amount = 1): Promise<void> {
+  async ensureAndConsume(
+    organizationId: string,
+    resource: QuotaResource,
+    amount = 1,
+  ): Promise<void> {
     if (!(await this.tryConsume(organizationId, resource, amount))) {
       throw new ConflictError(`Limite do plano atingido para "${resource}".`);
     }

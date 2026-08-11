@@ -16,7 +16,10 @@ export const Route = createFileRoute("/configuracoes/papeis")({
   head: () => ({
     meta: [
       { title: "Papéis e permissões — ConnectWeb" },
-      { name: "description", content: "Gestão de papéis (RBAC): papéis de sistema e customizados." },
+      {
+        name: "description",
+        content: "Gestão de papéis (RBAC): papéis de sistema e customizados.",
+      },
     ],
   }),
   component: PapeisPage,
@@ -82,19 +85,30 @@ function PapeisPage() {
           <SectionCard title="Papéis" description="Papéis de sistema e customizados da organização">
             {isError && (
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Não foi possível carregar os papéis.</p>
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 rounded-md border-border bg-background text-xs">
+                <p className="text-sm text-muted-foreground">
+                  Não foi possível carregar os papéis.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  className="h-8 rounded-md border-border bg-background text-xs"
+                >
                   Tentar novamente
                 </Button>
               </div>
             )}
             {isLoading && (
               <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                ))}
               </div>
             )}
             {!isLoading && !isError && roles.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum papel encontrado.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhum papel encontrado.
+              </p>
             )}
             {!isLoading && !isError && (
               <ul className="space-y-2.5">
@@ -107,7 +121,9 @@ function PapeisPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium">{role.name}</p>
-                          <p className="text-xs text-muted-foreground">{role.description || role.key}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {role.description || role.key}
+                          </p>
                         </div>
                       </div>
                       <Badge
@@ -119,12 +135,18 @@ function PapeisPage() {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1">
                       {role.permissionKeys.slice(0, 8).map((k) => (
-                        <Badge key={k} className="rounded-md border-0 bg-primary/10 text-[10px] font-medium text-primary">
+                        <Badge
+                          key={k}
+                          className="rounded-md border-0 bg-primary/10 text-[10px] font-medium text-primary"
+                        >
                           {k}
                         </Badge>
                       ))}
                       {role.permissionKeys.length > 8 && (
-                        <Badge variant="secondary" className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground">
+                        <Badge
+                          variant="secondary"
+                          className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground"
+                        >
                           +{role.permissionKeys.length - 8}
                         </Badge>
                       )}
@@ -153,11 +175,19 @@ function PapeisPage() {
                 <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                   {permsByModule.map(([mod, perms]) => (
                     <div key={mod}>
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{mod}</p>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {mod}
+                      </p>
                       <div className="space-y-1.5">
                         {perms.map((p) => (
-                          <label key={p.key} className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Checkbox checked={selected.has(p.key)} onCheckedChange={() => toggle(p.key)} />
+                          <label
+                            key={p.key}
+                            className="flex items-center gap-2 text-xs text-muted-foreground"
+                          >
+                            <Checkbox
+                              checked={selected.has(p.key)}
+                              onCheckedChange={() => toggle(p.key)}
+                            />
                             <span className="text-foreground">{p.key}</span>
                           </label>
                         ))}
@@ -171,7 +201,11 @@ function PapeisPage() {
                 disabled={createRole.isPending}
                 className="h-9 w-full rounded-lg bg-primary text-sm font-medium hover:bg-primary/90"
               >
-                {selected.size > 0 ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
+                {selected.size > 0 ? (
+                  <Check className="mr-1.5 h-4 w-4" />
+                ) : (
+                  <Plus className="mr-1.5 h-4 w-4" />
+                )}
                 Criar papel
               </Button>
             </div>

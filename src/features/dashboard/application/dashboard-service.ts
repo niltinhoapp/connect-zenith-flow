@@ -59,11 +59,16 @@ export class DashboardApplicationService {
   ) {}
 
   getMetrics(): Promise<DashboardMetrics> {
-    return guard(async () => {
-      assertModuleEnabled(this.ctx.enabledModules, "dashboard");
-      const { data, error } = await this.db.rpc("dashboard_metrics", { p_org: this.ctx.organizationId });
-      if (error) throw new InfrastructureError(error.message, { cause: error });
-      return { ...EMPTY, ...((data as Partial<DashboardMetrics>) ?? {}) };
-    }, { service: "dashboard.metrics" });
+    return guard(
+      async () => {
+        assertModuleEnabled(this.ctx.enabledModules, "dashboard");
+        const { data, error } = await this.db.rpc("dashboard_metrics", {
+          p_org: this.ctx.organizationId,
+        });
+        if (error) throw new InfrastructureError(error.message, { cause: error });
+        return { ...EMPTY, ...((data as Partial<DashboardMetrics>) ?? {}) };
+      },
+      { service: "dashboard.metrics" },
+    );
   }
 }

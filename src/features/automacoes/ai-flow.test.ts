@@ -9,8 +9,16 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
       trigger_type: "lead.created",
       nodes: [
         { node_key: "t", type: "trigger", config: { trigger_type: "lead.created" } },
-        { node_key: "c", type: "condition", config: { field: "lead.origem", op: "eq", value: "site", valueType: "text" } },
-        { node_key: "a", type: "action", config: { action: "whatsapp.send", conversation_id: "{{conversationId}}", body: "Olá!" } },
+        {
+          node_key: "c",
+          type: "condition",
+          config: { field: "lead.origem", op: "eq", value: "site", valueType: "text" },
+        },
+        {
+          node_key: "a",
+          type: "action",
+          config: { action: "whatsapp.send", conversation_id: "{{conversationId}}", body: "Olá!" },
+        },
       ],
       edges: [
         { from_node: "t", to_node: "c" },
@@ -50,7 +58,11 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
       nodes: [
         { node_key: "t", type: "trigger", config: { trigger_type: "manual" } },
         { node_key: "a", type: "action", config: { action: "enviar_foguete" } },
-        { node_key: "c", type: "condition", config: { field: "x", op: "explode", value: 1, valueType: "number" } },
+        {
+          node_key: "c",
+          type: "condition",
+          config: { field: "x", op: "explode", value: 1, valueType: "number" },
+        },
       ],
       edges: [],
     });
@@ -89,9 +101,9 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
       ],
       edges: [
         { from_node: "t", to_node: "a", branch: "talvez" }, // branch inválido → null
-        { from_node: "t", to_node: "a" },                    // duplicata
-        { from_node: "a", to_node: "a" },                    // auto-loop
-        { from_node: "t", to_node: "fantasma" },             // órfã
+        { from_node: "t", to_node: "a" }, // duplicata
+        { from_node: "a", to_node: "a" }, // auto-loop
+        { from_node: "t", to_node: "fantasma" }, // órfã
       ],
     });
     expect(out.graph.edges).toHaveLength(1);
@@ -116,10 +128,25 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
       trigger_type: "customer.created",
       nodes: [
         { node_key: "t", type: "trigger", config: { trigger_type: "customer.created" } },
-        { node_key: "tag", type: "action", config: { action: "customer.add_tag", customerId: "{{customerId}}", tag: "vip" } },
-        { node_key: "note", type: "action", config: { action: "crm.create_note", customerId: "{{customerId}}", content: "Origem: automação" } },
+        {
+          node_key: "tag",
+          type: "action",
+          config: { action: "customer.add_tag", customerId: "{{customerId}}", tag: "vip" },
+        },
+        {
+          node_key: "note",
+          type: "action",
+          config: {
+            action: "crm.create_note",
+            customerId: "{{customerId}}",
+            content: "Origem: automação",
+          },
+        },
       ],
-      edges: [{ from_node: "t", to_node: "tag" }, { from_node: "tag", to_node: "note" }],
+      edges: [
+        { from_node: "t", to_node: "tag" },
+        { from_node: "tag", to_node: "note" },
+      ],
     });
     const tag = out.graph.nodes.find((n) => n.node_key === "tag")!;
     expect(tag.config.customer_id).toBe("{{customerId}}"); // customerId → customer_id
@@ -134,10 +161,21 @@ describe("ai-flow · normalizeAiFlow (camada de segurança)", () => {
       trigger_type: "customer.created",
       nodes: [
         { node_key: "t", type: "trigger", config: { trigger_type: "customer.created" } },
-        { node_key: "tag", type: "action", config: { action_type: "customer.add_tag", customerId: "{{customerId}}", tag: "vip" } },
-        { node_key: "note", type: "action", config: { name: "crm.create_note", customer_id: "{{customerId}}", content: "oi" } },
+        {
+          node_key: "tag",
+          type: "action",
+          config: { action_type: "customer.add_tag", customerId: "{{customerId}}", tag: "vip" },
+        },
+        {
+          node_key: "note",
+          type: "action",
+          config: { name: "crm.create_note", customer_id: "{{customerId}}", content: "oi" },
+        },
       ],
-      edges: [{ from_node: "t", to_node: "tag" }, { from_node: "tag", to_node: "note" }],
+      edges: [
+        { from_node: "t", to_node: "tag" },
+        { from_node: "tag", to_node: "note" },
+      ],
     });
     const tag = out.graph.nodes.find((n) => n.node_key === "tag")!;
     expect(tag.config.action).toBe("customer.add_tag"); // action_type → action

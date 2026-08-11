@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { Download, FileText, ImageOff, Loader2, AlertTriangle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AudioPlayer } from "./audio-player";
 import { formatBytes, shortMime, type MediaKind } from "./media-utils";
@@ -24,13 +19,7 @@ export interface MessageMedia {
  * MessageMediaBubble — conteúdo de mídia dentro da bolha da conversa.
  * Mantém raios/bordas/tokens do balão; apenas o miolo muda por tipo.
  */
-export function MessageMediaBubble({
-  media,
-  mine,
-}: {
-  media: MessageMedia;
-  mine: boolean;
-}) {
+export function MessageMediaBubble({ media, mine }: { media: MessageMedia; mine: boolean }) {
   const [status, setStatus] = useState<"ready" | "loading" | "error">(
     media.state ?? (media.kind === "image" ? "loading" : "ready"),
   );
@@ -55,7 +44,9 @@ export function MessageMediaBubble({
         ) : (
           <AlertTriangle className="h-4 w-4 shrink-0" />
         )}
-        <span className="min-w-0 truncate">Falha ao carregar mídia — toque para tentar de novo</span>
+        <span className="min-w-0 truncate">
+          Falha ao carregar mídia — toque para tentar de novo
+        </span>
       </div>
     );
   }
@@ -104,9 +95,7 @@ export function MessageMediaBubble({
 
   if (media.kind === "audio") {
     return (
-      <div
-        className={cn("w-[min(16rem,100%)] rounded-xl border px-3 py-2.5", surface)}
-      >
+      <div className={cn("w-[min(16rem,100%)] rounded-xl border px-3 py-2.5", surface)}>
         <AudioPlayer
           src={media.url}
           tone={mine ? "onPrimary" : "neutral"}

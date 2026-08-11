@@ -11,7 +11,12 @@ import { useSession } from "@/core/auth";
 import { useCrmBoard, crmBoardKey } from "@/features/crm/hooks/use-crm-board";
 import { useMoveDealStage } from "@/features/crm/hooks/use-deals";
 import type { CrmBoard, BoardStage } from "@/features/crm/application/crm-board-service";
-import { formatBRL as fmtBRL, formatBRLCompact as fmtBRLk, daysSince, initials } from "@/lib/format";
+import {
+  formatBRL as fmtBRL,
+  formatBRLCompact as fmtBRLk,
+  daysSince,
+  initials,
+} from "@/lib/format";
 import { DealFormDialog } from "@/features/crm/components/deal-form-dialog";
 
 export const Route = createFileRoute("/crm")({
@@ -79,7 +84,10 @@ function CrmPage() {
           <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
             <Filter className="mr-1.5 h-4 w-4" /> Filtros
           </Button>
-          <Button onClick={() => setDealOpen(true)} className="h-9 rounded-lg bg-primary hover:bg-primary/90">
+          <Button
+            onClick={() => setDealOpen(true)}
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90"
+          >
             <Plus className="mr-1.5 h-4 w-4" /> Novo negócio
           </Button>
         </>
@@ -88,7 +96,12 @@ function CrmPage() {
       {isError && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
           <p className="text-sm text-muted-foreground">Não foi possível carregar o pipeline.</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 rounded-md border-border bg-background text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-8 rounded-md border-border bg-background text-xs"
+          >
             Tentar novamente
           </Button>
         </div>
@@ -153,7 +166,9 @@ function CrmPage() {
                         className="group cursor-grab rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 active:cursor-grabbing"
                       >
                         <div className="mb-2 flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-medium leading-snug text-foreground">{d.title}</h4>
+                          <h4 className="text-sm font-medium leading-snug text-foreground">
+                            {d.title}
+                          </h4>
                           <button className="opacity-0 transition-opacity group-hover:opacity-100">
                             <GripVertical className="h-4 w-4 text-muted-foreground" />
                           </button>
@@ -162,7 +177,10 @@ function CrmPage() {
 
                         <div className="mt-3 flex items-center gap-1.5">
                           {d.tags[0] && (
-                            <Badge variant="secondary" className="h-5 rounded-md border-0 bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
+                            <Badge
+                              variant="secondary"
+                              className="h-5 rounded-md border-0 bg-primary/10 px-1.5 text-[10px] font-medium text-primary"
+                            >
                               {d.tags[0]}
                             </Badge>
                           )}

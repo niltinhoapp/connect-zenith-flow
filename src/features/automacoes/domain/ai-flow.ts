@@ -15,22 +15,49 @@ import type { FlowGraphInput } from "../application/automacao-application-servic
 
 // ── Catálogo (autoridade para validação da IA) ───────────────────────────────
 export const AI_TRIGGERS = [
-  "lead.created", "lead.converted", "customer.created", "deal.created",
-  "deal.stage.changed", "deal.won", "whatsapp.message.received",
-  "whatsapp.message.sent", "manual", "scheduled",
+  "lead.created",
+  "lead.converted",
+  "customer.created",
+  "deal.created",
+  "deal.stage.changed",
+  "deal.won",
+  "whatsapp.message.received",
+  "whatsapp.message.sent",
+  "manual",
+  "scheduled",
 ] as const;
 
 export const AI_ACTIONS = [
-  "whatsapp.send", "whatsapp.send_template", "whatsapp.set_status",
-  "conversation.assign", "conversation.add_tags", "customer.create",
-  "customer.update", "customer.add_tag", "customer.remove_tag",
-  "deal.create", "deal.move_stage", "deal.won", "crm.create_note",
-  "webhook.call", "wait",
+  "whatsapp.send",
+  "whatsapp.send_template",
+  "whatsapp.set_status",
+  "conversation.assign",
+  "conversation.add_tags",
+  "customer.create",
+  "customer.update",
+  "customer.add_tag",
+  "customer.remove_tag",
+  "deal.create",
+  "deal.move_stage",
+  "deal.won",
+  "crm.create_note",
+  "webhook.call",
+  "wait",
 ] as const;
 
 export const AI_OPS = [
-  "eq", "ne", "gt", "gte", "lt", "lte", "contains", "not_contains",
-  "starts_with", "in", "exists", "not_exists",
+  "eq",
+  "ne",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "contains",
+  "not_contains",
+  "starts_with",
+  "in",
+  "exists",
+  "not_exists",
 ] as const;
 export const AI_VALUE_TYPES = ["text", "number", "date", "boolean"] as const;
 export const AI_UNITS = ["seconds", "minutes", "hours", "days"] as const;
@@ -92,7 +119,12 @@ function sanitizeConfig(type: NodeType, raw: Record<string, unknown>): Record<st
     return {
       field: str(raw.field),
       op: inList(AI_OPS, op) ? op : "eq",
-      value: typeof raw.value === "string" || typeof raw.value === "number" || typeof raw.value === "boolean" ? raw.value : "",
+      value:
+        typeof raw.value === "string" ||
+        typeof raw.value === "number" ||
+        typeof raw.value === "boolean"
+          ? raw.value
+          : "",
       valueType: inList(AI_VALUE_TYPES, vt) ? vt : "text",
     };
   }
@@ -127,22 +159,31 @@ function sanitizeConfig(type: NodeType, raw: Record<string, unknown>): Record<st
 }
 
 // Layout por profundidade (mesma ideia do builder) para posições legíveis.
-function layout(nodes: FlowNode[], edges: FlowEdge[]): Array<FlowNode & { position: Record<string, number> }> {
+function layout(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+): Array<FlowNode & { position: Record<string, number> }> {
   const depth = new Map<string, number>();
-  const entry = nodes.find((n) => n.type === "trigger")?.node_key
-    ?? nodes.find((n) => !edges.some((e) => e.to_node === n.node_key))?.node_key;
+  const entry =
+    nodes.find((n) => n.type === "trigger")?.node_key ??
+    nodes.find((n) => !edges.some((e) => e.to_node === n.node_key))?.node_key;
   if (entry) {
-    const q = [entry]; depth.set(entry, 0);
+    const q = [entry];
+    depth.set(entry, 0);
     while (q.length) {
       const cur = q.shift()!;
       for (const e of edges.filter((x) => x.from_node === cur))
-        if (!depth.has(e.to_node)) { depth.set(e.to_node, (depth.get(cur) ?? 0) + 1); q.push(e.to_node); }
+        if (!depth.has(e.to_node)) {
+          depth.set(e.to_node, (depth.get(cur) ?? 0) + 1);
+          q.push(e.to_node);
+        }
     }
   }
   const rowByCol = new Map<number, number>();
   return nodes.map((n, i) => {
     const col = depth.get(n.node_key) ?? i;
-    const row = rowByCol.get(col) ?? 0; rowByCol.set(col, row + 1);
+    const row = rowByCol.get(col) ?? 0;
+    rowByCol.set(col, row + 1);
     return { ...n, position: { x: 80 + col * 300, y: 80 + row * 140 } };
   });
 }
@@ -174,13 +215,20 @@ export function normalizeAiFlow(raw: AiRawFlow): NormalizedFlow {
   const triggers = nodes.filter((n) => n.type === "trigger");
   if (triggers.length === 0) {
     if (!inList(AI_TRIGGERS, triggerType)) triggerType = "manual";
-    nodes.unshift({ node_key: "trigger_0", type: "trigger", config: { trigger_type: triggerType } });
+    nodes.unshift({
+      node_key: "trigger_0",
+      type: "trigger",
+      config: { trigger_type: triggerType },
+    });
   } else {
     // mantém o primeiro; rebaixa os demais para não-executáveis (removidos)
     const first = triggers[0];
     const cfgTrigger = str((first.config as Record<string, unknown>).trigger_type);
-    triggerType = inList(AI_TRIGGERS, cfgTrigger) ? cfgTrigger
-      : inList(AI_TRIGGERS, triggerType) ? triggerType : "manual";
+    triggerType = inList(AI_TRIGGERS, cfgTrigger)
+      ? cfgTrigger
+      : inList(AI_TRIGGERS, triggerType)
+        ? triggerType
+        : "manual";
     (first.config as Record<string, unknown>).trigger_type = triggerType;
     for (const extra of triggers.slice(1)) {
       const idx = nodes.indexOf(extra);
@@ -194,7 +242,8 @@ export function normalizeAiFlow(raw: AiRawFlow): NormalizedFlow {
   const edgeSeen = new Set<string>();
   for (const re of asArr(raw.edges)) {
     const o = asObj(re);
-    const from = str(o.from_node), to = str(o.to_node);
+    const from = str(o.from_node),
+      to = str(o.to_node);
     if (!keys.has(from) || !keys.has(to) || from === to) continue;
     const id = `${from}->${to}`;
     if (edgeSeen.has(id)) continue;
@@ -210,7 +259,12 @@ export function normalizeAiFlow(raw: AiRawFlow): NormalizedFlow {
     description,
     triggerType,
     graph: {
-      nodes: positioned.map((n) => ({ node_key: n.node_key, type: n.type, config: n.config, position: n.position })),
+      nodes: positioned.map((n) => ({
+        node_key: n.node_key,
+        type: n.type,
+        config: n.config,
+        position: n.position,
+      })),
       edges,
     },
   };

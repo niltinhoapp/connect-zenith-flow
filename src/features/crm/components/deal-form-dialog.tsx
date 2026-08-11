@@ -57,7 +57,13 @@ export function DealFormDialog({
     }
     const cents = Math.round((Number(amount.replace(/\./g, "").replace(",", ".")) || 0) * 100);
     try {
-      await create.mutateAsync({ title: title.trim(), amount: cents, currency: "BRL", pipelineId, stageId });
+      await create.mutateAsync({
+        title: title.trim(),
+        amount: cents,
+        currency: "BRL",
+        pipelineId,
+        stageId,
+      });
       if (org) {
         qc.invalidateQueries({ queryKey: crmBoardKey(org) });
         qc.invalidateQueries({ queryKey: ["dashboard", org] });
@@ -78,18 +84,37 @@ export function DealFormDialog({
         <div className="space-y-4">
           <div>
             <Label className="text-xs">Título</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Contrato anual Pro" className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex.: Contrato anual Pro"
+              className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+            />
           </div>
           <div>
             <Label className="text-xs">Valor (R$)</Label>
-            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" inputMode="decimal" className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+            <Input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              inputMode="decimal"
+              className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 rounded-lg border-border bg-background">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="h-9 rounded-lg border-border bg-background"
+          >
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={create.isPending} className="h-9 rounded-lg bg-primary hover:bg-primary/90">
+          <Button
+            onClick={submit}
+            disabled={create.isPending}
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90"
+          >
             Criar negócio
           </Button>
         </DialogFooter>

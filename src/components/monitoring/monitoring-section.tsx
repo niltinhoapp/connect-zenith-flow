@@ -39,7 +39,9 @@ function Tile({ icon, title, children }: { icon: ReactNode; title: string; child
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-muted-foreground" aria-hidden="true">{icon}</span>
+        <span className="text-muted-foreground" aria-hidden="true">
+          {icon}
+        </span>
         <h4 className="text-sm font-semibold">{title}</h4>
       </div>
       {children}
@@ -104,9 +106,12 @@ export function MonitoringSection() {
   const alert = ai ? aiAlertLevel(ai.used, ai.limit) : null;
   const includedExhausted = alert?.level === "over100";
   const hasExtraCredits = (ai?.extraCredits ?? 0) > 0;
-  const alertMsg = includedExhausted && hasExtraCredits
-    ? "A franquia mensal acabou. Os recursos de IA continuam usando seu saldo adicional."
-    : alert ? aiAlertMessage(alert.level) : null;
+  const alertMsg =
+    includedExhausted && hasExtraCredits
+      ? "A franquia mensal acabou. Os recursos de IA continuam usando seu saldo adicional."
+      : alert
+        ? aiAlertMessage(alert.level)
+        : null;
 
   return (
     <SectionCard
@@ -125,17 +130,27 @@ export function MonitoringSection() {
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <ArrowDownLeft className="h-3.5 w-3.5 text-success" aria-hidden="true" />
-              <span>Recebido: <span className="text-foreground">{timeOrDash(health.whatsapp.lastInboundAt)}</span></span>
+              <span>
+                Recebido:{" "}
+                <span className="text-foreground">{timeOrDash(health.whatsapp.lastInboundAt)}</span>
+              </span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <ArrowUpRight className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-              <span>Enviado: <span className="text-foreground">{timeOrDash(health.whatsapp.lastOutboundAt)}</span></span>
+              <span>
+                Enviado:{" "}
+                <span className="text-foreground">
+                  {timeOrDash(health.whatsapp.lastOutboundAt)}
+                </span>
+              </span>
             </div>
           </div>
           {wa.help && (
             <ResolveHint tone={wa.tone === "danger" ? "danger" : "warn"}>
               {wa.help}{" "}
-              <Link to="/configuracoes" className="font-medium underline">Abrir Integrações</Link>
+              <Link to="/configuracoes" className="font-medium underline">
+                Abrir Integrações
+              </Link>
             </ResolveHint>
           )}
         </Tile>
@@ -144,17 +159,21 @@ export function MonitoringSection() {
         <Tile icon={<Workflow className="h-4 w-4" />} title="Automações">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2 py-0.5 text-success">
-              <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> {health.automations.active} ativas
+              <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> {health.automations.active}{" "}
+              ativas
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
               {health.automations.paused} pausadas
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
-              {health.automations.failed === null ? "falhas: sem dados" : `${health.automations.failed} com falha`}
+              {health.automations.failed === null
+                ? "falhas: sem dados"
+                : `${health.automations.failed} com falha`}
             </span>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            As automações rodam sozinhas. Pausadas não disparam; reative quando quiser em Automações.
+            As automações rodam sozinhas. Pausadas não disparam; reative quando quiser em
+            Automações.
           </p>
         </Tile>
 
@@ -166,7 +185,12 @@ export function MonitoringSection() {
                 <span className="text-muted-foreground">
                   {ai.used.toLocaleString("pt-BR")} / {ai.limit.toLocaleString("pt-BR")} créditos
                 </span>
-                <span className={cn("tabular-nums", alert && alert.level !== "ok" ? "text-warning" : "text-muted-foreground")}>
+                <span
+                  className={cn(
+                    "tabular-nums",
+                    alert && alert.level !== "ok" ? "text-warning" : "text-muted-foreground",
+                  )}
+                >
                   {alert?.pct ?? 0}%
                 </span>
               </div>
@@ -176,7 +200,9 @@ export function MonitoringSection() {
                 {ai.extraCredits === null ? "sem dados" : ai.extraCredits.toLocaleString("pt-BR")}
               </p>
               {alertMsg && (
-                <ResolveHint tone={includedExhausted && !hasExtraCredits ? "danger" : "warn"}>{alertMsg}</ResolveHint>
+                <ResolveHint tone={includedExhausted && !hasExtraCredits ? "danger" : "warn"}>
+                  {alertMsg}
+                </ResolveHint>
               )}
             </>
           ) : (
@@ -192,7 +218,10 @@ export function MonitoringSection() {
           {health.processing.pending === null && health.processing.errored === null ? (
             <div className="flex items-start gap-2 text-xs text-muted-foreground">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>Sem dados ainda — este indicador será ligado quando a fila de processamentos estiver disponível.</span>
+              <span>
+                Sem dados ainda — este indicador será ligado quando a fila de processamentos estiver
+                disponível.
+              </span>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 text-xs">

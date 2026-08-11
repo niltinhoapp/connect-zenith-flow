@@ -138,7 +138,10 @@ export function ConversationInsights({
             return (
               <div className="space-y-2 py-1">
                 <div className="flex items-start gap-2">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <Icon
+                    className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                   <div>
                     <p className="text-sm font-medium">{meta.title}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>

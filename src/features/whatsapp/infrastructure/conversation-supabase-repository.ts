@@ -70,7 +70,9 @@ export class ConversationSupabaseRepository implements ConversationRepository {
 
   async create(_conv: Conversation): Promise<Conversation> {
     // Conversas nascem da ingestão de webhook (RPC wa_ingest_inbound), não do cliente.
-    throw new InfrastructureError("Conversas são criadas pela ingestão de webhook (wa_ingest_inbound).");
+    throw new InfrastructureError(
+      "Conversas são criadas pela ingestão de webhook (wa_ingest_inbound).",
+    );
   }
 
   async update(conv: Conversation): Promise<Conversation> {

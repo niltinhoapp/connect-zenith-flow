@@ -2,10 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession, type AuthSession } from "@/core/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { queryKeys, mutationDefaults } from "@/lib/query";
-import {
-  AutomacaoApplicationService,
-  type SaveAutomationInput,
-} from "@/features/automacoes";
+import { AutomacaoApplicationService, type SaveAutomationInput } from "@/features/automacoes";
 
 function makeService(session: AuthSession): AutomacaoApplicationService {
   const db = getSupabaseBrowserClient();
@@ -33,7 +30,10 @@ export function useAutomations() {
 export function useAutomationGraph(automationId: string | null) {
   const { session, org } = useOrg();
   return useQuery({
-    queryKey: org && automationId ? queryKeys.automacoes.detail(org, automationId) : ["automacoes", "detail", "none"],
+    queryKey:
+      org && automationId
+        ? queryKeys.automacoes.detail(org, automationId)
+        : ["automacoes", "detail", "none"],
     enabled: !!org && !!session && !!automationId,
     queryFn: () => makeService(session!).getGraph(automationId!),
   });
@@ -42,7 +42,10 @@ export function useAutomationGraph(automationId: string | null) {
 export function useAutomationRuns(automationId: string | null) {
   const { session, org } = useOrg();
   return useQuery({
-    queryKey: org && automationId ? queryKeys.automacoes.runs(org, automationId) : ["automacoes", "runs", "none"],
+    queryKey:
+      org && automationId
+        ? queryKeys.automacoes.runs(org, automationId)
+        : ["automacoes", "runs", "none"],
     enabled: !!org && !!session && !!automationId,
     refetchInterval: (q) => {
       const rows = (q.state.data as Array<{ status: string }> | undefined) ?? [];
@@ -55,7 +58,8 @@ export function useAutomationRuns(automationId: string | null) {
 export function useAutomationRunSteps(runId: string | null) {
   const { session, org } = useOrg();
   return useQuery({
-    queryKey: org && runId ? queryKeys.automacoes.runSteps(org, runId) : ["automacoes", "steps", "none"],
+    queryKey:
+      org && runId ? queryKeys.automacoes.runSteps(org, runId) : ["automacoes", "steps", "none"],
     enabled: !!org && !!session && !!runId,
     queryFn: () => makeService(session!).listRunSteps(runId!),
   });
@@ -64,7 +68,9 @@ export function useAutomationRunSteps(runId: string | null) {
 function useInvalidateList() {
   const { org } = useOrg();
   const qc = useQueryClient();
-  return () => { if (org) qc.invalidateQueries({ queryKey: queryKeys.automacoes.all(org) }); };
+  return () => {
+    if (org) qc.invalidateQueries({ queryKey: queryKeys.automacoes.all(org) });
+  };
 }
 
 export function useSaveAutomation() {
@@ -126,6 +132,8 @@ export function useTestAutomation() {
     ...mutationDefaults,
     mutationFn: (v: { id: string; context?: Record<string, unknown> }) =>
       makeService(session!).startRun(v.id, v.context),
-    onSuccess: (_data, v) => { if (org) qc.invalidateQueries({ queryKey: queryKeys.automacoes.runs(org, v.id) }); },
+    onSuccess: (_data, v) => {
+      if (org) qc.invalidateQueries({ queryKey: queryKeys.automacoes.runs(org, v.id) });
+    },
   });
 }

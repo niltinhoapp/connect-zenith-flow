@@ -1,6 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Sparkles, MessageCircle, Mail, Clock, Zap, UserPlus, Filter, MoreHorizontal, ArrowRight, Play, Copy, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Sparkles,
+  MessageCircle,
+  Mail,
+  Clock,
+  Zap,
+  UserPlus,
+  Filter,
+  MoreHorizontal,
+  ArrowRight,
+  Play,
+  Copy,
+  Trash2,
+} from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { SectionCard } from "@/components/shared/section-card";
 import { Button } from "@/components/ui/button";
@@ -138,7 +152,8 @@ function AutomacoesPage() {
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">Carregando…</div>
         ) : filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Nenhuma automação. Clique em <span className="font-medium text-foreground">Nova automação</span> para começar.
+            Nenhuma automação. Clique em{" "}
+            <span className="font-medium text-foreground">Nova automação</span> para começar.
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -146,17 +161,26 @@ function AutomacoesPage() {
               const meta = triggerMeta(f.trigger_type);
               const Icon = meta.icon;
               return (
-                <li key={f.id} className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-accent/20 md:flex-row md:items-center">
+                <li
+                  key={f.id}
+                  className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-accent/20 md:flex-row md:items-center"
+                >
                   <div className="flex flex-1 items-center gap-4">
                     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/20">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <Link to="/automacoes/builder" search={{ id: f.id }} className="truncate text-sm font-medium hover:underline">
+                        <Link
+                          to="/automacoes/builder"
+                          search={{ id: f.id }}
+                          className="truncate text-sm font-medium hover:underline"
+                        >
                           {f.name}
                         </Link>
-                        <Badge className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground">{meta.label}</Badge>
+                        <Badge className="rounded-md border-0 bg-muted text-[10px] text-muted-foreground">
+                          {meta.label}
+                        </Badge>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {f.description || `Versão ${f.current_version}`}
@@ -166,22 +190,34 @@ function AutomacoesPage() {
                   <div className="flex items-center gap-6 text-xs md:pl-4">
                     <div className="text-right">
                       <p className="text-muted-foreground">Versão</p>
-                      <p className="font-semibold tabular-nums text-foreground">v{f.current_version}</p>
+                      <p className="font-semibold tabular-nums text-foreground">
+                        v{f.current_version}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-muted-foreground">Status</p>
                       <p className="font-semibold tabular-nums text-foreground">
-                        {f.status === "active" ? "Ativa" : f.status === "paused" ? "Pausada" : "Rascunho"}
+                        {f.status === "active"
+                          ? "Ativa"
+                          : f.status === "paused"
+                            ? "Pausada"
+                            : "Rascunho"}
                       </p>
                     </div>
                     <Switch
                       checked={f.status === "active"}
                       disabled={setStatus.isPending}
-                      onCheckedChange={(on) => setStatus.mutate({ id: f.id, status: on ? "active" : "paused" })}
+                      onCheckedChange={(on) =>
+                        setStatus.mutate({ id: f.id, status: on ? "active" : "paused" })
+                      }
                     />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                        >
                           <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -196,7 +232,8 @@ function AutomacoesPage() {
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onSelect={() => {
-                            if (window.confirm(`Excluir a automação "${f.name}"?`)) remove.mutate(f.id);
+                            if (window.confirm(`Excluir a automação "${f.name}"?`))
+                              remove.mutate(f.id);
                           }}
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -224,13 +261,21 @@ function AutomacoesPage() {
               </p>
             </div>
           </div>
-          <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90" onClick={() => setAiOpen(true)}>
+          <Button
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90"
+            onClick={() => setAiOpen(true)}
+          >
             Gerar com IA <ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <Dialog open={aiOpen} onOpenChange={(o) => { if (!generate.isPending) setAiOpen(o); }}>
+      <Dialog
+        open={aiOpen}
+        onOpenChange={(o) => {
+          if (!generate.isPending) setAiOpen(o);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -251,14 +296,23 @@ function AutomacoesPage() {
           />
           {generate.isError && (
             <p className="text-xs text-destructive">
-              {(generate.error as Error)?.message ?? "Falha ao gerar. Verifique se a IA está configurada."}
+              {(generate.error as Error)?.message ??
+                "Falha ao gerar. Verifique se a IA está configurada."}
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={generate.isPending}>
+            <Button
+              variant="outline"
+              onClick={() => setAiOpen(false)}
+              disabled={generate.isPending}
+            >
               Cancelar
             </Button>
-            <Button onClick={runGenerate} disabled={generate.isPending || aiText.trim().length < 4} className="bg-primary hover:bg-primary/90">
+            <Button
+              onClick={runGenerate}
+              disabled={generate.isPending || aiText.trim().length < 4}
+              className="bg-primary hover:bg-primary/90"
+            >
               {generate.isPending ? "Gerando…" : "Gerar rascunho"}
             </Button>
           </DialogFooter>

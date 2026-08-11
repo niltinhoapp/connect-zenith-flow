@@ -34,12 +34,7 @@ export function ConversationInsightBadges({
   return (
     <span className={cn("flex shrink-0 items-center gap-1", className)}>
       {isHot && (
-        <span
-          className="inline-flex"
-          title="Cliente quente"
-          aria-label="Cliente quente"
-          role="img"
-        >
+        <span className="inline-flex" title="Cliente quente" aria-label="Cliente quente" role="img">
           <Flame className="h-3.5 w-3.5 text-warning" aria-hidden="true" />
         </span>
       )}
@@ -54,12 +49,7 @@ export function ConversationInsightBadges({
         </span>
       )}
       {isUrgent && (
-        <span
-          className="inline-flex"
-          title="Urgência alta"
-          aria-label="Urgência alta"
-          role="img"
-        >
+        <span className="inline-flex" title="Urgência alta" aria-label="Urgência alta" role="img">
           <CircleAlert className="h-3.5 w-3.5 text-destructive" aria-hidden="true" />
         </span>
       )}

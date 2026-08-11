@@ -5,9 +5,23 @@
  */
 import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Sparkles, HelpCircle, ArrowRight, Loader2, ShieldAlert, MessageSquare, Copy, Check } from "lucide-react";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
+  Sparkles,
+  HelpCircle,
+  ArrowRight,
+  Loader2,
+  ShieldAlert,
+  MessageSquare,
+  Copy,
+  Check,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,8 +29,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { helpForRoute } from "./route-help";
@@ -24,6 +44,9 @@ import { OnboardingChecklist } from "./onboarding-checklist";
 import { useCopilot } from "./use-copilot";
 import { useCopilotPrompt } from "./use-copilot-prompt";
 import { useInsertDraft } from "./copilot-focus";
+import { CommerceAnalysisView } from "@/features/whatsapp/components/commerce/commerce-analysis-view";
+import type { CommerceAnalysis } from "@/features/whatsapp/domain";
+import type { RegisterCommerceResult } from "@/features/whatsapp";
 
 const RISK_LABEL: Record<string, string> = { read: "Consulta", write: "Ação", external: "IA" };
 const RISK_CLS: Record<string, string> = {
@@ -31,6 +54,10 @@ const RISK_CLS: Record<string, string> = {
   write: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/25",
   external: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/25",
 };
+const money = (cents: number | null) =>
+  cents === null
+    ? "não informado"
+    : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
 /** Ferramentas de IA da conversa: só aparecem no WhatsApp com conversa selecionada. */
 const WHATSAPP_ASSIST = new Set<string>([
@@ -44,7 +71,8 @@ export function CopilotLauncher() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const help = helpForRoute(pathname);
-  const { org, tools, state, run, runWithInput, confirm, cancelConfirm, clear, focus } = useCopilot();
+  const { org, tools, state, run, runWithInput, confirm, cancelConfirm, clear, focus } =
+    useCopilot();
   const { interpret, interpreting, error: promptError, clearError } = useCopilotPrompt(org);
   const insertDraft = useInsertDraft();
   const [copied, setCopied] = useState(false);
@@ -58,7 +86,10 @@ export function CopilotLauncher() {
     (t) => !WHATSAPP_ASSIST.has(t.name) || (onWhatsApp && hasConversation),
   );
 
-  const go = (to: string) => { navigate({ to: to as never }); setOpen(false); };
+  const go = (to: string) => {
+    navigate({ to: to as never });
+    setOpen(false);
+  };
 
   const submitPrompt = async () => {
     if (!prompt.trim() || interpreting) return;
@@ -111,9 +142,15 @@ export function CopilotLauncher() {
 
         <Tabs defaultValue="passos" className="flex min-h-0 flex-1 flex-col">
           <TabsList className="mx-5 mt-3 grid grid-cols-3">
-            <TabsTrigger value="passos" className="text-xs">Primeiros passos</TabsTrigger>
-            <TabsTrigger value="ajuda" className="text-xs">Ajuda</TabsTrigger>
-            <TabsTrigger value="ia" className="text-xs">IA</TabsTrigger>
+            <TabsTrigger value="passos" className="text-xs">
+              Primeiros passos
+            </TabsTrigger>
+            <TabsTrigger value="ajuda" className="text-xs">
+              Ajuda
+            </TabsTrigger>
+            <TabsTrigger value="ia" className="text-xs">
+              IA
+            </TabsTrigger>
           </TabsList>
 
           <ScrollArea className="min-h-0 flex-1 px-5 py-4">
@@ -140,7 +177,13 @@ export function CopilotLauncher() {
               {help.links && help.links.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {help.links.map((l) => (
-                    <Button key={l.to} variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={() => go(l.to)}>
+                    <Button
+                      key={l.to}
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 text-xs"
+                      onClick={() => go(l.to)}
+                    >
                       {l.label} <ArrowRight className="h-3 w-3" />
                     </Button>
                   ))}
@@ -179,17 +222,27 @@ export function CopilotLauncher() {
                   disabled={!prompt.trim() || interpreting || Boolean(state.running)}
                   onClick={() => void submitPrompt()}
                 >
-                  {interpreting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {interpreting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
                   {interpreting ? "Entendendo seu pedido…" : "Preparar com IA"}
                 </Button>
-                <p className="text-[10px] text-muted-foreground">Ctrl + Enter para preparar. Você revisa e confirma antes de qualquer alteração.</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Ctrl + Enter para preparar. Você revisa e confirma antes de qualquer alteração.
+                </p>
               </div>
 
               {(promptError || promptAnswer) && (
-                <div className={cn(
-                  "rounded-lg p-3 text-xs",
-                  promptError ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
-                )}>
+                <div
+                  className={cn(
+                    "rounded-lg p-3 text-xs",
+                    promptError
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
                   {promptError ?? promptAnswer}
                 </div>
               )}
@@ -199,58 +252,135 @@ export function CopilotLauncher() {
                   <span>Contexto: {focus.label ?? "conversa selecionada"}</span>
                 </div>
               )}
-              {state.result && (() => {
-                const r = state.result;
-                const isDraft = r.tool === "whatsapp.reply.draft";
-                const isSummary = r.tool === "whatsapp.conversation.summarize";
-                const isCommerce = r.tool === "whatsapp.commerce.analyze";
-                const isAssist = isDraft || isSummary || isCommerce;
-                const heading = isDraft
-                  ? "Rascunho de resposta"
-                  : isSummary
-                    ? "Resumo da conversa"
-                    : isCommerce
-                      ? "Atendimento comercial"
-                    : "Resultado";
-                return (
-                  <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
-                    <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-primary">
-                      <Sparkles className="h-3 w-3" /> {heading}
-                    </p>
-                    <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
-                      {r.summary}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {isAssist && (
-                        <Button
-                          size="sm" variant="outline"
-                          className="h-7 gap-1 text-[11px]"
-                          onClick={() => void copy(r.summary)}
-                        >
-                          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                          {copied ? "Copiado" : "Copiar"}
-                        </Button>
+              {state.result &&
+                (() => {
+                  const r = state.result;
+                  const isDraft = r.tool === "whatsapp.reply.draft";
+                  const isSummary = r.tool === "whatsapp.conversation.summarize";
+                  const isCommerce = r.tool === "whatsapp.commerce.analyze";
+                  const isCommerceCrm = r.tool === "whatsapp.commerce.register_crm";
+                  const isAssist = isDraft || isSummary || isCommerce;
+                  const heading = isDraft
+                    ? "Rascunho de resposta"
+                    : isSummary
+                      ? "Resumo da conversa"
+                      : isCommerce
+                        ? "Atendimento comercial"
+                        : isCommerceCrm
+                          ? "Registro no CRM concluído"
+                          : "Resultado";
+                  return (
+                    <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+                      <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-primary">
+                        <Sparkles className="h-3 w-3" /> {heading}
+                      </p>
+                      {isCommerce && r.data && typeof r.data === "object" ? (
+                        <CommerceAnalysisView
+                          analysis={r.data as CommerceAnalysis}
+                          registeringCrm={state.running === "whatsapp.commerce.register_crm"}
+                          onRegisterCrm={() => {
+                            const tool = tools.find(
+                              (item) => item.name === "whatsapp.commerce.register_crm",
+                            );
+                            if (!tool || focus?.type !== "conversation") return;
+                            const analysis = r.data as CommerceAnalysis;
+                            const preview = [
+                              `Cliente: ${focus.label ?? "contato da conversa"}`,
+                              `Valor: ${money(analysis.orderTotalCents)}`,
+                              `Etapa: ${analysis.stage}`,
+                              `Itens: ${analysis.items.map((item) => `${item.quantity ?? "?"}x ${item.description}`).join(", ") || "não informados"}`,
+                            ].join("\n");
+                            void runWithInput(
+                              tool,
+                              { conversationId: focus.id, analysis },
+                              preview,
+                            );
+                          }}
+                          onUseReply={(text) => {
+                            if (insertDraft(text)) {
+                              clear();
+                              setOpen(false);
+                            }
+                          }}
+                        />
+                      ) : isCommerceCrm && r.data ? (
+                        (() => {
+                          const saved = r.data as RegisterCommerceResult;
+                          return (
+                            <div className="space-y-1 text-xs text-foreground">
+                              <p>
+                                <strong>Cliente vinculado:</strong> {saved.customer.name}
+                              </p>
+                              <p>
+                                <strong>Negócio:</strong>{" "}
+                                {saved.deal.created ? "criado" : "atualizado"}
+                              </p>
+                              <p>
+                                <strong>Valor:</strong> {money(saved.deal.amount)}
+                              </p>
+                              <p>
+                                <strong>Estágio:</strong> {saved.deal.stage}
+                              </p>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <p className="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground">
+                          {r.summary}
+                        </p>
                       )}
-                      {isDraft && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {isAssist && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[11px]"
+                            onClick={() => void copy(r.summary)}
+                          >
+                            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                            {copied ? "Copiado" : "Copiar"}
+                          </Button>
+                        )}
+                        {isDraft && (
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 text-[11px]"
+                            onClick={() => {
+                              if (insertDraft(r.summary)) {
+                                clear();
+                                setOpen(false);
+                              }
+                            }}
+                          >
+                            Inserir no campo <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {!isAssist && r.navigateTo && (
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 text-[11px]"
+                            onClick={() => go(r.navigateTo!)}
+                          >
+                            Abrir <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
+                          variant="ghost"
                           size="sm"
-                          className="h-7 gap-1 text-[11px]"
-                          onClick={() => { if (insertDraft(r.summary)) { clear(); setOpen(false); } }}
+                          className="h-7 text-[11px]"
+                          onClick={clear}
                         >
-                          Inserir no campo <ArrowRight className="h-3 w-3" />
+                          Fechar
                         </Button>
-                      )}
-                      {!isAssist && r.navigateTo && (
-                        <Button size="sm" className="h-7 gap-1 text-[11px]" onClick={() => go(r.navigateTo!)}>
-                          Abrir <ArrowRight className="h-3 w-3" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={clear}>Fechar</Button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
-              {state.error && <p className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{state.error}</p>}
+                  );
+                })()}
+              {state.error && (
+                <p className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+                  {state.error}
+                </p>
+              )}
 
               {onWhatsApp && !hasConversation && (
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -262,7 +392,8 @@ export function CopilotLauncher() {
               {visibleTools.length === 0 ? (
                 onWhatsApp && !hasConversation ? null : (
                   <p className="text-xs text-muted-foreground">
-                    Nenhuma ação da IA disponível para o seu perfil/tela ainda. Explore as abas “Primeiros passos” e “Ajuda”.
+                    Nenhuma ação da IA disponível para o seu perfil/tela ainda. Explore as abas
+                    “Primeiros passos” e “Ajuda”.
                   </p>
                 )
               ) : (
@@ -274,17 +405,25 @@ export function CopilotLauncher() {
                           <p className="truncate text-sm font-medium">{tool.title}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">{tool.description}</p>
                         </div>
-                        <Badge className={cn("shrink-0 rounded-md border-0 text-[10px]", RISK_CLS[tool.risk])}>
+                        <Badge
+                          className={cn(
+                            "shrink-0 rounded-md border-0 text-[10px]",
+                            RISK_CLS[tool.risk],
+                          )}
+                        >
                           {RISK_LABEL[tool.risk] ?? tool.risk}
                         </Badge>
                       </div>
                       <Button
-                        size="sm" variant="outline"
+                        size="sm"
+                        variant="outline"
                         className="mt-2 h-7 gap-1 text-[11px]"
                         disabled={state.running === tool.name}
                         onClick={() => run(tool)}
                       >
-                        {state.running === tool.name ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        {state.running === tool.name ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : null}
                         {state.running === tool.name ? "Executando…" : "Executar"}
                       </Button>
                     </li>
@@ -297,24 +436,42 @@ export function CopilotLauncher() {
       </SheetContent>
 
       {/* Confirmação obrigatória para ações de risco (o Core exige) */}
-      <AlertDialog open={!!state.pendingConfirm} onOpenChange={(o) => { if (!o) cancelConfirm(); }}>
+      <AlertDialog
+        open={!!state.pendingConfirm}
+        onOpenChange={(o) => {
+          if (!o) cancelConfirm();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              {state.pendingConfirm?.tool.risk === "external"
-                ? <><Sparkles className="h-4 w-4 text-primary" /> Processar com IA</>
-                : <><ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação</>}
+              {state.pendingConfirm?.tool.risk === "external" ? (
+                <>
+                  <Sparkles className="h-4 w-4 text-primary" /> Processar com IA
+                </>
+              ) : (
+                <>
+                  <ShieldAlert className="h-4 w-4 text-warning" /> Confirmar ação
+                </>
+              )}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {state.pendingConfirm?.tool.risk === "external" ? (
                 <>
                   O conteúdo desta conversa será enviado à IA para gerar{" "}
-                  <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span>.
-                  Nada é alterado e nenhuma mensagem é enviada ao cliente — o resultado fica só para você revisar.
+                  <span className="font-medium text-foreground">
+                    {state.pendingConfirm?.tool.title}
+                  </span>
+                  . Nada é alterado e nenhuma mensagem é enviada ao cliente — o resultado fica só
+                  para você revisar.
                 </>
               ) : (
                 <>
-                  A ação <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span> fará alterações.
+                  A ação{" "}
+                  <span className="font-medium text-foreground">
+                    {state.pendingConfirm?.tool.title}
+                  </span>{" "}
+                  fará alterações.
                   {state.pendingConfirm?.preview && (
                     <span className="mt-3 block whitespace-pre-wrap rounded-lg bg-muted p-3 text-foreground">
                       {state.pendingConfirm.preview}
@@ -328,7 +485,9 @@ export function CopilotLauncher() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={cancelConfirm}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirm}>
-              {state.pendingConfirm?.tool.risk === "external" ? "Processar com IA" : "Confirmar e executar"}
+              {state.pendingConfirm?.tool.risk === "external"
+                ? "Processar com IA"
+                : "Confirmar e executar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

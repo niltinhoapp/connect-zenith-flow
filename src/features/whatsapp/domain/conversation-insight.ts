@@ -16,7 +16,10 @@ export interface ConversationInsight {
   stale: boolean;
 }
 
-export function isInsightStale(sourceLastMessageAt: string | null, currentLastMessageAt: string | null): boolean {
+export function isInsightStale(
+  sourceLastMessageAt: string | null,
+  currentLastMessageAt: string | null,
+): boolean {
   if (!sourceLastMessageAt) return Boolean(currentLastMessageAt);
   if (!currentLastMessageAt) return false;
   return new Date(currentLastMessageAt).getTime() > new Date(sourceLastMessageAt).getTime();

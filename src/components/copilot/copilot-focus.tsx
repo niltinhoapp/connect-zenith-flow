@@ -20,9 +20,7 @@ import {
   type ReactNode,
 } from "react";
 
-export type CopilotFocus =
-  | { type: "conversation"; id: string; label?: string }
-  | null;
+export type CopilotFocus = { type: "conversation"; id: string; label?: string } | null;
 
 type DraftSink = (text: string) => void;
 

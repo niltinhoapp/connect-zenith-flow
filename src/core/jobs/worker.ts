@@ -22,7 +22,11 @@ export class JobWorker {
 
   async runOnce(): Promise<{ processed: number; failed: number }> {
     const worker = this.opts.workerId ?? "worker-local";
-    const jobs = await this.provider.claim(worker, this.opts.batch ?? 10, this.opts.leaseSeconds ?? 60);
+    const jobs = await this.provider.claim(
+      worker,
+      this.opts.batch ?? 10,
+      this.opts.leaseSeconds ?? 60,
+    );
     let processed = 0;
     let failed = 0;
     for (const job of jobs) {

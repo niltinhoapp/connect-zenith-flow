@@ -32,10 +32,13 @@ const schema = z
     phone: z.string().optional(),
     status: z.enum(["active", "inactive", "prospect", "vip"]),
   })
-  .refine((v) => (v.type === "company" ? Boolean(v.companyName?.trim()) : Boolean(v.firstName?.trim())), {
-    message: "Informe o nome",
-    path: ["firstName"],
-  });
+  .refine(
+    (v) => (v.type === "company" ? Boolean(v.companyName?.trim()) : Boolean(v.firstName?.trim())),
+    {
+      message: "Informe o nome",
+      path: ["firstName"],
+    },
+  );
 
 /**
  * Dialog de criar/editar cliente. Fala apenas com os hooks (→ services →
@@ -77,7 +80,15 @@ export function CustomerFormDialog({
   const pending = create.isPending || update.isPending;
 
   async function submit() {
-    const parsed = schema.safeParse({ type, firstName, lastName, companyName, email, phone, status });
+    const parsed = schema.safeParse({
+      type,
+      firstName,
+      lastName,
+      companyName,
+      email,
+      phone,
+      status,
+    });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Verifique os campos.");
       return;
@@ -148,17 +159,29 @@ export function CustomerFormDialog({
           {type === "company" ? (
             <div>
               <Label className="text-xs">Empresa</Label>
-              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+              <Input
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+              />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Nome</Label>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+                <Input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+                />
               </div>
               <div>
                 <Label className="text-xs">Sobrenome</Label>
-                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+                <Input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+                />
               </div>
             </div>
           )}
@@ -166,20 +189,36 @@ export function CustomerFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">E-mail</Label>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+              />
             </div>
             <div>
               <Label className="text-xs">Telefone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm" />
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="mt-1.5 h-9 rounded-lg border-border bg-background text-sm"
+              />
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 rounded-lg border-border bg-background">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="h-9 rounded-lg border-border bg-background"
+          >
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={pending} className="h-9 rounded-lg bg-primary hover:bg-primary/90">
+          <Button
+            onClick={submit}
+            disabled={pending}
+            className="h-9 rounded-lg bg-primary hover:bg-primary/90"
+          >
             {isEdit ? "Salvar" : "Criar cliente"}
           </Button>
         </DialogFooter>

@@ -15,10 +15,11 @@ export const connectWhatsAppSchema = z.object({
 });
 
 export const createWebhookSchema = z.object({
-  url: z.string().trim().url("Informe uma URL HTTPS válida").refine(
-    (value) => value.startsWith("https://"),
-    "O webhook deve usar HTTPS",
-  ),
+  url: z
+    .string()
+    .trim()
+    .url("Informe uma URL HTTPS válida")
+    .refine((value) => value.startsWith("https://"), "O webhook deve usar HTTPS"),
   events: z.array(z.string()).min(1, "Selecione pelo menos um evento"),
   secret: z.string().trim().min(16, "Use um segredo com pelo menos 16 caracteres").max(200),
 });

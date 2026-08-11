@@ -16,7 +16,9 @@ async function readFunctionError(error: unknown): Promise<string> {
       const body = await response.clone().json();
       return String(body?.error ?? fallback);
     }
-  } catch { /* mantém fallback */ }
+  } catch {
+    /* mantém fallback */
+  }
   return fallback;
 }
 
@@ -26,9 +28,12 @@ export function useAskReports() {
   return useMutation<ReportsAnswer, Error, string>({
     mutationFn: async (question) => {
       if (!organizationId) throw new Error("Empresa ativa não encontrada.");
-      const { data, error } = await getSupabaseBrowserClient().functions.invoke("ai-reports-answer", {
-        body: { question: question.trim(), organizationId },
-      });
+      const { data, error } = await getSupabaseBrowserClient().functions.invoke(
+        "ai-reports-answer",
+        {
+          body: { question: question.trim(), organizationId },
+        },
+      );
       if (error) throw new Error(await readFunctionError(error));
       if (!data?.answer) throw new Error("A IA retornou uma resposta inválida.");
       return {

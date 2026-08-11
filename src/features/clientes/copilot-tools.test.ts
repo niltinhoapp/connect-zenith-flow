@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CopilotExecutionContext } from "@/core";
 import { Customer } from "@/features/clientes/domain";
-import { createCustomersBatchTool, createCustomersOverviewTool } from "@/features/clientes/copilot-tools";
+import {
+  createCustomersBatchTool,
+  createCustomersOverviewTool,
+} from "@/features/clientes/copilot-tools";
 
 const context: CopilotExecutionContext = {
   organizationId: "org-1",
@@ -47,16 +50,21 @@ describe("Clientes · criação pelo Copiloto", () => {
   it("cadastra clientes válidos e marca a origem", async () => {
     const inputs: Array<Record<string, unknown>> = [];
     const tool = createCustomersBatchTool({
-      async list() { return { items: [], total: 0, limit: 20, offset: 0 }; },
+      async list() {
+        return { items: [], total: 0, limit: 20, offset: 0 };
+      },
       async create(input) {
         inputs.push(input);
         return Customer.create({ organizationId: "org-1", ...input }, "created-1");
       },
     });
 
-    const result = await tool.execute({
-      customers: [{ firstName: "Ana", email: "ana@example.com", tags: ["Teste"] }],
-    }, writeContext);
+    const result = await tool.execute(
+      {
+        customers: [{ firstName: "Ana", email: "ana@example.com", tags: ["Teste"] }],
+      },
+      writeContext,
+    );
 
     expect(result.data?.created).toEqual([{ id: "created-1", name: "Ana" }]);
     expect(inputs[0]).toMatchObject({ source: "copilot", originChannel: "ai_copilot" });
@@ -69,16 +77,21 @@ describe("Clientes · criação pelo Copiloto", () => {
     );
     let creates = 0;
     const tool = createCustomersBatchTool({
-      async list() { return { items: [existing], total: 1, limit: 20, offset: 0 }; },
+      async list() {
+        return { items: [existing], total: 1, limit: 20, offset: 0 };
+      },
       async create(input) {
         creates += 1;
         return Customer.create({ organizationId: "org-1", ...input });
       },
     });
 
-    const result = await tool.execute({
-      customers: [{ firstName: "Ana", phone: "(11) 99999-0000" }],
-    }, writeContext);
+    const result = await tool.execute(
+      {
+        customers: [{ firstName: "Ana", phone: "(11) 99999-0000" }],
+      },
+      writeContext,
+    );
 
     expect(creates).toBe(0);
     expect(result.data?.skipped[0]?.reason).toBe("já existe no CRM");
@@ -87,16 +100,23 @@ describe("Clientes · criação pelo Copiloto", () => {
   it("valida todo o lote antes de gravar", async () => {
     let creates = 0;
     const tool = createCustomersBatchTool({
-      async list() { return { items: [], total: 0, limit: 20, offset: 0 }; },
+      async list() {
+        return { items: [], total: 0, limit: 20, offset: 0 };
+      },
       async create(input) {
         creates += 1;
         return Customer.create({ organizationId: "org-1", ...input });
       },
     });
 
-    await expect(tool.execute({
-      customers: [{ firstName: "Ana" }, { firstName: "" }],
-    }, writeContext)).rejects.toThrow("Nome é obrigatório");
+    await expect(
+      tool.execute(
+        {
+          customers: [{ firstName: "Ana" }, { firstName: "" }],
+        },
+        writeContext,
+      ),
+    ).rejects.toThrow("Nome é obrigatório");
     expect(creates).toBe(0);
   });
 });

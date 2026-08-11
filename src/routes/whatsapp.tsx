@@ -150,7 +150,9 @@ function WhatsAppPage() {
   const [insightFilter, setInsightFilter] = useState<InsightFilter>(EMPTY_INSIGHT_FILTER);
 
   // Deep-link: abrir uma conversa via ?conversation=<id> (ex.: vindo do painel IA).
-  useEffect(() => { if (convParam) setSelectedId(convParam); }, [convParam]);
+  useEffect(() => {
+    if (convParam) setSelectedId(convParam);
+  }, [convParam]);
 
   const conversationsQuery = useConversations({
     ...(search ? { search } : {}),
@@ -192,7 +194,11 @@ function WhatsAppPage() {
   // adiante — o resto é resolvido server-side.
   useEffect(() => {
     if (selected) {
-      setCopilotFocus({ type: "conversation", id: selected.id, label: selected.contactName ?? selected.contactWaId });
+      setCopilotFocus({
+        type: "conversation",
+        id: selected.id,
+        label: selected.contactName ?? selected.contactWaId,
+      });
     } else {
       setCopilotFocus(null);
     }
@@ -332,7 +338,9 @@ function ConversationList(props: {
             </Avatar>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">{c.contactName || c.contactWaId}</p>
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {c.contactName || c.contactWaId}
+                </p>
                 <ConversationInsightBadges insight={insightsMap[c.id] ?? null} />
                 <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
                   {hhmm(c.lastMessageAt)}

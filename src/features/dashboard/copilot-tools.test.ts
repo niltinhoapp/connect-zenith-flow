@@ -36,4 +36,3 @@ describe("Dashboard · Copilot tools", () => {
     expect(result.data?.metrics.openDeals).toBe(7);
   });
 });
-

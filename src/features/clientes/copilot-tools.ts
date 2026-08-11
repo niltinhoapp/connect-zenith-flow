@@ -40,7 +40,9 @@ export function createCustomersOverviewTool(
     risk: "read",
     async execute() {
       const results = await Promise.all(
-        CUSTOMER_STATUSES.map((status) => service.list({ status, limit: status === "inactive" ? 5 : 1 })),
+        CUSTOMER_STATUSES.map((status) =>
+          service.list({ status, limit: status === "inactive" ? 5 : 1 }),
+        ),
       );
       const byStatus = Object.fromEntries(
         CUSTOMER_STATUSES.map((status, index) => [status, results[index]?.total ?? 0]),
@@ -64,7 +66,8 @@ export function createCustomersOverviewTool(
   };
 }
 
-const normalized = (value: string | null | undefined) => value?.trim().toLocaleLowerCase("pt-BR") ?? "";
+const normalized = (value: string | null | undefined) =>
+  value?.trim().toLocaleLowerCase("pt-BR") ?? "";
 const digits = (value: string | null | undefined) => value?.replace(/\D/g, "") ?? "";
 const canonicalPhone = (value: string | null | undefined) => {
   const valueDigits = digits(value);
@@ -83,7 +86,8 @@ export function createCustomersBatchTool(
     risk: "write",
     async execute(input, context) {
       const requested = Array.isArray(input?.customers) ? input.customers.slice(0, 20) : [];
-      if (requested.length === 0) throw new Error("A IA não encontrou clientes válidos para cadastrar.");
+      if (requested.length === 0)
+        throw new Error("A IA não encontrou clientes válidos para cadastrar.");
 
       // Valida toda a lista antes da primeira gravação para evitar lote parcialmente inválido.
       for (const item of requested) {
@@ -123,8 +127,16 @@ export function createCustomersBatchTool(
         const duplicate = candidates.items.some((customer) => {
           const data = customer.toJSON();
           if (item.email && normalized(data.email) === normalized(item.email)) return true;
-          if (item.phone && [data.phone, data.mobile].some((phone) => canonicalPhone(phone) === canonicalPhone(item.phone))) return true;
-          return !item.email && !item.phone && normalized(customer.displayName) === normalized(name);
+          if (
+            item.phone &&
+            [data.phone, data.mobile].some(
+              (phone) => canonicalPhone(phone) === canonicalPhone(item.phone),
+            )
+          )
+            return true;
+          return (
+            !item.email && !item.phone && normalized(customer.displayName) === normalized(name)
+          );
         });
         if (duplicate) {
           skipped.push({ name, reason: "já existe no CRM" });

@@ -8,6 +8,7 @@ import { ApiKeyApplicationService } from "@/features/configuracoes/application/a
 import {
   SettingsApplicationService,
   type SettingsView,
+  type ActivationStatus,
 } from "@/features/configuracoes/application/settings-service";
 import type {
   UpdateProfileInput,
@@ -19,6 +20,7 @@ import type {
 } from "@/features/configuracoes/schema";
 
 const settingsKey = (org: string) => ["settings", org] as const;
+const activationKey = (org: string) => ["settings", org, "activation"] as const;
 const webhooksKey = (org: string) => ["settings", org, "webhooks"] as const;
 const apiKeysKey = (org: string) => ["settings", org, "api-keys"] as const;
 const apiScopesKey = ["settings", "api-scopes"] as const;
@@ -27,12 +29,14 @@ async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promi
   if (error && typeof error === "object" && "context" in error) {
     const context = (error as { context?: unknown }).context;
     if (context instanceof Response) {
-      const payload = await context.clone().json().catch(() => null) as
-        | { error?: unknown; detail?: unknown }
-        | null;
-      const detail = payload?.detail && typeof payload.detail === "object"
-        ? JSON.stringify(payload.detail)
-        : payload?.detail;
+      const payload = (await context
+        .clone()
+        .json()
+        .catch(() => null)) as { error?: unknown; detail?: unknown } | null;
+      const detail =
+        payload?.detail && typeof payload.detail === "object"
+          ? JSON.stringify(payload.detail)
+          : payload?.detail;
       if (typeof payload?.error === "string") {
         return detail ? `${payload.error}: ${String(detail)}` : payload.error;
       }
@@ -72,6 +76,17 @@ export function useSettings() {
     queryKey: settingsKey(org ?? "none"),
     enabled: Boolean(org),
     queryFn: () => makeService(session!).getSettings(),
+  });
+}
+
+export function useActivationStatus() {
+  const session = useSession();
+  const org = session?.activeOrganization?.organizationId ?? null;
+  return useQuery<ActivationStatus>({
+    queryKey: activationKey(org ?? "none"),
+    enabled: Boolean(org),
+    refetchInterval: 15_000,
+    queryFn: () => makeService(session!).getActivationStatus(),
   });
 }
 
@@ -121,22 +136,26 @@ export function useConnectWhatsApp() {
   return useMutation({
     ...mutationDefaults,
     mutationFn: async (input: ConnectWhatsAppInput) => {
-      const { data, error } = await getSupabaseBrowserClient().functions.invoke("whatsapp-connect", {
-        body: {
-          organizationId: org,
-          mode: "manual",
-          accessToken: input.accessToken,
-          wabaId: input.wabaId,
-          phoneNumberId: input.phoneNumberId,
+      const { data, error } = await getSupabaseBrowserClient().functions.invoke(
+        "whatsapp-connect",
+        {
+          body: {
+            organizationId: org,
+            mode: "manual",
+            accessToken: input.accessToken,
+            wabaId: input.wabaId,
+            phoneNumberId: input.phoneNumberId,
+          },
         },
-      });
+      );
       if (error) {
         throw new InfrastructureError(
           await edgeFunctionErrorMessage(error, "Falha ao conectar o WhatsApp."),
           { cause: error },
         );
       }
-      if (!data?.ok) throw new InfrastructureError(String(data?.error ?? "Falha ao conectar o WhatsApp."));
+      if (!data?.ok)
+        throw new InfrastructureError(String(data?.error ?? "Falha ao conectar o WhatsApp."));
       return data;
     },
     onSuccess: () => {

@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/core/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ReportsApplicationService, type ReportsMetrics } from "@/features/relatorios/application/reports-service";
+import {
+  ReportsApplicationService,
+  type ReportsMetrics,
+} from "@/features/relatorios/application/reports-service";
 
 export function useReports() {
   const session = useSession();

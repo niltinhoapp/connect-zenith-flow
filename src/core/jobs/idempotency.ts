@@ -8,7 +8,11 @@ export type AcquireKey = (key: string) => Promise<boolean>;
  * Executa `fn` no máximo uma vez por `key`. Retorna false se já foi executada
  * (chave já adquirida) — o handler deve tratar como "já processado".
  */
-export async function withIdempotency(acquire: AcquireKey, key: string, fn: () => Promise<void>): Promise<boolean> {
+export async function withIdempotency(
+  acquire: AcquireKey,
+  key: string,
+  fn: () => Promise<void>,
+): Promise<boolean> {
   const acquired = await acquire(key);
   if (!acquired) return false;
   await fn();

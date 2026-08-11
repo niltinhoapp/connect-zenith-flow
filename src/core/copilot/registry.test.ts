@@ -8,10 +8,7 @@ import {
   replaceCopilotTools,
   registerCopilotTool,
 } from "@/core/copilot/registry";
-import type {
-  CopilotAuditWriter,
-  CopilotExecutionContext,
-} from "@/core/copilot/types";
+import type { CopilotAuditWriter, CopilotExecutionContext } from "@/core/copilot/types";
 
 const context: CopilotExecutionContext = {
   organizationId: "org-1",
@@ -47,9 +44,7 @@ describe("Core · Copilot tool registry", () => {
       },
     });
 
-    expect(listCopilotTools(context).map((tool) => tool.name)).toEqual([
-      "crm.pipeline.summary",
-    ]);
+    expect(listCopilotTools(context).map((tool) => tool.name)).toEqual(["crm.pipeline.summary"]);
   });
 
   it("executa leitura autorizada usando o contexto confiável da sessão", async () => {
@@ -89,10 +84,7 @@ describe("Core · Copilot tool registry", () => {
     });
 
     await expect(
-      executeCopilotTool(
-        { tool: "whatsapp.message.send", input: { body: "Olá" } },
-        context,
-      ),
+      executeCopilotTool({ tool: "whatsapp.message.send", input: { body: "Olá" } }, context),
     ).rejects.toMatchObject({ code: "CONFIRMATION_REQUIRED" });
 
     await expect(
@@ -117,10 +109,7 @@ describe("Core · Copilot tool registry", () => {
     });
 
     await expect(
-      executeCopilotTool(
-        { tool: "crm.deal.update", input: {}, confirmed: true },
-        context,
-      ),
+      executeCopilotTool({ tool: "crm.deal.update", input: {}, confirmed: true }, context),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 

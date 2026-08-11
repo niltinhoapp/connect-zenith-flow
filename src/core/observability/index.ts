@@ -24,7 +24,9 @@ export interface TracingProvider {
 /** Provider default (console) — trocável por OTel/Sentry via setTracingProvider. */
 export class ConsoleTracingProvider implements TracingProvider {
   record(t: TraceRecord): void {
-    console.debug(`[trace] ${t.operation} ${t.status} ${t.durationMs}ms trace=${t.traceId} org=${t.organizationId ?? "-"}`);
+    console.debug(
+      `[trace] ${t.operation} ${t.status} ${t.durationMs}ms trace=${t.traceId} org=${t.organizationId ?? "-"}`,
+    );
   }
 }
 
@@ -58,7 +60,12 @@ export function newTraceId(): string {
  * Rethrow preserva o erro; a UI/serviço trata normalmente.
  */
 export async function traced<T>(
-  ctx: { organizationId: string | null; operation: string; traceId?: string; correlationId?: string },
+  ctx: {
+    organizationId: string | null;
+    operation: string;
+    traceId?: string;
+    correlationId?: string;
+  },
   fn: () => Promise<T>,
 ): Promise<T> {
   const traceId = ctx.traceId ?? newTraceId();

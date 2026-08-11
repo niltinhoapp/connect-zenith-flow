@@ -27,7 +27,11 @@ async function validSignature(raw: string, header: string | null): Promise<boole
   if (!APP_SECRET) return true; // sem segredo configurado ainda: não bloqueia (pré-credencial)
   if (!header?.startsWith("sha256=")) return false;
   const key = await crypto.subtle.importKey(
-    "raw", enc.encode(APP_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    "raw",
+    enc.encode(APP_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(raw));
   const expected = toHex(sig);
@@ -53,17 +57,28 @@ function bodyOf(msg: Obj, type: string): string | null {
 
 const MEDIA_TYPES = ["image", "audio", "document", "video", "sticker"];
 /** Extrai id/mime/filename de uma mensagem de mídia; null se não for mídia. */
-function mediaOf(msg: Obj, type: string): { id: string; mime: string; filename: string | null } | null {
+function mediaOf(
+  msg: Obj,
+  type: string,
+): { id: string; mime: string; filename: string | null } | null {
   if (!MEDIA_TYPES.includes(type)) return null;
   const m = obj((msg as Obj)[type]);
   const id = m.id ? String(m.id) : "";
   if (!id) return null;
-  return { id, mime: m.mime_type ? String(m.mime_type) : "", filename: m.filename ? String(m.filename) : null };
+  return {
+    id,
+    mime: m.mime_type ? String(m.mime_type) : "",
+    filename: m.filename ? String(m.filename) : null,
+  };
 }
 
 async function handlePost(raw: string): Promise<Response> {
   let payload: Obj;
-  try { payload = obj(JSON.parse(raw)); } catch { return new Response("bad json", { status: 400 }); }
+  try {
+    payload = obj(JSON.parse(raw));
+  } catch {
+    return new Response("bad json", { status: 400 });
+  }
 
   for (const entry of arr(payload.entry)) {
     for (const change of arr(obj(entry).changes)) {
@@ -72,32 +87,48 @@ async function handlePost(raw: string): Promise<Response> {
       if (!phoneNumberId) continue;
 
       // Roteia ao tenant pelo phone_number_id (Meta) → org + número interno.
-      const { data: resolved } = await admin.rpc("wa_resolve_phone", { p_phone_number_id: phoneNumberId });
+      const { data: resolved } = await admin.rpc("wa_resolve_phone", {
+        p_phone_number_id: phoneNumberId,
+      });
       if (!resolved) continue; // número não conectado a nenhuma org: ignora
       const org = (resolved as Obj).organization_id as string;
       const phoneId = (resolved as Obj).phone_id as string;
 
       const contacts = arr(value.contacts).map(obj);
-      const contactName = contacts.length ? String(obj(contacts[0].profile).name ?? "") || null : null;
+      const contactName = contacts.length
+        ? String(obj(contacts[0].profile).name ?? "") || null
+        : null;
 
       // Mensagens recebidas (texto inalterado; mídia é aditiva)
       for (const raw2 of arr(value.messages).map(obj)) {
         const type = String(raw2.type ?? "text");
         const wamid = String(raw2.id ?? "");
         const { data: msgId } = await admin.rpc("wa_ingest_inbound", {
-          p_org: org, p_phone_number_id: phoneId, p_contact_wa_id: String(raw2.from ?? ""),
-          p_contact_name: contactName, p_wa_message_id: wamid, p_type: type,
-          p_body: bodyOf(raw2, type), p_payload: raw2,
+          p_org: org,
+          p_phone_number_id: phoneId,
+          p_contact_wa_id: String(raw2.from ?? ""),
+          p_contact_name: contactName,
+          p_wa_message_id: wamid,
+          p_type: type,
+          p_body: bodyOf(raw2, type),
+          p_payload: raw2,
         });
         await admin.rpc("wa_log_webhook", {
-          p_org: org, p_provider: "meta", p_event_type: "message", p_external_id: wamid, p_payload: raw2,
+          p_org: org,
+          p_provider: "meta",
+          p_event_type: "message",
+          p_external_id: wamid,
+          p_payload: raw2,
         });
         // Mídia inbound: registra + enfileira o download (idempotente por external id).
         const media = mediaOf(raw2, type);
         if (media && msgId) {
           await admin.rpc("wa_register_inbound_media", {
-            p_org: org, p_message_id: msgId as string, p_external_media_id: media.id,
-            p_mime: media.mime, p_filename: media.filename,
+            p_org: org,
+            p_message_id: msgId as string,
+            p_external_media_id: media.id,
+            p_mime: media.mime,
+            p_filename: media.filename,
           });
         }
       }
@@ -109,13 +140,20 @@ async function handlePost(raw: string): Promise<Response> {
         const wamid = String(st.id ?? "");
         const ts = Number(st.timestamp);
         await admin.rpc("wa_apply_status", {
-          p_org: org, p_wa_message_id: wamid, p_status: status,
-          p_occurred_at: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : new Date().toISOString(),
+          p_org: org,
+          p_wa_message_id: wamid,
+          p_status: status,
+          p_occurred_at: Number.isFinite(ts)
+            ? new Date(ts * 1000).toISOString()
+            : new Date().toISOString(),
           p_raw: st,
         });
         await admin.rpc("wa_log_webhook", {
-          p_org: org, p_provider: "meta", p_event_type: "status:" + status,
-          p_external_id: wamid + ":" + status, p_payload: st,
+          p_org: org,
+          p_provider: "meta",
+          p_event_type: "status:" + status,
+          p_external_id: wamid + ":" + status,
+          p_payload: st,
         });
       }
     }

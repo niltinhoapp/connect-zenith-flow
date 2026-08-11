@@ -73,7 +73,10 @@ export function AudioPlayer({
           )}
         >
           <div
-            className={cn("h-full rounded-full", onPrimary ? "bg-primary-foreground" : "bg-primary")}
+            className={cn(
+              "h-full rounded-full",
+              onPrimary ? "bg-primary-foreground" : "bg-primary",
+            )}
             style={{ width: `${pct}%` }}
           />
         </div>

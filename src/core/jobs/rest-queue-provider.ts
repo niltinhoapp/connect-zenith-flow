@@ -14,7 +14,11 @@ export class RestQueueProvider implements QueueProvider {
   private async rpc<T>(name: string, body: unknown): Promise<T> {
     const r = await fetch(`${this.url}/rest/v1/rpc/${name}`, {
       method: "POST",
-      headers: { apikey: this.serviceKey, Authorization: `Bearer ${this.serviceKey}`, "Content-Type": "application/json" },
+      headers: {
+        apikey: this.serviceKey,
+        Authorization: `Bearer ${this.serviceKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(`RPC ${name} ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -23,16 +27,24 @@ export class RestQueueProvider implements QueueProvider {
 
   async enqueue(input: EnqueueInput): Promise<string> {
     return this.rpc<string>("enqueue_job", {
-      p_org: input.organizationId, p_type: input.type, p_payload: input.payload ?? {},
-      p_available_at: input.availableAt, p_priority: input.priority, p_max_attempts: input.maxAttempts,
-      p_trace_id: input.traceId, p_correlation_id: input.correlationId,
-      p_idempotency_key: input.idempotencyKey, p_payload_version: input.payloadVersion,
+      p_org: input.organizationId,
+      p_type: input.type,
+      p_payload: input.payload ?? {},
+      p_available_at: input.availableAt,
+      p_priority: input.priority,
+      p_max_attempts: input.maxAttempts,
+      p_trace_id: input.traceId,
+      p_correlation_id: input.correlationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_payload_version: input.payloadVersion,
     });
   }
 
   async claim(worker: string, limit: number, leaseSeconds: number): Promise<Job[]> {
     const rows = await this.rpc<Array<Record<string, unknown>>>("claim_jobs", {
-      p_worker: worker, p_limit: limit, p_lease_seconds: leaseSeconds,
+      p_worker: worker,
+      p_limit: limit,
+      p_lease_seconds: leaseSeconds,
     });
     return (rows ?? []).map((r) => ({
       id: r.id as string,

@@ -1,15 +1,29 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  Sparkles, Send, Plus, Wand2, BarChart3, Users, BriefcaseBusiness,
-  Loader2, ShieldAlert, ArrowRight,
+  Sparkles,
+  Send,
+  Plus,
+  Wand2,
+  BarChart3,
+  Users,
+  BriefcaseBusiness,
+  Loader2,
+  ShieldAlert,
+  ArrowRight,
 } from "lucide-react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useCopilot } from "@/components/copilot/use-copilot";
@@ -65,7 +79,9 @@ function IAPage() {
     }
     const tool = tools.find((item) => item.name === prepared.action);
     if (!tool) {
-      setAnswer("Essa ação não está disponível para seu perfil ou para os módulos ativos da empresa.");
+      setAnswer(
+        "Essa ação não está disponível para seu perfil ou para os módulos ativos da empresa.",
+      );
       return;
     }
     setAnswer(prepared.message);
@@ -94,7 +110,9 @@ function IAPage() {
                 .map((tool) => (
                   <li key={tool.name} className="rounded-lg border border-border bg-background p-3">
                     <p className="text-xs font-medium">{tool.title}</p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{tool.description}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {tool.description}
+                    </p>
                   </li>
                 ))}
             </ul>
@@ -117,10 +135,14 @@ function IAPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold">ConnectWeb Copilot</p>
-                <p className="text-[11px] text-muted-foreground">Conectado aos dados da empresa ativa</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Conectado aos dados da empresa ativa
+                </p>
               </div>
             </div>
-            <Badge className="rounded-md border-0 bg-success/15 text-[11px] text-success">Ativo</Badge>
+            <Badge className="rounded-md border-0 bg-success/15 text-[11px] text-success">
+              Ativo
+            </Badge>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8">
@@ -131,7 +153,9 @@ function IAPage() {
                     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
                       <Sparkles className="h-6 w-6" />
                     </div>
-                    <h2 className="mt-4 text-2xl font-semibold tracking-tight">Como posso ajudar hoje?</h2>
+                    <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                      Como posso ajudar hoje?
+                    </h2>
                     <p className="mt-2 text-sm text-muted-foreground">
                       Consulte seu painel, clientes, relatórios e CRM ou prepare novos contatos.
                     </p>
@@ -141,7 +165,10 @@ function IAPage() {
                       <button
                         key={suggestion.text}
                         className="group flex items-start gap-3 rounded-xl border border-border bg-background p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40"
-                        onClick={() => { setPrompt(suggestion.text); void submit(suggestion.text); }}
+                        onClick={() => {
+                          setPrompt(suggestion.text);
+                          void submit(suggestion.text);
+                        }}
                       >
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20">
                           <suggestion.icon className="h-4 w-4" />
@@ -158,13 +185,23 @@ function IAPage() {
                   </div>
                   <div className="flex gap-3">
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
-                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {busy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
                     </div>
-                    <div className={cn(
-                      "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-md px-4 py-3 text-sm",
-                      state.error || promptError ? "bg-destructive/10 text-destructive" : "bg-muted/60 text-foreground",
-                    )}>
-                      {busy ? "Estou consultando os dados e preparando uma resposta…" : response ?? "Pedido preparado para sua confirmação."}
+                    <div
+                      className={cn(
+                        "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tl-md px-4 py-3 text-sm",
+                        state.error || promptError
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-muted/60 text-foreground",
+                      )}
+                    >
+                      {busy
+                        ? "Estou consultando os dados e preparando uma resposta…"
+                        : (response ?? "Pedido preparado para sua confirmação.")}
                       {state.result?.navigateTo && (
                         <Button
                           size="sm"
@@ -213,7 +250,12 @@ function IAPage() {
         </section>
       </div>
 
-      <AlertDialog open={Boolean(state.pendingConfirm)} onOpenChange={(open) => { if (!open) cancelConfirm(); }}>
+      <AlertDialog
+        open={Boolean(state.pendingConfirm)}
+        onOpenChange={(open) => {
+          if (!open) cancelConfirm();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -221,7 +263,11 @@ function IAPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               <span className="block">
-                A ação <span className="font-medium text-foreground">{state.pendingConfirm?.tool.title}</span> fará alterações.
+                A ação{" "}
+                <span className="font-medium text-foreground">
+                  {state.pendingConfirm?.tool.title}
+                </span>{" "}
+                fará alterações.
               </span>
               {state.pendingConfirm?.preview && (
                 <span className="mt-3 block max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-foreground">

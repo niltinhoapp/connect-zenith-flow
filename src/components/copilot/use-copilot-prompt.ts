@@ -9,14 +9,17 @@ export interface CopilotPreparedIntent {
 }
 
 async function functionError(error: unknown): Promise<string> {
-  const fallback = error instanceof Error ? error.message : "Não foi possível interpretar seu pedido.";
+  const fallback =
+    error instanceof Error ? error.message : "Não foi possível interpretar seu pedido.";
   try {
     const response = (error as { context?: Response })?.context;
     if (response && typeof response.clone === "function") {
       const body = await response.clone().json();
       return String(body?.error ?? fallback);
     }
-  } catch { /* mantém fallback */ }
+  } catch {
+    /* mantém fallback */
+  }
   return fallback;
 }
 
@@ -29,14 +32,27 @@ export function useCopilotPrompt(organizationId: string | null) {
     setInterpreting(true);
     setError(null);
     try {
-      const { data, error: invokeError } = await getSupabaseBrowserClient().functions.invoke("ai-copilot-intent", {
-        body: { prompt: prompt.trim(), organizationId },
-      });
+      const { data, error: invokeError } = await getSupabaseBrowserClient().functions.invoke(
+        "ai-copilot-intent",
+        {
+          body: { prompt: prompt.trim(), organizationId },
+        },
+      );
       if (invokeError) throw invokeError;
-      if (!data || typeof data !== "object") throw new Error("A IA retornou uma resposta inválida.");
+      if (!data || typeof data !== "object")
+        throw new Error("A IA retornou uma resposta inválida.");
       const prepared = data as CopilotPreparedIntent;
       if (prepared.action === "clientes.create.batch") {
-        const customers = (prepared.input as { customers?: Array<{ firstName?: string; lastName?: string | null; email?: string | null; phone?: string | null }> })?.customers;
+        const customers = (
+          prepared.input as {
+            customers?: Array<{
+              firstName?: string;
+              lastName?: string | null;
+              email?: string | null;
+              phone?: string | null;
+            }>;
+          }
+        )?.customers;
         if (!Array.isArray(customers) || customers.length === 0 || customers.length > 20) {
           throw new Error("A IA não preparou uma lista válida de clientes.");
         }

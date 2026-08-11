@@ -6,10 +6,7 @@
  * A leitura (UI de consulta) chega em fase futura; aqui ficam apenas os tipos.
  */
 export type AuditAction =
-  | "organization.created"
-  | "organization.switched"
-  | "role.created"
-  | (string & {});
+  "organization.created" | "organization.switched" | "role.created" | (string & {});
 
 export type AuditLogEntry = {
   id: string;

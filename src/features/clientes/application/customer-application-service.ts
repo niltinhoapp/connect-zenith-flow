@@ -40,7 +40,9 @@ export class CustomerApplicationService {
     if (!this.db) return;
     try {
       await publishDurable(this.db, name, { organizationId: this.ctx.organizationId, customerId });
-    } catch { /* não bloqueia a criação do cliente se o relay falhar */ }
+    } catch {
+      /* não bloqueia a criação do cliente se o relay falhar */
+    }
   }
 
   private ensureEnabled() {
@@ -48,58 +50,77 @@ export class CustomerApplicationService {
   }
 
   list(filter?: CustomerFilter): Promise<Paginated<Customer>> {
-    return guard(() => {
-      this.ensureEnabled();
-      return this.repo.findMany(filter);
-    }, { service: "customer.list" });
+    return guard(
+      () => {
+        this.ensureEnabled();
+        return this.repo.findMany(filter);
+      },
+      { service: "customer.list" },
+    );
   }
 
   get(id: string): Promise<Customer> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const customer = await this.repo.findById(id);
-      if (!customer) throw new NotFoundError("Cliente não encontrado");
-      return customer;
-    }, { service: "customer.get", id });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const customer = await this.repo.findById(id);
+        if (!customer) throw new NotFoundError("Cliente não encontrado");
+        return customer;
+      },
+      { service: "customer.get", id },
+    );
   }
 
   create(input: Omit<CreateCustomerInput, "organizationId">): Promise<Customer> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const customer = Customer.create({ ...input, organizationId: this.ctx.organizationId });
-      const saved = await this.repo.create(customer);
-      await eventBus.publish("customer.created", {
-        organizationId: saved.organizationId,
-        customerId: saved.id,
-      });
-      await this.publishDurable("customer.created", saved.id);
-      return saved;
-    }, { service: "customer.create" });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const customer = Customer.create({ ...input, organizationId: this.ctx.organizationId });
+        const saved = await this.repo.create(customer);
+        await eventBus.publish("customer.created", {
+          organizationId: saved.organizationId,
+          customerId: saved.id,
+        });
+        await this.publishDurable("customer.created", saved.id);
+        return saved;
+      },
+      { service: "customer.create" },
+    );
   }
 
   update(id: string, changes: UpdateCustomerInput): Promise<Customer> {
-    return guard(async () => {
-      this.ensureEnabled();
-      const customer = await this.repo.findById(id);
-      if (!customer) throw new NotFoundError("Cliente não encontrado");
-      if (changes.status !== undefined) customer.changeStatus(changes.status);
-      if (changes.email !== undefined || changes.phone !== undefined || changes.mobile !== undefined) {
-        customer.updateContact(changes);
-      }
-      const saved = await this.repo.update(customer);
-      await eventBus.publish("customer.updated", {
-        organizationId: saved.organizationId,
-        customerId: saved.id,
-      });
-      await this.publishDurable("customer.updated", saved.id);
-      return saved;
-    }, { service: "customer.update", id });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        const customer = await this.repo.findById(id);
+        if (!customer) throw new NotFoundError("Cliente não encontrado");
+        if (changes.status !== undefined) customer.changeStatus(changes.status);
+        if (
+          changes.email !== undefined ||
+          changes.phone !== undefined ||
+          changes.mobile !== undefined
+        ) {
+          customer.updateContact(changes);
+        }
+        const saved = await this.repo.update(customer);
+        await eventBus.publish("customer.updated", {
+          organizationId: saved.organizationId,
+          customerId: saved.id,
+        });
+        await this.publishDurable("customer.updated", saved.id);
+        return saved;
+      },
+      { service: "customer.update", id },
+    );
   }
 
   remove(id: string): Promise<void> {
-    return guard(async () => {
-      this.ensureEnabled();
-      await this.repo.delete(id);
-    }, { service: "customer.remove", id });
+    return guard(
+      async () => {
+        this.ensureEnabled();
+        await this.repo.delete(id);
+      },
+      { service: "customer.remove", id },
+    );
   }
 }

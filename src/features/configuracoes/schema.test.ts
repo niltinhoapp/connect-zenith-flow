@@ -12,7 +12,10 @@ describe("createApiKeySchema", () => {
   });
 
   it("aceita chave sem expiração", () => {
-    expect(createApiKeySchema.safeParse({ name: "ERP", scopes: ["deals:read"], expiresAt: null }).success).toBe(true);
+    expect(
+      createApiKeySchema.safeParse({ name: "ERP", scopes: ["deals:read"], expiresAt: null })
+        .success,
+    ).toBe(true);
   });
 
   it("rejeita chave sem escopo e nome vazio", () => {

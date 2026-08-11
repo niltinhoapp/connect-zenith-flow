@@ -10,23 +10,28 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: { ...CORS, "Content-Type": "application/json" },
-});
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
 
 const INTENT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    action: { type: "string", enum: [
-      "dashboard.metrics.read",
-      "clientes.overview.read",
-      "crm.pipeline.read",
-      "relatorios.overview.read",
-      "clientes.create.batch",
-      "none",
-    ] },
+    action: {
+      type: "string",
+      enum: [
+        "dashboard.metrics.read",
+        "clientes.overview.read",
+        "crm.pipeline.read",
+        "relatorios.overview.read",
+        "clientes.create.batch",
+        "onboarding.activation.read",
+        "none",
+      ],
+    },
     message: { type: "string" },
     preview: { type: "string" },
     customers: {
@@ -58,6 +63,7 @@ Interprete o pedido e use interpret_request. Ações disponíveis:
 - crm.pipeline.read: análise do funil, negócios e oportunidades;
 - relatorios.overview.read: visão geral dos relatórios;
 - clientes.create.batch: cadastrar/criar clientes ou contatos.
+- onboarding.activation.read: responder sobre primeiros passos, onboarding, progresso de ativação ou "o que faço agora?" usando dados reais.
 
 REGRAS:
 - Escolha exatamente uma ação que melhor responda ao pedido.
@@ -72,7 +78,8 @@ REGRAS:
 - Não execute nada. Você só prepara uma proposta que exigirá confirmação humana.`;
 
 function cleanCustomer(raw: Record<string, unknown>) {
-  const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
+  const text = (value: unknown, max: number) =>
+    typeof value === "string" ? value.trim().slice(0, max) : "";
   const nullable = (value: unknown, max: number) => text(value, max) || null;
   const allowedStatus = new Set(["active", "inactive", "prospect", "vip"]);
   const status = text(raw.status, 20);
@@ -83,7 +90,10 @@ function cleanCustomer(raw: Record<string, unknown>) {
     phone: nullable(raw.phone, 30),
     status: allowedStatus.has(status) ? status : "prospect",
     tags: Array.isArray(raw.tags)
-      ? raw.tags.map((tag) => text(tag, 50)).filter(Boolean).slice(0, 8)
+      ? raw.tags
+          .map((tag) => text(tag, 50))
+          .filter(Boolean)
+          .slice(0, 8)
       : [],
     notes: nullable(raw.notes, 500),
   };
@@ -98,7 +108,11 @@ Deno.serve(async (req) => {
   if (!authorization) return json({ error: "unauthorized" }, 401);
 
   let body: { prompt?: string; organizationId?: string };
-  try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "bad json" }, 400);
+  }
   const prompt = String(body.prompt ?? "").trim();
   const organizationId = String(body.organizationId ?? "");
   if (prompt.length < 3 || prompt.length > 4_000) return json({ error: "pedido inválido" }, 400);
@@ -130,11 +144,13 @@ Deno.serve(async (req) => {
         max_tokens: 3_000,
         thinking: { type: "disabled" },
         system: SYSTEM,
-        tools: [{
-          name: "interpret_request",
-          description: "Prepara uma ação segura do Copiloto para confirmação humana.",
-          input_schema: INTENT_SCHEMA,
-        }],
+        tools: [
+          {
+            name: "interpret_request",
+            description: "Prepara uma ação segura do Copiloto para confirmação humana.",
+            input_schema: INTENT_SCHEMA,
+          },
+        ],
         tool_choice: { type: "tool", name: "interpret_request" },
         messages: [{ role: "user", content: prompt }],
       }),
@@ -144,7 +160,10 @@ Deno.serve(async (req) => {
     const block = (data.content ?? []).find((item: { type?: string }) => item.type === "tool_use");
     if (!block?.input) throw new Error("A IA não conseguiu interpretar o pedido.");
 
-    const credits = Math.max(1, Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0));
+    const credits = Math.max(
+      1,
+      Number(data.usage?.input_tokens ?? 0) + Number(data.usage?.output_tokens ?? 0),
+    );
     const { data: consumed, error: quotaError } = await supabase.rpc("try_consume_quota", {
       p_org: organizationId,
       p_resource: "ai_credits",
@@ -160,12 +179,18 @@ Deno.serve(async (req) => {
       "crm.pipeline.read",
       "relatorios.overview.read",
       "clientes.create.batch",
+      "onboarding.activation.read",
     ]);
     const action = allowedActions.has(String(input.action)) ? String(input.action) : "none";
-    const customers = action === "clientes.create.batch" && Array.isArray(input.customers)
-      ? input.customers.map((item: Record<string, unknown>) => cleanCustomer(item)).filter((item) => item.firstName).slice(0, 20)
-      : [];
-    const finalAction = action === "clientes.create.batch" && customers.length === 0 ? "none" : action;
+    const customers =
+      action === "clientes.create.batch" && Array.isArray(input.customers)
+        ? input.customers
+            .map((item: Record<string, unknown>) => cleanCustomer(item))
+            .filter((item) => item.firstName)
+            .slice(0, 20)
+        : [];
+    const finalAction =
+      action === "clientes.create.batch" && customers.length === 0 ? "none" : action;
     return json({
       action: finalAction,
       message: String(input.message ?? "Pedido interpretado."),

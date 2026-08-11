@@ -38,7 +38,8 @@ export function useCreateDeal() {
   const qc = useQueryClient();
   return useMutation({
     ...mutationDefaults,
-    mutationFn: (input: Omit<CreateDealInput, "organizationId">) => makeService(session!).create(input),
+    mutationFn: (input: Omit<CreateDealInput, "organizationId">) =>
+      makeService(session!).create(input),
     onSuccess: () => {
       if (org) qc.invalidateQueries({ queryKey: queryKeys.deals.all(org) });
     },

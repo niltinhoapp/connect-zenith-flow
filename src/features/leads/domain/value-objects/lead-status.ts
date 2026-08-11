@@ -8,7 +8,10 @@ export class LeadStatus extends ValueObject<LeadStatusValue> {
     super(value);
   }
   static create(raw: string): LeadStatus {
-    invariant((LEAD_STATUSES as readonly string[]).includes(raw), `Status de lead inválido: ${raw}`);
+    invariant(
+      (LEAD_STATUSES as readonly string[]).includes(raw),
+      `Status de lead inválido: ${raw}`,
+    );
     return new LeadStatus(raw as LeadStatusValue);
   }
 }

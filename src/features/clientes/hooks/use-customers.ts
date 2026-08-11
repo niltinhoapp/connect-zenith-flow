@@ -20,11 +20,15 @@ import {
 function makeService(session: AuthSession): CustomerApplicationService {
   const db = getSupabaseBrowserClient();
   const repo = new CustomerSupabaseRepository(db);
-  return new CustomerApplicationService(repo, {
-    organizationId: session.activeOrganization!.organizationId,
-    actorId: session.user.id,
-    enabledModules: session.enabledModules,
-  }, db);
+  return new CustomerApplicationService(
+    repo,
+    {
+      organizationId: session.activeOrganization!.organizationId,
+      actorId: session.user.id,
+      enabledModules: session.enabledModules,
+    },
+    db,
+  );
 }
 
 export function useCustomers(filter?: CustomerFilter) {
@@ -55,7 +59,8 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
     ...mutationDefaults,
-    mutationFn: (input: Omit<CreateCustomerInput, "organizationId">) => makeService(session!).create(input),
+    mutationFn: (input: Omit<CreateCustomerInput, "organizationId">) =>
+      makeService(session!).create(input),
     onSuccess: () => {
       if (org) qc.invalidateQueries({ queryKey: queryKeys.customers.all(org) });
     },
