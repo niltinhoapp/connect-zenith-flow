@@ -98,7 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     if (session && !session.mfaRequired && location.pathname === MFA_PATH) {
       throw redirect({ to: "/" });
     }
-    if (session && isPublic) {
+    if (session && isPublic && location.pathname !== "/recuperar-senha") {
       throw redirect({ to: "/" });
     }
     return { session };
