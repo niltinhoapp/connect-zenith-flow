@@ -203,7 +203,7 @@ function WhatsAppPage() {
       setCopilotFocus(null);
     }
     return () => setCopilotFocus(null);
-  }, [selected?.id, selected?.contactName, selected?.contactWaId, setCopilotFocus]);
+  }, [selected, setCopilotFocus]);
 
   return (
     <AppLayout>
@@ -514,8 +514,7 @@ function ConversationView({ conversation }: { conversation: ConversationProps })
   const outboundMediaCount = messages.filter((m) => m.direction === "outbound" && m.mediaId).length;
   const prevOutboundMediaRef = useRef(0);
   useEffect(() => {
-    if (outboundMediaCount > prevOutboundMediaRef.current && localSent.length) setLocalSent([]);
-    prevOutboundMediaRef.current = outboundMediaCount;
+    if (outboundMediaCount > prevOutbound…17 tokens truncated…boundMediaRef.current = outboundMediaCount;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outboundMediaCount]);
 
