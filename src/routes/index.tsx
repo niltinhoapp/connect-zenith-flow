@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowUpRight,
   Users,
   MessageCircle,
   Workflow,
   DollarSign,
-  Zap,
   CheckCircle2,
   Clock,
   Sparkles,
@@ -28,7 +26,6 @@ import { chartTooltipStyle } from "@/components/shared/chart-theme";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useSession } from "@/core/auth";
@@ -80,20 +77,7 @@ function DashboardPage() {
   const activity = m?.recentActivities ?? [];
 
   return (
-    <AppLayout
-      title="Dashboard"
-      subtitle="Aqui está o resumo do seu workspace."
-      actions={
-        <>
-          <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
-            Últimos 7 dias
-          </Button>
-          <Button className="h-9 rounded-lg bg-primary hover:bg-primary/90">
-            <Sparkles className="mr-1.5 h-4 w-4" /> Insights IA
-          </Button>
-        </>
-      }
-    >
+    <AppLayout title="Dashboard" subtitle="Aqui está o resumo do seu workspace.">
       {isError && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4">
           <p className="text-sm text-muted-foreground">Não foi possível carregar os indicadores.</p>
@@ -142,11 +126,6 @@ function DashboardPage() {
           className="xl:col-span-2"
           title="Receita & Leads"
           description="Comparativo dos últimos 7 dias"
-          action={
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground">
-              Exportar <ArrowUpRight className="ml-1 h-3 w-3" />
-            </Button>
-          }
         >
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -218,12 +197,8 @@ function DashboardPage() {
         </SectionCard>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <SectionCard
-          title="Atividade recente"
-          description="Últimas ações do workspace"
-          className="xl:col-span-2"
-        >
+      <div className="mt-6">
+        <SectionCard title="Atividade recente" description="Últimas ações do workspace">
           <ul className="divide-y divide-border">
             {isLoading &&
               Array.from({ length: 5 }).map((_, i) => (
@@ -270,38 +245,6 @@ function DashboardPage() {
                 </li>
               ))}
           </ul>
-        </SectionCard>
-
-        <SectionCard title="Metas do mês" description="Progresso do time comercial">
-          <div className="space-y-5">
-            {[
-              { l: "Receita", v: 72, s: "R$ 728k / R$ 1M" },
-              { l: "Novos clientes", v: 88, s: "422 / 480" },
-              { l: "Automações", v: 46, s: "23 / 50" },
-              { l: "SLA WhatsApp", v: 94, s: "94% em <2min" },
-            ].map((m) => (
-              <div key={m.l}>
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-medium text-foreground">{m.l}</span>
-                  <span className="text-muted-foreground tabular-nums">{m.s}</span>
-                </div>
-                <Progress value={m.v} className="h-1.5 bg-muted" />
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 rounded-xl border border-primary/25 bg-primary/5 p-4">
-            <div className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
-                <Zap className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Você está +12% acima da meta semanal</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Sugestão IA: ativar rotina de reengajamento em leads frios.
-                </p>
-              </div>
-            </div>
-          </div>
         </SectionCard>
       </div>
 

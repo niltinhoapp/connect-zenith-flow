@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Search, Filter, Download, ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { Plus, Search, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/app-layout";
 import { Button } from "@/components/ui/button";
@@ -62,10 +62,9 @@ type RowVM = {
   name: string;
   email: string;
   company: string;
-  plan: string;
   status: string;
   mrr: string;
-  city: string;
+  origin: string;
   tags: string[];
 };
 
@@ -76,10 +75,9 @@ function toRow(c: Customer): RowVM {
     name: c.displayName,
     email: p.email ?? "",
     company: p.companyName ?? "—",
-    plan: "—",
     status: statusLabel[p.status] ?? "Ativo",
     mrr: formatBRL(p.lifetimeValue),
-    city: p.originChannel ?? "—",
+    origin: p.originChannel ?? "—",
     tags: p.tags,
   };
 }
@@ -111,9 +109,6 @@ function ClientesPage() {
       subtitle={`${total.toLocaleString("pt-BR")} clientes`}
       actions={
         <>
-          <Button variant="outline" className="h-9 rounded-lg border-border bg-card">
-            <Download className="mr-1.5 h-4 w-4" /> Exportar
-          </Button>
           <Button
             onClick={() => setCreateOpen(true)}
             className="h-9 rounded-lg bg-primary hover:bg-primary/90"
@@ -157,13 +152,6 @@ function ClientesPage() {
                 className="h-9 w-full min-w-[220px] rounded-lg border-border bg-background pl-8 text-sm"
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg border-border bg-background"
-            >
-              <Filter className="mr-1.5 h-3.5 w-3.5" /> Filtros
-            </Button>
           </div>
         </div>
 
@@ -174,16 +162,11 @@ function ClientesPage() {
                 <th className="w-10 px-5 py-3">
                   <Checkbox />
                 </th>
-                <th className="px-4 py-3 font-medium">
-                  <button className="inline-flex items-center gap-1 hover:text-foreground">
-                    Cliente <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
+                <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Empresa</th>
-                <th className="px-4 py-3 font-medium">Plano</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">MRR</th>
-                <th className="px-4 py-3 font-medium">Localização</th>
+                <th className="px-4 py-3 font-medium">Origem</th>
                 <th className="px-4 py-3 font-medium">Tags</th>
                 <th className="w-12 px-5 py-3" />
               </tr>
@@ -208,9 +191,6 @@ function ClientesPage() {
                       <Skeleton className="h-3.5 w-24" />
                     </td>
                     <td className="px-4 py-3">
-                      <Skeleton className="h-5 w-14 rounded-md" />
-                    </td>
-                    <td className="px-4 py-3">
                       <Skeleton className="h-5 w-16 rounded-md" />
                     </td>
                     <td className="px-4 py-3">
@@ -228,7 +208,7 @@ function ClientesPage() {
 
               {isError && (
                 <tr className="border-b border-border/60 last:border-0">
-                  <td colSpan={9} className="px-5 py-12 text-center">
+                  <td colSpan={8} className="px-5 py-12 text-center">
                     <p className="text-sm text-muted-foreground">
                       Não foi possível carregar os clientes.
                     </p>
@@ -246,7 +226,7 @@ function ClientesPage() {
 
               {!isLoading && !isError && rows.length === 0 && (
                 <tr className="border-b border-border/60 last:border-0">
-                  <td colSpan={9} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-sm text-muted-foreground">
                     Nenhum cliente encontrado.
                   </td>
                 </tr>
@@ -285,14 +265,6 @@ function ClientesPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.company}</td>
                     <td className="px-4 py-3">
-                      <Badge
-                        variant="secondary"
-                        className="rounded-md border-0 bg-muted text-[11px] text-foreground"
-                      >
-                        {r.plan}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
@@ -303,7 +275,7 @@ function ClientesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 font-medium tabular-nums">{r.mrr}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.city}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.origin}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {r.tags.map((t) => (
