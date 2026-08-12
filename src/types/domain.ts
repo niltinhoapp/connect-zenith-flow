@@ -14,6 +14,8 @@
 
 export type ID = string;
 export type ISODateString = string;
+import type { MessageDirection } from "@/features/whatsapp/domain/entities/message";
+export type { MessageDirection } from "@/features/whatsapp/domain/entities/message";
 
 /** Base fields shared by every persisted record. */
 export interface BaseEntity {
@@ -77,7 +79,6 @@ export interface Deal extends BaseEntity, TenantScoped {
 
 /* --------------------------------------------------------------- WhatsApp */
 
-export type MessageDirection = "inbound" | "outbound";
 export type MessageChannel = "whatsapp" | "email" | "sms" | "web" | "api";
 
 export interface Conversation extends BaseEntity, TenantScoped {

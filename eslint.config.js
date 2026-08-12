@@ -36,5 +36,17 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/components/copilot/copilot-focus.tsx",
+      "src/core/auth/session.tsx",
+    ],
+    rules: {
+      // Esses módulos exportam componentes junto com variantes, hooks ou
+      // contextos por design; não são limites exclusivos de Fast Refresh.
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );
