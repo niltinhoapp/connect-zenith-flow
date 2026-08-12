@@ -52,10 +52,12 @@ export function useCopilot() {
     };
   }, [session]);
 
-  const tools: CopilotToolSummary[] = useMemo(
-    () => (context ? listCopilotTools(context) : []),
-    [context, catalogVersion],
-  );
+  const tools: CopilotToolSummary[] = useMemo(() => {
+    // A versão muda quando o catálogo global recebe novas ferramentas.
+    // A leitura explícita mantém esta lista sincronizada com o registro.
+    void catalogVersion;
+    return context ? listCopilotTools(context) : [];
+  }, [context, catalogVersion]);
 
   const [state, setState] = useState<CopilotRunState>({
     running: null,
