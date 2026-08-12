@@ -71,12 +71,12 @@ import {
 function sendFailureHelp(error: Record<string, unknown> | null): string {
   const message = typeof error?.message === "string" ? error.message : "";
   if (message.includes("131005") || /access denied/i.test(message)) {
-    return "A Meta negou a permissão de envio. Reconecte usando um token com whatsapp_business_messaging e confirme que o número foi atribuído ao usuário do sistema.";
+    return "A conexão do WhatsApp perdeu a permissão para enviar mensagens. Peça a um administrador para reconectar o WhatsApp em Configurações.";
   }
   if (/authentication|token|oauth/i.test(message)) {
-    return "A Meta recusou a autenticação. Um administrador precisa reconectar o WhatsApp com um token permanente válido.";
+    return "A conexão do WhatsApp expirou. Peça a um administrador para reconectar o WhatsApp em Configurações.";
   }
-  return "A mensagem não foi enviada. Confira a conexão, a janela de atendimento e, fora de 24 horas, use um template aprovado.";
+  return "Não foi possível enviar a mensagem. Verifique sua conexão e tente de novo. Se o contato ficou mais de 24 horas sem responder, use um template aprovado.";
 }
 import {
   ACCEPTED_MEDIA,
